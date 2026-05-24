@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ParticleEffectData" format=3 uid="uid://d3hxngt38o78f"]
+
+[ext_resource type="Script" uid="uid://dadudmdb2nxw6" path="res://scripts/datatypes/particle_effect_data.gd" id="1_t7h4d"]
+[ext_resource type="PackedScene" uid="uid://dl1reit82ucwi" path="res://assets/particles/Rain.tscn" id="1_w6g60"]
+
+[resource]
+script = ExtResource("1_t7h4d")
+effect_id = "rain"
+display_name = "下雨"
+particle_scene = ExtResource("1_w6g60")
+metadata/_custom_type_script = "uid://dadudmdb2nxw6"

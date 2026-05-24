@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="CharacterData" format=3 uid="uid://bd5702micme23"]
+
+[ext_resource type="Texture2D" uid="uid://dwycexhiwwpfw" path="res://assets/characters/sister/default.png" id="1_b03fh"]
+[ext_resource type="Texture2D" uid="uid://dlx7vt4jidakm" path="res://assets/characters/sister/happy.png" id="2_iedpn"]
+[ext_resource type="Texture2D" uid="uid://b3prunqhyyx5q" path="res://assets/characters/sister/sad.png" id="3_jiwhw"]
+[ext_resource type="Texture2D" uid="uid://4olbrw5vp8sj" path="res://assets/characters/sister/angry.png" id="4_tyunm"]
+[ext_resource type="Script" uid="uid://fsylenqllr31" path="res://scripts/datatypes/character_data.gd" id="5_b03fh"]
+[ext_resource type="Texture2D" uid="uid://b7vvka2q2qpfy" path="res://assets/characters/sister/sister_por.png" id="5_iedpn"]
+
+[resource]
+script = ExtResource("5_b03fh")
+character_id = "sister"
+display_name = "妹妹"
+name_color = Color(1, 0.8039216, 1, 1)
+expressions = {
+"angry": ExtResource("4_tyunm"),
+"default": ExtResource("1_b03fh"),
+"happy": ExtResource("2_iedpn"),
+"sad": ExtResource("3_jiwhw")
+}
+portrait = ExtResource("5_iedpn")
+metadata/_custom_type_script = "uid://fsylenqllr31"

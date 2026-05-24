@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BackgroundData" format=3 uid="uid://cq1xgp0en1y6i"]
+
+[ext_resource type="FontFile" uid="uid://dnb6jjvxuy0x7" path="res://assets/fonts/SIMYOU.TTF" id="1_3rehn"]
+[ext_resource type="Script" uid="uid://bn1rl1bkkavgq" path="res://scripts/datatypes/background_data.gd" id="1_kkl86"]
+[ext_resource type="Texture2D" uid="uid://d0q7kkmpdu2y8" path="res://assets/backgrounds/gulou_winter.jpg" id="2_iiafa"]
+
+[resource]
+script = ExtResource("1_kkl86")
+background_id = "gulou_winter"
+display_name = "冬天·南大鼓楼校区"
+location_name = "鼓楼·冬"
+location_font = ExtResource("1_3rehn")
+location_font_size = 40
+texture = ExtResource("2_iiafa")
+metadata/_custom_type_script = "uid://bn1rl1bkkavgq"

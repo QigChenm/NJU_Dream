@@ -1,0 +1,44 @@
+[gd_scene format=3 uid="uid://dvrw1jehvjvad"]
+
+[sub_resource type="Gradient" id="Gradient_jw23u"]
+offsets = PackedFloat32Array(0, 0.55451715, 1)
+colors = PackedColorArray(0.9357042, 0.8053664, 0.37263882, 0.7294118, 0.96804345, 0.811859, 0.37337926, 0.73811007, 0.9843137, 0.9137255, 0.5411765, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_cn0me"]
+gradient = SubResource("Gradient_jw23u")
+width = 32
+height = 32
+fill = 1
+fill_from = Vector2(0.5071225, 0.52136755)
+fill_to = Vector2(0.73504275, 0.17948718)
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_e2mfm"]
+particle_flag_disable_z = true
+emission_shape_scale = Vector3(0.5, 1.5, 1)
+emission_shape = 3
+emission_box_extents = Vector3(1920, 500, 1)
+gravity = Vector3(0, 0, 0)
+linear_accel_min = -2.7000022
+linear_accel_max = 4.3099976
+radial_accel_min = -5.000002
+radial_accel_max = 4.9999976
+
+[node name="Fireflies" type="GPUParticles2D" unique_id=1909458656]
+position = Vector2(960, 534)
+amount = 30
+texture = SubResource("GradientTexture2D_cn0me")
+lifetime = 8.0
+process_material = SubResource("ParticleProcessMaterial_e2mfm")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=18571470]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -989.0
+offset_top = -564.0
+offset_right = 997.0
+offset_bottom = 577.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.047058824, 0.09019608, 0.3254902, 0.18039216)

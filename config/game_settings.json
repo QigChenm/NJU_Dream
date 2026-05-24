@@ -1,0 +1,50 @@
+{
+	"game_title": "AI 大学生情感陪伴",
+	"version": "0.1.0",
+	"resolution": {
+		"width": 1920,
+		"height": 1080,
+		"fullscreen": false
+	},
+	"dialogue": {
+		"default_text_speed": 0.05,
+		"auto_advance_delay": 2.0,
+		"typewriter_enabled": true,
+		"font_size": 32
+	},
+	"auto_save": {
+		"enabled": true,
+		"max_slots": 20,
+		"screenshot_scale": 0.25
+	},
+	"audio": {
+		"bgm_default_volume_db": -10.0,
+		"sfx_default_volume_db": 0.0,
+		"voice_default_volume_db": 0.0,
+		"crossfade_duration": 1.5
+	},
+	"cg": {
+		"min_display_duration": 2.0,
+		"transition_duration": 0.5,
+		"random_motion_range": {
+			"scale_min": 0.95,
+			"scale_max": 1.08,
+			"offset_x": 20,
+			"offset_y": 15
+		}
+	},
+	"character": {
+		"default_position": "left",
+		"entrance_duration": 0.6,
+		"exit_duration": 0.4
+	},
+	"scene": {
+		"transition_duration": 0.5,
+		"location_bar_duration": 2.0,
+		"location_bar_font_size": 40
+	},
+	"debug": {
+		"show_console_logs": true,
+		"auto_execute_test_script": false
+	}
+}

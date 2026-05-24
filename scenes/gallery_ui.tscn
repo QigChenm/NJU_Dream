@@ -1,0 +1,116 @@
+[gd_scene format=3 uid="uid://br1torcq2e8fl"]
+
+[ext_resource type="Script" uid="uid://bo7fwcfi2j182" path="res://scripts/scenes/gallery_ui.gd" id="1_ckkri"]
+[ext_resource type="FontFile" uid="uid://dnb6jjvxuy0x7" path="res://assets/fonts/SIMYOU.TTF" id="2_4b3v3"]
+
+[node name="GalleryUI" type="CanvasLayer" unique_id=293602058]
+process_mode = 3
+script = ExtResource("1_ckkri")
+custom_font = ExtResource("2_4b3v3")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1213045817]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0.5019608)
+
+[node name="Panel" type="Panel" parent="." unique_id=806492784]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel" unique_id=1416760296]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleLabel" type="Label" parent="Panel/VBoxContainer" unique_id=362012768]
+custom_minimum_size = Vector2(0, 90)
+layout_mode = 2
+size_flags_vertical = 1
+size_flags_stretch_ratio = 0.5
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("2_4b3v3")
+theme_override_font_sizes/font_size = 60
+text = "收藏"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TabBar" type="TabBar" parent="Panel/VBoxContainer" unique_id=2048703710]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_4b3v3")
+theme_override_font_sizes/font_size = 25
+current_tab = 0
+tab_alignment = 1
+tab_count = 2
+tab_0/title = "CG鉴赏"
+tab_1/title = "音乐鉴赏"
+
+[node name="CGPage" type="Control" parent="Panel/VBoxContainer" unique_id=2115420806]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CGGrid" type="GridContainer" parent="Panel/VBoxContainer/CGPage" unique_id=1672314135]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MusicPage" type="Control" parent="Panel/VBoxContainer" unique_id=140341976]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel/VBoxContainer/MusicPage" unique_id=683542627]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MusicList" type="ItemList" parent="Panel/VBoxContainer/MusicPage/VBoxContainer" unique_id=300726994]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="MusicControls" type="HBoxContainer" parent="Panel/VBoxContainer/MusicPage/VBoxContainer" unique_id=1442361933]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+theme_override_constants/separation = 500
+
+[node name="PlayBtn" type="Button" parent="Panel/VBoxContainer/MusicPage/VBoxContainer/MusicControls" unique_id=1573961038]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("2_4b3v3")
+theme_override_font_sizes/font_size = 20
+text = "播放音乐"
+
+[node name="StopBtn" type="Button" parent="Panel/VBoxContainer/MusicPage/VBoxContainer/MusicControls" unique_id=31450789]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("2_4b3v3")
+theme_override_font_sizes/font_size = 20
+text = "停止播放"
+
+[node name="NowPlaying" type="Label" parent="Panel/VBoxContainer/MusicPage/VBoxContainer/MusicControls" unique_id=1074978322]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PreviewPlayer" type="AudioStreamPlayer" parent="." unique_id=2114888140]
+process_mode = 3
+bus = &"Music"

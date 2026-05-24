@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BackgroundData" format=3 uid="uid://7034ikliey0t"]
+
+[ext_resource type="Script" uid="uid://bn1rl1bkkavgq" path="res://scripts/datatypes/background_data.gd" id="1_ggu8s"]
+[ext_resource type="FontFile" uid="uid://dnb6jjvxuy0x7" path="res://assets/fonts/SIMYOU.TTF" id="1_vh6xs"]
+[ext_resource type="Texture2D" uid="uid://g1h4bq6dxaxb" path="res://assets/backgrounds/classroom_day.png" id="2_fbjoh"]
+
+[resource]
+script = ExtResource("1_ggu8s")
+background_id = "classroom_day"
+display_name = "教室 (白天)"
+location_name = "教室·白天"
+location_font = ExtResource("1_vh6xs")
+location_font_size = 40
+texture = ExtResource("2_fbjoh")
+metadata/_custom_type_script = "uid://bn1rl1bkkavgq"

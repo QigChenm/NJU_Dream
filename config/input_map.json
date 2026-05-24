@@ -1,0 +1,24 @@
+{
+	"actions": {
+		"ui_accept": {
+			"description": "推进对话 / 确认",
+			"bindings": ["Space", "Enter", "Left Mouse Button"]
+		},
+		"ui_affection": {
+			"description": "打开/关闭好感度面板",
+			"bindings": ["A", "Right Mouse Button"]
+		},
+		"ui_cancel": {
+			"description": "取消 / 返回",
+			"bindings": ["Escape"]
+		}
+	},
+	"custom_actions": {
+		"auto_mode_toggle": {
+			"description": "切换自动模式（由HUD按钮控制）"
+		},
+		"skip_mode": {
+			"description": "快进模式（未实现）"
+		}
+	}
+}

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AudioData" format=3 uid="uid://da7syerpqfskl"]
+
+[ext_resource type="Script" uid="uid://c86w8rwqdond3" path="res://scripts/datatypes/audio_data.gd" id="1_hg0qm"]
+[ext_resource type="AudioStream" uid="uid://cvmaloq7mmd31" path="res://assets/audio/sfx/point.mp3" id="2_ctxlf"]
+
+[resource]
+script = ExtResource("1_hg0qm")
+audio_id = "bg_shift"
+display_name = "切换场景"
+stream = ExtResource("2_ctxlf")
+metadata/_custom_type_script = "uid://c86w8rwqdond3"

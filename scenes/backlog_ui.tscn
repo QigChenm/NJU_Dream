@@ -1,0 +1,59 @@
+[gd_scene format=3 uid="uid://yq5eejig47k4"]
+
+[ext_resource type="Script" uid="uid://h62vwpi4q4sx" path="res://scripts/scenes/backlog_ui.gd" id="1_08dv8"]
+[ext_resource type="FontFile" uid="uid://dnb6jjvxuy0x7" path="res://assets/fonts/SIMYOU.TTF" id="2_it3nq"]
+
+[node name="BacklogUI" type="CanvasLayer" unique_id=15337538]
+process_mode = 3
+layer = 128
+script = ExtResource("1_08dv8")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1313935338]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0.5019608)
+
+[node name="Panel" type="Panel" parent="." unique_id=433046305]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel" unique_id=989380841]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleLabel" type="Label" parent="Panel/VBoxContainer" unique_id=748790186]
+custom_minimum_size = Vector2(0, 90)
+layout_mode = 2
+size_flags_vertical = 1
+theme_override_fonts/font = ExtResource("2_it3nq")
+theme_override_font_sizes/font_size = 50
+text = "历史记录"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel/VBoxContainer" unique_id=1482037570]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HistoryText" type="RichTextLabel" parent="Panel/VBoxContainer/ScrollContainer" unique_id=1954264805]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_fonts/normal_font = ExtResource("2_it3nq")
+theme_override_fonts/bold_font = ExtResource("2_it3nq")
+theme_override_fonts/bold_italics_font = ExtResource("2_it3nq")
+theme_override_fonts/italics_font = ExtResource("2_it3nq")
+theme_override_fonts/mono_font = ExtResource("2_it3nq")
+bbcode_enabled = true

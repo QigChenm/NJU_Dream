@@ -1,0 +1,144 @@
+[gd_scene format=3 uid="uid://baf3d187oqbi2"]
+
+[ext_resource type="FontFile" uid="uid://dnb6jjvxuy0x7" path="res://assets/fonts/SIMYOU.TTF" id="1_oo0fn"]
+[ext_resource type="PackedScene" uid="uid://y617hnc071ka" path="res://scenes/affection_ui.tscn" id="2_oo0fn"]
+[ext_resource type="PackedScene" uid="uid://n2gknpiqfpli" path="res://scenes/save_load_ui.tscn" id="3_5ysmq"]
+[ext_resource type="PackedScene" uid="uid://dguoqssy0r4x5" path="res://scenes/settings_ui.tscn" id="4_6fi6k"]
+[ext_resource type="PackedScene" uid="uid://yq5eejig47k4" path="res://scenes/backlog_ui.tscn" id="5_uo2fv"]
+[ext_resource type="PackedScene" uid="uid://br1torcq2e8fl" path="res://scenes/gallery_ui.tscn" id="6_047uy"]
+
+[node name="HUD" type="CanvasLayer" unique_id=82451320]
+process_mode = 3
+layer = 1024
+
+[node name="HomeButton" type="Button" parent="." unique_id=1992221237]
+offset_left = 25.0
+offset_top = 11.0
+offset_right = 170.0
+offset_bottom = 73.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("1_oo0fn")
+theme_override_font_sizes/font_size = 25
+text = "主界面"
+
+[node name="BacklogButton" type="Button" parent="." unique_id=1918203952]
+offset_left = 187.0
+offset_top = 11.0
+offset_right = 344.0
+offset_bottom = 73.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("1_oo0fn")
+theme_override_font_sizes/font_size = 25
+text = "历史记录"
+
+[node name="QuickSaveButton" type="Button" parent="." unique_id=1571171151]
+offset_left = 360.0
+offset_top = 11.0
+offset_right = 517.0
+offset_bottom = 73.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("1_oo0fn")
+theme_override_font_sizes/font_size = 25
+text = "一键存档"
+
+[node name="GalleryButton" type="Button" parent="." unique_id=1057649800]
+offset_left = 532.0
+offset_top = 11.0
+offset_right = 622.0
+offset_bottom = 73.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("1_oo0fn")
+theme_override_font_sizes/font_size = 25
+text = "收藏"
+
+[node name="AutoButton" type="Button" parent="." unique_id=1063779598]
+offset_left = 637.0
+offset_top = 11.0
+offset_right = 746.0
+offset_bottom = 73.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("1_oo0fn")
+theme_override_font_sizes/font_size = 25
+text = "自动:OFF"
+
+[node name="TopBar" type="HBoxContainer" parent="." unique_id=626219355]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -614.0
+offset_top = 9.0
+offset_right = -10.0
+offset_bottom = 72.0
+grow_horizontal = 0
+theme_override_constants/separation = 6
+
+[node name="ReturnToMenuButton" type="Button" parent="TopBar" unique_id=663643514]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("1_oo0fn")
+theme_override_font_sizes/font_size = 25
+text = "返回主界面"
+
+[node name="ReturnButton" type="Button" parent="TopBar" unique_id=1971657930]
+process_mode = 3
+visible = false
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("1_oo0fn")
+theme_override_font_sizes/font_size = 25
+text = "返回"
+
+[node name="AffectionButton" type="Button" parent="TopBar" unique_id=1875275028]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("1_oo0fn")
+theme_override_font_sizes/font_size = 25
+text = "好感度"
+
+[node name="SettingsButton" type="Button" parent="TopBar" unique_id=1489277226]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("1_oo0fn")
+theme_override_font_sizes/font_size = 25
+text = "设置"
+
+[node name="SaveButton" type="Button" parent="TopBar" unique_id=1132275066]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("1_oo0fn")
+theme_override_font_sizes/font_size = 25
+text = "保存"
+
+[node name="LoadButton" type="Button" parent="TopBar" unique_id=1421820891]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("1_oo0fn")
+theme_override_font_sizes/font_size = 25
+text = "读取"
+
+[node name="AffectionPanel" parent="." unique_id=318039446 instance=ExtResource("2_oo0fn")]
+visible = false
+
+[node name="SaveLoadUI" parent="." unique_id=1280064147 instance=ExtResource("3_5ysmq")]
+process_mode = 3
+visible = false
+
+[node name="SettingsUI" parent="." unique_id=2070996895 instance=ExtResource("4_6fi6k")]
+visible = false
+
+[node name="BacklogUI" parent="." unique_id=15337538 instance=ExtResource("5_uo2fv")]
+visible = false
+
+[node name="GalleryUI" parent="." unique_id=293602058 instance=ExtResource("6_047uy")]

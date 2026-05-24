@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ParticleEffectData" format=3 uid="uid://du5jr2r7y7vn0"]
+
+[ext_resource type="Script" uid="uid://dadudmdb2nxw6" path="res://scripts/datatypes/particle_effect_data.gd" id="1_22af5"]
+[ext_resource type="PackedScene" uid="uid://ibnvfp3fx4ux" path="res://assets/particles/Petal.tscn" id="1_sdrb8"]
+
+[resource]
+script = ExtResource("1_22af5")
+effect_id = "petal"
+display_name = "花瓣"
+particle_scene = ExtResource("1_sdrb8")
+metadata/_custom_type_script = "uid://dadudmdb2nxw6"

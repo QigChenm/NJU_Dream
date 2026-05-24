@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ParticleEffectData" format=3 uid="uid://ck2n6x8wabmpt"]
+
+[ext_resource type="PackedScene" uid="uid://c16anlurgsl2r" path="res://assets/particles/Snow.tscn" id="1_2xsbc"]
+[ext_resource type="Script" uid="uid://dadudmdb2nxw6" path="res://scripts/datatypes/particle_effect_data.gd" id="1_xoh1v"]
+
+[resource]
+script = ExtResource("1_xoh1v")
+effect_id = "snow"
+display_name = "下雪"
+particle_scene = ExtResource("1_2xsbc")
+metadata/_custom_type_script = "uid://dadudmdb2nxw6"

@@ -1,0 +1,112 @@
+[gd_scene format=3 uid="uid://y617hnc071ka"]
+
+[ext_resource type="Script" uid="uid://d1pj7j50wtuyk" path="res://scripts/scenes/affection_ui.gd" id="1_pr1g1"]
+[ext_resource type="FontFile" uid="uid://dnb6jjvxuy0x7" path="res://assets/fonts/SIMYOU.TTF" id="2_q3386"]
+
+[node name="AffectionPanel" type="CanvasLayer" unique_id=318039446]
+layer = 128
+script = ExtResource("1_pr1g1")
+
+[node name="Background" type="ColorRect" parent="." unique_id=512811416]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(1, 1, 1, 0.5019608)
+
+[node name="Panel" type="Panel" parent="." unique_id=1390046785]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel" unique_id=933885312]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleLabel" type="Label" parent="Panel/VBoxContainer" unique_id=20581539]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.5
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("2_q3386")
+theme_override_font_sizes/font_size = 50
+text = "好感度查看面板"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SisterRow" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=1764164626]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 3.0
+
+[node name="NameLabel" type="Label" parent="Panel/VBoxContainer/SisterRow" unique_id=2080036057]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_vertical = 1
+theme_override_fonts/font = ExtResource("2_q3386")
+theme_override_font_sizes/font_size = 40
+text = "妹
+
+妹"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/character_id = "sister"
+
+[node name="ValueLabel" type="Label" parent="Panel/VBoxContainer/SisterRow" unique_id=828157073]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_vertical = 1
+theme_override_fonts/font = ExtResource("2_q3386")
+theme_override_font_sizes/font_size = 30
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ProgressBar" type="ProgressBar" parent="Panel/VBoxContainer/SisterRow" unique_id=1430069095]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+theme_override_font_sizes/font_size = 40
+step = 1.0
+
+[node name="FriendRow" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=1108917027]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 3.0
+metadata/character_id = "friend"
+
+[node name="NameLabel" type="Label" parent="Panel/VBoxContainer/FriendRow" unique_id=1978470510]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_vertical = 1
+theme_override_fonts/font = ExtResource("2_q3386")
+theme_override_font_sizes/font_size = 40
+text = "友
+
+人
+
+A"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ValueLabel" type="Label" parent="Panel/VBoxContainer/FriendRow" unique_id=814960340]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+size_flags_vertical = 1
+theme_override_fonts/font = ExtResource("2_q3386")
+theme_override_font_sizes/font_size = 30
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ProgressBar" type="ProgressBar" parent="Panel/VBoxContainer/FriendRow" unique_id=1165413749]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+theme_override_font_sizes/font_size = 40
+step = 1.0

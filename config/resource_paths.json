@@ -1,0 +1,61 @@
+{
+	"characters": [
+		{
+			"id": "sister",
+			"display_name": "妹妹",
+			"data_path": "res://assets/characters/sister/sister_data.tres",
+			"expressions": ["default", "happy", "very_happy", "sad", "cry", "angry"],
+			"actions": ["breathe", "shake", "bounce", "nod", "step_back", "shrug"],
+			"entrance_animations": ["fade", "slide_left", "slide_right", "none"]
+		}
+	],
+	"backgrounds": [
+		{
+			"id": "gulou_spring",
+			"display_name": "鼓楼·春",
+			"data_path": "res://assets/backgrounds/tres/gulou_spring_data.tres",
+			"location_name": "鼓楼·春"
+		},
+		{
+			"id": "gulou_winter",
+			"display_name": "鼓楼·冬",
+			"data_path": "res://assets/backgrounds/tres/gulou_winter_data.tres",
+			"location_name": "鼓楼·冬"
+		}
+	],
+	"audio": {
+		"bgm": [
+			{
+				"id": "spring_forest",
+				"display_name": "春日的森林",
+				"data_path": "res://assets/audio/bgm/spring_forest.tres"
+			},
+			{
+				"id": "love_piano",
+				"display_name": "爱的钢琴曲",
+				"data_path": "res://assets/audio/bgm/love_piano.tres"
+			}
+		],
+		"sfx": [],
+		"voice": []
+	},
+	"particles": [
+		{
+			"id": "petal",
+			"display_name": "花瓣飘落",
+			"data_path": "res://assets/particles/tres/petal_data.tres"
+		},
+		{
+			"id": "snow",
+			"display_name": "下雪",
+			"data_path": "res://assets/particles/tres/snow_data.tres"
+		}
+	],
+	"cg": [
+		{
+			"id": "heroine_smile",
+			"display_name": "女主角的微笑",
+			"data_path": "res://assets/cg/heroine_smile_cg_data.tres"
+		}
+	]
+}

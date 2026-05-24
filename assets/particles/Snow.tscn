@@ -1,0 +1,42 @@
+[gd_scene format=3 uid="uid://c16anlurgsl2r"]
+
+[sub_resource type="Gradient" id="Gradient_1d7uk"]
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_tp0rm"]
+gradient = SubResource("Gradient_1d7uk")
+fill = 1
+fill_from = Vector2(0.51282054, 0.51282054)
+fill_to = Vector2(0.47863248, 0.36752138)
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_gtg8w"]
+particle_flag_disable_z = true
+emission_shape = 3
+emission_box_extents = Vector3(960, 10, 1)
+gravity = Vector3(0, 30, 0)
+linear_accel_min = -2.2351742e-06
+linear_accel_max = 19.999998
+scale_min = 0.29999998
+turbulence_enabled = true
+turbulence_noise_strength = 1.77
+turbulence_noise_scale = 1.891
+turbulence_noise_speed = Vector3(5, 0, 0)
+turbulence_influence_min = 0.0
+turbulence_influence_max = 0.009000001
+turbulence_initial_displacement_min = -14.499999
+turbulence_initial_displacement_max = 11.800002
+
+[node name="Snow" type="GPUParticles2D" unique_id=1058852480]
+position = Vector2(958, -10)
+amount = 300
+texture = SubResource("GradientTexture2D_tp0rm")
+lifetime = 8.0
+process_material = SubResource("ParticleProcessMaterial_gtg8w")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=1413026322]
+offset_left = -998.0
+offset_top = -19.0
+offset_right = 990.0
+offset_bottom = 1157.0
+mouse_filter = 2
+color = Color(0.17254902, 0.24313726, 0.3137255, 0.22352941)

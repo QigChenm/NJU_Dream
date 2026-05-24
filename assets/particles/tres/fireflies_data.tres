@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ParticleEffectData" format=3 uid="uid://dpkkf3h4ihqrg"]
+
+[ext_resource type="PackedScene" uid="uid://dvrw1jehvjvad" path="res://assets/particles/Fireflies.tscn" id="1_ab0g8"]
+[ext_resource type="Script" uid="uid://dadudmdb2nxw6" path="res://scripts/datatypes/particle_effect_data.gd" id="1_bhqyi"]
+
+[resource]
+script = ExtResource("1_bhqyi")
+effect_id = "fireflies"
+display_name = "萤火虫"
+particle_scene = ExtResource("1_ab0g8")
+metadata/_custom_type_script = "uid://dadudmdb2nxw6"

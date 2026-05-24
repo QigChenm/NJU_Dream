@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ParticleEffectData" format=3 uid="uid://cap3jsu52gpaq"]
+
+[ext_resource type="Script" uid="uid://dadudmdb2nxw6" path="res://scripts/datatypes/particle_effect_data.gd" id="1_2nauh"]
+[ext_resource type="PackedScene" uid="uid://b8h2cn73q0im0" path="res://assets/particles/FallingLeaves.tscn" id="1_sgokj"]
+
+[resource]
+script = ExtResource("1_2nauh")
+effect_id = "leaves"
+display_name = "落叶"
+particle_scene = ExtResource("1_sgokj")
+metadata/_custom_type_script = "uid://dadudmdb2nxw6"

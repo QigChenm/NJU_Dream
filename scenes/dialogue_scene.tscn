@@ -1,0 +1,255 @@
+[gd_scene format=3 uid="uid://q08fu5pf1uky"]
+
+[ext_resource type="FontFile" uid="uid://dnb6jjvxuy0x7" path="res://assets/fonts/SIMYOU.TTF" id="1_3l5nu"]
+[ext_resource type="Script" uid="uid://delntppuxcggy" path="res://scripts/scenes/dialogue_scene.gd" id="1_cno1m"]
+[ext_resource type="Texture2D" uid="uid://bteqos2oyyn2c" path="res://assets/backgrounds/bg.png" id="2_bhyd5"]
+[ext_resource type="Texture2D" uid="uid://b7vext40vp20g" path="res://assets/ui/nameplate.png" id="4_2e7es"]
+[ext_resource type="Script" uid="uid://fuub8avsjpo3" path="res://scripts/plugins/character_display.gd" id="5_2e7es"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2e7es"]
+bg_color = Color(0.88235295, 0.44705883, 0.49019608, 0.7647059)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xcky8"]
+bg_color = Color(0.88235295, 0.44705883, 0.49019608, 0.87058824)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_q4mab"]
+bg_color = Color(0.88235295, 0.44705883, 0.49019608, 0.5137255)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="DialogueScene" type="Control" unique_id=1841218554]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_cno1m")
+custom_font = ExtResource("1_3l5nu")
+
+[node name="Background" type="TextureRect" parent="." unique_id=19613707]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_bhyd5")
+
+[node name="WeatherLayer" type="Control" parent="." unique_id=434371429]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="CGLayer" type="CanvasLayer" parent="." unique_id=1066801689]
+
+[node name="CGDisplay" type="TextureRect" parent="CGLayer" unique_id=1554630032]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+stretch_mode = 6
+
+[node name="CGAnimationPlayer" type="AnimationPlayer" parent="CGLayer/CGDisplay" unique_id=1977524356]
+
+[node name="SaveHint" type="Label" parent="CGLayer" unique_id=888883203]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -75.0
+offset_top = -25.5
+offset_right = 75.0
+offset_bottom = 25.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_fonts/font = ExtResource("1_3l5nu")
+theme_override_font_sizes/font_size = 50
+text = "已保存"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SpriteLeft" type="TextureRect" parent="." unique_id=1819913317]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 38.0
+offset_top = -1024.0
+offset_right = 806.0
+grow_vertical = 0
+script = ExtResource("5_2e7es")
+
+[node name="SpriteRight" type="TextureRect" parent="." unique_id=321427385]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -812.0
+offset_top = -1024.0
+offset_right = -44.0
+grow_horizontal = 0
+grow_vertical = 0
+script = ExtResource("5_2e7es")
+
+[node name="CharacterNameRect" type="TextureRect" parent="." unique_id=1785009817]
+visible = false
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = -13.0
+offset_top = -359.0
+offset_right = 236.0
+offset_bottom = -281.0
+grow_vertical = 0
+texture = ExtResource("4_2e7es")
+expand_mode = 2
+
+[node name="CharacterName" type="Label" parent="CharacterNameRect" unique_id=1735920096]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -80.0
+offset_top = -20.5
+offset_right = 80.0
+offset_bottom = 20.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_fonts/font = ExtResource("1_3l5nu")
+theme_override_font_sizes/font_size = 50
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Portrait" type="TextureRect" parent="CharacterNameRect" unique_id=126697902]
+layout_mode = 0
+offset_left = 237.0
+offset_right = 315.0
+offset_bottom = 78.0
+
+[node name="DialogueBox" type="Panel" parent="." unique_id=1724968996]
+visible = false
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -281.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 1
+
+[node name="DialogueText" type="RichTextLabel" parent="DialogueBox" unique_id=1236940901]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 42.0
+offset_top = 30.0
+offset_right = -41.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme_override_fonts/normal_font = ExtResource("1_3l5nu")
+theme_override_fonts/bold_font = ExtResource("1_3l5nu")
+theme_override_fonts/bold_italics_font = ExtResource("1_3l5nu")
+theme_override_fonts/italics_font = ExtResource("1_3l5nu")
+theme_override_fonts/mono_font = ExtResource("1_3l5nu")
+theme_override_font_sizes/normal_font_size = 40
+theme_override_font_sizes/bold_font_size = 40
+theme_override_font_sizes/bold_italics_font_size = 40
+theme_override_font_sizes/italics_font_size = 40
+theme_override_font_sizes/mono_font_size = 40
+bbcode_enabled = true
+
+[node name="ClickIndicator" type="Label" parent="DialogueBox" unique_id=1884638434]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -110.0
+offset_top = -36.0
+offset_right = 110.0
+offset_bottom = -13.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_fonts/font = ExtResource("1_3l5nu")
+theme_override_font_sizes/font_size = 20
+text = "这里放着一个点击提示符"
+
+[node name="ChoicePanel" type="VBoxContainer" parent="." unique_id=563924997]
+visible = false
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -493.0
+offset_top = -495.0
+offset_right = -1.0
+offset_bottom = -290.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_constants/separation = 6
+
+[node name="Choice1" type="Button" parent="ChoicePanel" unique_id=1809783376]
+visible = false
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_fonts/font = ExtResource("1_3l5nu")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_2e7es")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_xcky8")
+theme_override_styles/hover = SubResource("StyleBoxFlat_q4mab")
+
+[node name="Choice2" type="Button" parent="ChoicePanel" unique_id=1268244551]
+visible = false
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_fonts/font = ExtResource("1_3l5nu")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_2e7es")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_xcky8")
+theme_override_styles/hover = SubResource("StyleBoxFlat_q4mab")
+
+[node name="Choice3" type="Button" parent="ChoicePanel" unique_id=930677903]
+visible = false
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_fonts/font = ExtResource("1_3l5nu")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_2e7es")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_xcky8")
+theme_override_styles/hover = SubResource("StyleBoxFlat_q4mab")
