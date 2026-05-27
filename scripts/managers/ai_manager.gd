@@ -11,6 +11,9 @@ extends Node
 var _http_request: HTTPRequest = null
 var _is_requesting: bool = false
 var _env_values: Dictionary = {}
+var _pending_choice_id: int = -1
+var _pending_choice_text: String = ""
+var _waiting_for_choice_continuation: bool = false
 
 const _FALLBACK_TEXT := "AI 暂时不可用，请稍后再试。"
 const _FALLBACK_ENV_FILE_PATH := "res://env"
@@ -23,8 +26,18 @@ func _ready() -> void:
 	_http_request.request_completed.connect(_on_request_completed)
 	add_child(_http_request)
 
+	call_deferred("_wire_runtime_signals")
+
+
+func _wire_runtime_signals() -> void:
 	if has_node("/root/DialogueManager"):
 		DialogueManager.ai_adapter = self
+		if not DialogueManager.is_connected("choice_made", _on_choice_made):
+			DialogueManager.connect("choice_made", _on_choice_made)
+
+	if has_node("/root/ScriptEngine"):
+		if not ScriptEngine.is_connected("execution_finished", _on_script_execution_finished):
+			ScriptEngine.connect("execution_finished", _on_script_execution_finished)
 
 
 ## DialogueManager 的 AI 适配器入口。callback 保留兼容签名，命令由 AIManager 直接分发。
@@ -139,6 +152,26 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	process_ai_response(ai_response)
 
 
+func _on_choice_made(choice_id: int) -> void:
+	_pending_choice_id = choice_id
+	_pending_choice_text = _resolve_choice_text(choice_id)
+	_waiting_for_choice_continuation = true
+	print("[AIManager] 已记录玩家选择: %d %s" % [choice_id, _pending_choice_text])
+
+
+func _on_script_execution_finished() -> void:
+	if not _waiting_for_choice_continuation:
+		return
+	if _is_requesting:
+		return
+
+	var choice_event := _build_choice_event()
+	_pending_choice_id = -1
+	_pending_choice_text = ""
+	_waiting_for_choice_continuation = false
+	call_deferred("send_message", choice_event)
+
+
 func _get_base_url() -> String:
 	var env_base_url := _get_env_value("MOONSHOT_BASE_URL")
 	if env_base_url != "":
@@ -206,6 +239,35 @@ func _finish_requesting() -> void:
 		DialogueManager.is_requesting = false
 
 
+func _resolve_choice_text(choice_id: int) -> String:
+	if not has_node("/root/DialogueManager"):
+		return ""
+
+	var scene = DialogueManager.get_dialogue_scene()
+	if scene == null:
+		return ""
+
+	var choices = scene.get("current_choices")
+	if not choices is Array:
+		return ""
+
+	for choice in choices:
+		if choice is Dictionary and str(choice.get("id", "")) == str(choice_id):
+			return str(choice.get("text", ""))
+
+	var index := choice_id - 1
+	if index >= 0 and index < choices.size() and choices[index] is Dictionary:
+		return str(choices[index].get("text", ""))
+
+	return ""
+
+
+func _build_choice_event() -> String:
+	if _pending_choice_text == "":
+		return "__choice__:%d" % _pending_choice_id
+	return "__choice__:%d:%s" % [_pending_choice_id, _pending_choice_text]
+
+
 func _build_system_prompt() -> String:
 	var lines := PackedStringArray([
 		"你是视觉小说游戏的 AI 编剧接口。",
@@ -219,6 +281,8 @@ func _build_system_prompt() -> String:
 		"可用 type: show_dialogue, show_choices, cg_play, cg_hide, change_background, set_characters, clear_stage, character_action, set_expression, play_audio, stop_audio, particle_play, particle_stop, set_ui_state, set_variable, add_affection, set_flag, unlock_cg, unlock_bgm, reset_unlocks, wait, jump, end_scene。",
 		"show_dialogue 必须包含 character 和 text。旁白 character 使用空字符串。",
 		"show_choices 必须包含 choices，choices 内每项包含 id 和 text。",
+		"show_choices 最多提供 3 个选项，id 必须从 1 开始并与按钮顺序一致。",
+		"如果输出 show_choices，它必须是本轮 commands 的最后一条指令，等待玩家选择后再继续剧情。",
 		"不要在 end_scene 后继续输出指令。"
 	])
 	return "\n".join(lines)
@@ -231,7 +295,14 @@ func _build_user_prompt(input_str: String) -> String:
 	elif input_str == "__continue__":
 		event_description = "玩家请求继续剧情"
 	elif input_str.begins_with("__choice__:"):
-		event_description = "玩家选择了选项 ID: " + input_str.trim_prefix("__choice__:")
+		var choice_payload := input_str.trim_prefix("__choice__:")
+		var separator_index := choice_payload.find(":")
+		if separator_index >= 0:
+			var choice_id := choice_payload.substr(0, separator_index)
+			var choice_text := choice_payload.substr(separator_index + 1)
+			event_description = "玩家选择了选项 ID: %s，选项文本: %s" % [choice_id, choice_text]
+		else:
+			event_description = "玩家选择了选项 ID: " + choice_payload
 	return "流程事件: %s\n请生成一段可执行的视觉小说 commands JSON。" % event_description
 
 
