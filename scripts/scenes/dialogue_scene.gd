@@ -135,6 +135,7 @@ func _instantiate_hud() -> void:
 	var quick_load_btn = hud_instance.get_node_or_null("QuickLoadButton")
 	var auto_btn = hud_instance.get_node_or_null("ButtonBar/AutoButton")
 	var skip_btn = hud_instance.get_node_or_null("ButtonBar/SkipButton")
+	var feedback_btn = hud_instance.get_node_or_null("TopBar/FeedbackButton")
 
 	# 连接信号
 	if settings_btn:
@@ -165,10 +166,12 @@ func _instantiate_hud() -> void:
 	if return_to_menu_btn:
 		UIManager.set_return_to_menu_button(return_to_menu_btn)
 		return_to_menu_btn.pressed.connect(_on_return_to_menu_pressed)
+	if feedback_btn:
+		feedback_btn.pressed.connect(_on_feedback_button_pressed)
 
 	# 将所有功能按钮注册到 UIManager（以便统一显隐管理）
 	var all_buttons: Array[TextureButton] = []
-	for btn in [settings_btn, auto_btn, skip_btn, quick_save_btn, quick_load_btn, backlog_btn, home_btn, affection_btn, save_btn, load_btn]:
+	for btn in [settings_btn, feedback_btn, auto_btn, skip_btn, quick_save_btn, quick_load_btn, backlog_btn, home_btn, affection_btn, save_btn, load_btn]:
 		if btn:
 			all_buttons.append(btn)
 	UIManager.register_hud_action_buttons(all_buttons)
@@ -577,6 +580,7 @@ func _on_continue_clicked() -> void:
 func _on_affection_button_pressed() -> void: UIManager.open_panel("AffectionUI")
 func _on_save_button_pressed() -> void: UIManager.open_panel("SaveUI")
 func _on_load_button_pressed() -> void: UIManager.open_panel("LoadUI")
+func _on_feedback_button_pressed() -> void: _show_feedback_dialog()
 func _on_backlog_button_pressed() -> void:
 	var panel = UIManager._panels.get("BacklogUI")
 	if panel and panel.has_method("refresh_history"):
@@ -613,24 +617,14 @@ func _on_home_button_pressed() -> void:
 	if not tip_panel:
 		return
 
-	tip_panel.show_tip("是否保存当前游戏进度？", "保存", "不保存", true)
+	tip_panel.show_tip("是否保存当前游戏进度？", "保存", "不保存",
+		func(): _on_home_save_confirmed(),
+		func(): _on_home_cancel_confirmed(),
+		true,
+		func(): _on_home_tip_closed()
+	)
 
-	if tip_panel.confirmed.is_connected(_on_home_save_confirmed):
-		tip_panel.confirmed.disconnect(_on_home_save_confirmed)
-	if tip_panel.canceled.is_connected(_on_home_cancel_confirmed):
-		tip_panel.canceled.disconnect(_on_home_cancel_confirmed)
-	if tip_panel.closed.is_connected(_on_home_tip_closed):
-		tip_panel.closed.disconnect(_on_home_tip_closed)
-
-	tip_panel.confirmed.connect(_on_home_save_confirmed, CONNECT_ONE_SHOT)
-	tip_panel.canceled.connect(_on_home_cancel_confirmed, CONNECT_ONE_SHOT)
-	tip_panel.closed.connect(_on_home_tip_closed, CONNECT_ONE_SHOT)
-
-	tip_panel.visible = true
-	if UIManager._return_button:
-		UIManager._return_button.visible = false
-	if UIManager._return_to_menu_button:
-		UIManager._return_to_menu_button.visible = false
+	_set_return_buttons_visible(false)
 
 
 func _on_home_tip_closed() -> void:
@@ -940,3 +934,29 @@ func clean_up_all_ui() -> void:
 		if is_instance_valid(dialog):
 			dialog.queue_free()
 	print("[DialogueScene] 动态UI清理完成。")
+
+# ================= 辅助功能 =================
+func _show_feedback_dialog() -> void:
+	var dialog = AcceptDialog.new()
+	dialog.title = "纠正 AI 错误"
+	dialog.process_mode = PROCESS_MODE_ALWAYS
+
+	var line_edit = LineEdit.new()
+	line_edit.name = "RuleInput"
+	line_edit.placeholder_text = "输入纠正规则..."
+	line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dialog.add_child(line_edit)
+
+	dialog.get_label().text = "请输入纠正指令："
+
+	add_child(dialog)
+
+	dialog.confirmed.connect(func():
+		var text = line_edit.text.strip_edges()
+		if text != "" and has_node("/root/AIManager"):
+			get_node("/root/AIManager").add_user_rule(text)
+			print("[DialogueScene] 规则已提交")
+		dialog.queue_free()  # 用完后销毁
+	)
+
+	dialog.popup_centered()

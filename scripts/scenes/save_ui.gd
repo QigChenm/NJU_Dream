@@ -127,31 +127,23 @@ func _capture_and_save(slot: int) -> void:
 	visible = true
 	_refresh_page()
 
+func _cancel_delete() -> void:
+	_pending_delete_slot = -1
+	_set_return_buttons_visible(true)
+
 func _on_delete_pressed(idx: int) -> void:
 	_pending_delete_slot = _current_page * SLOTS_PER_PAGE + idx
 	if SaveManager.has_save(_pending_delete_slot):
-		var info = SaveManager.get_save_info(_pending_delete_slot)
-		var time_str = ""
-		if info.get("exists", false):
-			time_str = "存档时间：" + info.get("date", "") + " " + info.get("time", "")
-		else:
-			time_str = "存档时间：未知"
-
 		var tip_panel = UIManager._panels.get("TipUI")
 		if tip_panel and tip_panel.has_method("show_tip"):
-			tip_panel.show_tip("是否删除存档？\n" + time_str, "确认", "取消", false)
-
-			# 安全断开旧信号，然后连接新信号
-			if tip_panel.confirmed.is_connected(_on_delete_confirmed):
-				tip_panel.confirmed.disconnect(_on_delete_confirmed)
-			if tip_panel.canceled.is_connected(_on_delete_cancelled):
-				tip_panel.canceled.disconnect(_on_delete_cancelled)
-
-			tip_panel.confirmed.connect(_on_delete_confirmed, CONNECT_ONE_SHOT)
-			tip_panel.canceled.connect(_on_delete_cancelled, CONNECT_ONE_SHOT)
-
-		tip_panel.visible = true
-		_set_return_buttons_visible(false)
+			var info = SaveManager.get_save_info(_pending_delete_slot)
+			var time_str = "存档时间：" + info.get("date", "") + " " + info.get("time", "")
+			tip_panel.show_tip("是否删除存档？\n" + time_str, "确认", "取消",
+				_on_delete_confirmed,
+				_cancel_delete,
+				false
+			)
+			_set_return_buttons_visible(false)
 
 func _on_delete_confirmed() -> void:
 	if _pending_delete_slot >= 0:

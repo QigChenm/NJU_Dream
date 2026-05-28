@@ -254,14 +254,14 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 35
 
-[node name="Choice3" type="TextureButton" parent="ChoicePanel" unique_id=1834362962]
+[node name="Choice1" type="TextureButton" parent="ChoicePanel" unique_id=1675877324]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 texture_normal = ExtResource("6_q4mab")
 texture_pressed = ExtResource("7_o6y45")
 texture_hover = ExtResource("7_o6y45")
 
-[node name="Label" type="Label" parent="ChoicePanel/Choice3" unique_id=532762586]
+[node name="Label" type="Label" parent="ChoicePanel/Choice1" unique_id=1654597595]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -300,14 +300,14 @@ theme_override_font_sizes/font_size = 32
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Choice1" type="TextureButton" parent="ChoicePanel" unique_id=1675877324]
+[node name="Choice3" type="TextureButton" parent="ChoicePanel" unique_id=1834362962]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 texture_normal = ExtResource("6_q4mab")
 texture_pressed = ExtResource("7_o6y45")
 texture_hover = ExtResource("7_o6y45")
 
-[node name="Label" type="Label" parent="ChoicePanel/Choice1" unique_id=1654597595]
+[node name="Label" type="Label" parent="ChoicePanel/Choice3" unique_id=532762586]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

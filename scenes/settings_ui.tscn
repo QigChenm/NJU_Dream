@@ -152,9 +152,10 @@ theme_override_icons/grabber_highlight = ExtResource("6_npu2v")
 theme_override_styles/slider = SubResource("StyleBoxTexture_npu2v")
 theme_override_styles/grabber_area = SubResource("StyleBoxTexture_inf46")
 theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_npu2v")
+min_value = 0.5
 max_value = 5.0
 step = 0.01
-value = 0.01
+value = 0.5
 
 [node name="LockContainer" type="VBoxContainer" parent="VBoxContainerL" unique_id=926024790]
 layout_mode = 2

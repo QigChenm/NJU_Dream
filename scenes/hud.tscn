@@ -6,9 +6,12 @@
 [ext_resource type="Texture2D" uid="uid://d08de3crxyo3o" path="res://assets/ui/universal/通用_标题界面_默认_llf.png" id="3_084dp"]
 [ext_resource type="PackedScene" uid="uid://dguoqssy0r4x5" path="res://scenes/settings_ui.tscn" id="4_6fi6k"]
 [ext_resource type="Texture2D" uid="uid://byrk324i6sik2" path="res://assets/ui/universal/通用_标题界面_焦点_llf.png" id="4_y2nlu"]
+[ext_resource type="Texture2D" uid="uid://c2tgh3n15vlpx" path="res://assets/ui/confirm/确认_按钮_默认_llf.png" id="5_frrke"]
 [ext_resource type="PackedScene" uid="uid://yq5eejig47k4" path="res://scenes/backlog_ui.tscn" id="5_uo2fv"]
 [ext_resource type="PackedScene" uid="uid://br1torcq2e8fl" path="res://scenes/gallery_ui.tscn" id="6_047uy"]
+[ext_resource type="Texture2D" uid="uid://xb5gph80d615" path="res://assets/ui/confirm/确认_按钮_焦点_llf.png" id="6_vh1iw"]
 [ext_resource type="Texture2D" uid="uid://dlx8052d7i4hh" path="res://assets/ui/dialogue/对话_快速存档_默认_llf.png" id="7_5357l"]
+[ext_resource type="FontFile" uid="uid://cv4m0rys7x10i" path="res://assets/fonts/ChillRoundGothic_Bold.ttf" id="7_fgtve"]
 [ext_resource type="Texture2D" uid="uid://ce64su05xufou" path="res://assets/ui/dialogue/对话_快速存档_焦点_llf.png" id="8_iypfu"]
 [ext_resource type="Texture2D" uid="uid://y3xvoddbt2bs" path="res://assets/ui/dialogue/对话_自动_默认_llf.png" id="9_3xg78"]
 [ext_resource type="Texture2D" uid="uid://ko6xltyjw2sv" path="res://assets/ui/dialogue/对话_历史_默认_llf.png" id="9_qpprf"]
@@ -57,14 +60,13 @@ texture_pressed = ExtResource("2_48y67")
 texture_hover = ExtResource("2_48y67")
 
 [node name="TopBar" type="HBoxContainer" parent="." unique_id=626219355]
-visible = false
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -647.0
-offset_top = 36.0
-offset_right = -43.0
-offset_bottom = 99.0
+offset_left = -1859.0
+offset_top = 41.0
+offset_right = -1659.0
+offset_bottom = 104.0
 grow_horizontal = 0
 theme_override_constants/separation = 6
 alignment = 2
@@ -74,6 +76,25 @@ visible = false
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="FeedbackButton" type="TextureButton" parent="TopBar" unique_id=685636751]
+layout_mode = 2
+texture_normal = ExtResource("5_frrke")
+texture_pressed = ExtResource("6_vh1iw")
+texture_hover = ExtResource("6_vh1iw")
+
+[node name="Label" type="Label" parent="TopBar/FeedbackButton" unique_id=1648291803]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_fonts/font = ExtResource("7_fgtve")
+theme_override_font_sizes/font_size = 30
+text = "反馈AI错误"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="AffectionPanel" parent="." unique_id=318039446 instance=ExtResource("2_oo0fn")]
 visible = false

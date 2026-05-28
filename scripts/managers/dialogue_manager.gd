@@ -18,11 +18,19 @@ var _first_response: bool = false
 # ================= 初始化 =================
 func _ready() -> void:
 	call_deferred("_cache_scene_instance")
+	if has_node("/root/ScriptEngine"):
+		if not ScriptEngine.is_connected("execution_finished", _on_script_engine_finished):
+			ScriptEngine.connect("execution_finished", _on_script_engine_finished)
 
 
 func _cache_scene_instance() -> void:
 	_scene_instance = get_tree().current_scene as Control
 
+
+func _on_script_engine_finished() -> void:
+	if ai_adapter and not is_requesting:
+		await request_ai_response("__continue__")
+		
 
 # ================= 旧版对话启动流程（保留用于未来 AI 接入） =================
 func start_dialogue() -> void:

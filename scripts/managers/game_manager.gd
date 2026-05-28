@@ -13,6 +13,7 @@ const UNLOCK_FILE := "user://unlocks.cfg"
 
 # ================= 属性 =================
 var variables: Dictionary = {}
+var flags: Dictionary = {}
 var dialogue_history: Array = []
 var current_scene: String = ""
 var open_settings_on_load: bool = false
