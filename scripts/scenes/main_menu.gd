@@ -10,8 +10,12 @@ extends Control
 @onready var about_btn = $VBoxContainer/InfoButton
 @onready var bgm_player: AudioStreamPlayer = $BGMPlayer
 @onready var mute_button: TextureButton = $MuteButton
+@onready var background_texture: TextureRect = $Background
 
 var is_muted: bool = true
+var background_ids: Array[String] = []
+var current_bg_index: int = 0
+var bg_timer: Timer 
 
 # ================= 初始化 =================
 func _ready() -> void:
@@ -48,6 +52,7 @@ func _ready() -> void:
 	add_child(ginkgo_particles)
 
 	continue_btn.disabled = not SaveManager.has_any_save()
+	setup_background_carousel()
 
 
 # ================= 按钮回调 =================
@@ -96,3 +101,40 @@ func _on_mute_pressed() -> void:
 	is_muted = !is_muted
 	if bgm_player:
 		bgm_player.playing = is_muted
+
+func setup_background_carousel() -> void:
+	if BackgroundManager.has_method("get_all_background_ids"):
+		background_ids = BackgroundManager.get_all_background_ids()
+	else:
+		background_ids = ["bg_main_1", "bg_main_2", "bg_main_3"]
+	
+	if background_ids.is_empty():
+		print("警告：没有可用的背景 ID，轮播功能禁用")
+		return
+	
+	var first_texture = BackgroundManager.get_background_texture(background_ids[0])
+	if first_texture:
+		background_texture.texture = first_texture
+		background_texture.modulate.a = 1.0
+	
+	bg_timer = Timer.new()
+	bg_timer.wait_time = 10.0
+	bg_timer.timeout.connect(_on_bg_timer_timeout)
+	bg_timer.autostart = true
+	add_child(bg_timer)
+
+func _on_bg_timer_timeout() -> void:
+	current_bg_index = (current_bg_index + 1) % background_ids.size()
+	change_background_with_fade(background_ids[current_bg_index])
+
+func change_background_with_fade(bg_id: String) -> void:
+	var new_texture = BackgroundManager.get_background_texture(bg_id)
+	if not new_texture:
+		return
+	
+	var tween = create_tween()
+	tween.tween_property(background_texture, "modulate:a", 0.0, 1.0)
+	tween.tween_callback(func():
+		background_texture.texture = new_texture
+	)
+	tween.tween_property(background_texture, "modulate:a", 1.0, 1.0)

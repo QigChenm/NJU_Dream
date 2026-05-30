@@ -57,55 +57,70 @@ func request_ai_response(input_str: String) -> void:
 	else:
 		# 测试用命令序列（未接入 AI 时自动执行）
 		var test_script = [
-			{"type": "play_audio", "audio_id": "spring_forest", "crossfade": 1.5},
-			{"type": "change_background", "background": "gulou_spring", "transition": "fade"},
-			{"type": "long_dialogue", "text": "这是南京大学鼓楼校区北大楼前。[br]什，什么，南京哪个大学？哦，是南京大学啊，我还以为是南京大学呢。[br]刚刚路过了两个男大学生，听到了一些对话：“南京古代是吴国的首都，所以南京大学又称wj大学。你品，你细品。”[br]不得不说，在这所校园里，天天都会有神奇的事情发生。[br]正如上文所说，一名普通南大学子开始了和他妹妹美好的校园生活……[br]这还是我们参加竞赛的初衷吗，不是说好了要做一个解决当代大学生生活压力的AI智能游戏吗？——from a developer"},
-			{"type": "particle_play", "effect_id": "petal"},
-			{"type": "set_characters", "left": {"id": "sister", "expression": "happy", "entrance_animation": "slide_left"}, "entrance_animation": "fade"},
-			{"type": "show_dialogue", "character": "sister", "text": "哥哥，你终于来了！[color=#FFB6C1]今天天气真好呀～[/color]"},
-			{"type": "set_expression", "character": "sister", "expression": "happy"},
-			{"type": "show_dialogue", "character": "sister", "text": "我们去哪里玩呢？"},
-			{"type": "show_choices", "prompt": "选择目的地", "choices": [
-				{"id": 1, "text": "公园散步"},
-				{"id": 2, "text": "图书馆看书"},
-				{"id": 3, "text": "咖啡馆聊天"}
-			]},
-			{"type": "add_affection", "character": "sister", "delta": 10},
-			{"type": "set_flag", "flag": "first_date", "value": true},
-			{"type": "show_dialogue", "character": "sister", "text": "嗯！[shake rate=15 level=3]好开心！[/shake]"},
-			{"type": "character_action", "character": "sister", "action": "bounce"},
-			{"type": "show_dialogue", "character": "", "text": "两人一起度过了愉快的下午..."},
-			{"type": "wait", "duration": 1.0},
-			{"type": "clear_stage"},
-			{"type": "particle_stop", "effect_id": "petal"},
-			{"type": "change_background", "background": "gulou_winter", "transition": "fade"},
-			{"type": "particle_play", "effect_id": "snow"},
-			{"type": "set_characters", "right": {"id": "sister", "expression": "default", "entrance_animation": "slide_right"}, "entrance_animation": "none"},
-			{"type": "show_dialogue", "character": "sister", "text": "但是...天快黑了，我得回家了。"},
-			{"type": "set_expression", "character": "sister", "expression": "sad"},
-			{"type": "character_action", "character": "sister", "action": "shake"},
-			{"type": "show_dialogue", "character": "sister", "text": "哥哥，明天还能见面吗？"},
-			{"type": "show_choices", "choices": [
-				{"id": 1, "text": "当然可以！"},
-				{"id": 2, "text": "我看看时间..."}
-			]},
-			{"type": "add_affection", "character": "sister", "delta": 20},
-			{"type": "set_expression", "character": "sister", "expression": "happy"},
-			{"type": "show_dialogue", "character": "sister", "text": "太好了！[rainbow freq=0.5 sat=0.8 val=1.0]一言为定！[/rainbow]"},
-			{"type": "play_audio", "audio_id": "love_piano", "crossfade": 2.0},
-			{"type": "cg_play", "cg_id": "heroine_smile", "script_data": [
-				{"action": "pan", "start": {"x": -80, "y": 0}, "end": {"x": 0, "y": 0}, "duration": 2.5},
-				{"action": "zoom", "start": {"scale": 1.15}, "end": {"scale": 1.0}, "duration": 2.5}
-			]},
-			{"type": "unlock_cg", "cg_id": "heroine_smile"},
-			{"type": "unlock_bgm", "bgm_id": "spring_forest"},
-			{"type": "unlock_bgm", "bgm_id": "love_piano"},
-			{"type": "set_variable", "variable": "ending_flag", "value": 1},
-			{"type": "show_dialogue", "character": "", "text": "就这样，两人的故事翻开了新的一页..."},
-			{"type": "set_ui_state", "element": "DialogueBox", "state": "hidden"},
-			{"type": "stop_audio", "audio_id": "love_piano", "fade_out": 1.0},
-			{"type": "end_scene"}
-		]
+	{"type": "change_background", "background": "nansu", "transition": "fade"},
+	{"type": "particle_play", "effect_id": "petal"},
+	{"type": "play_audio", "audio_id": "spring_forest", "crossfade": 1.5},
+	{"type": "set_characters", "left": {"id": "xiu", "expression": "default", "entrance_animation": "slide_left"}, "entrance_animation": "fade"},
+	{"type": "show_dialogue", "character": "xiu", "text": "！终于等到你了！[color=#FFB6C1]今天阳光真好呀～[/color]"},
+	{"type": "set_expression", "character": "xiu", "expression": "very_happy"},
+	{"type": "show_dialogue", "character": "xiu", "text": "我们好久没一起在校园里散步了呢。最近课业忙吗？"},
+	{"type": "show_dialogue", "character": "xiu", "text": "我跟你讲，我们院最近组织了一场超有趣的活动！"},
+	{"type": "set_expression", "character": "xiu", "expression": "happy"},
+	{"type": "character_action", "character": "xiu", "action": "bounce"},
+	{"type": "show_dialogue", "character": "xiu", "text": "下周有樱花节，好多社团都摆摊了，[shake rate=15 level=3]我们一起去逛逛吧！[/shake]"},
+	{"type": "show_choices", "choices": [{"id": 1, "text": "好啊，一定去！"}, {"id": 2, "text": "看时间吧，可能很忙。"}]},
+	{"type": "add_affection", "character": "xiu", "delta": 5},
+	{"type": "show_dialogue", "character": "xiu", "text": "嘻嘻，那就这么说定了！"},
+	{"type": "show_dialogue", "character": "xiu", "text": "对了哥哥，你最近有没有遇到什么有趣的事？"},
+	{"type": "show_dialogue", "character": "xiu", "text": "我上次在图书馆遇到一只流浪猫，好可爱呀，可惜宿管不让养……"},
+	{"type": "set_expression", "character": "xiu", "expression": "sad"},
+	{"type": "show_dialogue", "character": "xiu", "text": "如果能在宿舍养宠物就好了，[i]好想有一只小猫陪着我[/i]。"},
+	{"type": "show_choices", "choices": [{"id": 1, "text": "以后我们合租就可以养了！"}, {"id": 2, "text": "你可以多去图书馆看看它。"}]},
+	{"type": "add_affection", "character": "xiu", "delta": 10},
+	{"type": "show_dialogue", "character": "xiu", "text": "哇，真的吗？哥哥你愿意和我一起住？[color=#FFD700]那我可太开心了！[/color]"},
+	{"type": "set_expression", "character": "xiu", "expression": "very_happy"},
+	{"type": "character_action", "character": "xiu", "action": "bounce"},
+	{"type": "show_dialogue", "character": "xiu", "text": "好了啦，不说这些了。我们去那边的小路走走吧～"},
+	{"type": "wait", "duration": 1.0},
+	{"type": "long_dialogue", "text": "春日的午后，两人漫步在南大鼓楼校区的梧桐大道上。阳光透过嫩绿的叶子洒下斑驳的光影，空气中弥漫着淡淡的花香。妹妹轻轻哼着歌，时不时侧过头看着哥哥的侧脸，眼睛里闪着细碎的光。这样的时光，仿佛被拉得很长很长。"},
+	{"type": "show_dialogue", "character": "xiu", "text": "哥哥，你觉得大学四年最珍贵的是什么？"},
+	{"type": "show_choices", "choices": [{"id": 1, "text": "当然是遇到了你。"}, {"id": 2, "text": "学到了很多知识。"}]},
+	{"type": "add_affection", "character": "xiu", "delta": 15},
+	{"type": "show_dialogue", "character": "xiu", "text": "……哥哥你突然说这种话，[shake rate=10 level=3]人家会害羞的啦！[/shake]"},
+	{"type": "set_expression", "character": "xiu", "expression": "happy"},
+	{"type": "show_dialogue", "character": "xiu", "text": "不过，我也是这么想的。和你在一起的每一天，都特别开心。"},
+	{"type": "add_affection", "character": "xiu", "delta": 5},
+	{"type": "set_flag", "flag": "spring_walk_done", "value": true},
+	{"type": "wait", "duration": 1.5},
+	{"type": "change_background", "background": "beidalou", "transition": "fade"},
+	{"type": "particle_stop", "effect_id": "petal"},
+	{"type": "particle_play", "effect_id": "snow"},
+	{"type": "play_audio", "audio_id": "love_piano", "crossfade": 2.0},
+	{"type": "set_characters", "left": {"id": "xiu", "expression": "default", "entrance_animation": "fade"}, "entrance_animation": "none"},
+	{"type": "show_dialogue", "character": "xiu", "text": "啊……下雪了。时间过得好快，转眼就到冬天了。"},
+	{"type": "set_expression", "character": "xiu", "expression": "sad"},
+	{"type": "show_dialogue", "character": "xiu", "text": "哥哥，你还记得我们春天时的约定吗？"},
+	{"type": "show_dialogue", "character": "xiu", "text": "我有时候会想，如果有一天我们分开了，会是什么样子……"},
+	{"type": "show_choices", "choices": [{"id": 1, "text": "傻瓜，我们不会分开的。"}, {"id": 2, "text": "未来谁说得准呢。"}]},
+	{"type": "add_affection", "character": "xiu", "delta": 10},
+	{"type": "show_dialogue", "character": "xiu", "text": "谢谢你，哥哥。有你在身边，我觉得什么都不怕了。"},
+	{"type": "set_expression", "character": "xiu", "expression": "happy"},
+	{"type": "character_action", "character": "xiu", "action": "shake"},
+	{"type": "show_dialogue", "character": "xiu", "text": "雪好像越来越大了……你能牵着我的手走吗？"},
+	{"type": "wait", "duration": 1.0},
+	{"type": "unlock_cg", "cg_id": "heroine_smile"},
+	{"type": "cg_play", "cg_id": "heroine_smile"},
+	{"type": "show_dialogue", "character": "xiu", "text": "这个冬天，[color=#87CEEB]因为有你在，变得特别温暖。[/color]"},
+	{"type": "add_affection", "character": "xiu", "delta": 20},
+	{"type": "set_expression", "character": "xiu", "expression": "very_happy"},
+	{"type": "show_dialogue", "character": "xiu", "text": "哥哥，[wave amp=50.0 freq=5.0]我最喜欢你了！[/wave]"},
+	{"type": "show_dialogue", "character": "", "text": "就这样，两人的故事在飘雪的梧桐树下，翻开了新的一页。"},
+	{"type": "unlock_bgm", "bgm_id": "love_piano"},
+	{"type": "set_variable", "variable": "ending_type", "value": 1},
+	{"type": "set_ui_state", "element": "DialogueBox", "state": "hidden"},
+	{"type": "stop_audio", "audio_id": "love_piano", "fade_out": 2.0},
+	{"type": "end_scene"}
+]
 		ScriptEngine.execute_commands(test_script)
 
 
@@ -132,8 +147,12 @@ func display_options(choices: Array) -> void:
 		_cache_scene_instance()
 	if _scene_instance and _scene_instance.has_method("display_choices"):
 		_scene_instance.display_choices(choices)
-		if not _scene_instance.is_connected("choice_selected", _on_choice):
-			_scene_instance.connect("choice_selected", _on_choice, CONNECT_ONE_SHOT)
+		if _scene_instance.is_connected("choice_selected", _on_choice):
+			_scene_instance.disconnect("choice_selected", _on_choice)
+		_scene_instance.connect("choice_selected", _on_choice, CONNECT_ONE_SHOT)
+		print("[DialogueManager] 选项信号已连接")
+	else:
+		push_error("[DialogueManager] 无法显示选项，场景实例无效。")
 
 
 # ================= 信号回调 =================

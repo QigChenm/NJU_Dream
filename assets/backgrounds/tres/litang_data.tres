@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BackgroundData" format=3 uid="uid://b3onrufbiwcw1"]
+
+[ext_resource type="FontFile" uid="uid://cv4m0rys7x10i" path="res://assets/fonts/ChillRoundGothic_Bold.ttf" id="1_tq2fs"]
+[ext_resource type="Script" uid="uid://bn1rl1bkkavgq" path="res://scripts/datatypes/background_data.gd" id="2_tq2fs"]
+[ext_resource type="Texture2D" uid="uid://bd5lksmouduhe" path="res://assets/backgrounds/litang.jpg" id="3_hg2o4"]
+
+[resource]
+script = ExtResource("2_tq2fs")
+background_id = "litang"
+display_name = "鼓楼大礼堂"
+location_name = "鼓楼大礼堂"
+location_font = ExtResource("1_tq2fs")
+location_font_size = 40
+texture = ExtResource("3_hg2o4")
+metadata/_custom_type_script = "uid://bn1rl1bkkavgq"

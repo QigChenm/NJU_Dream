@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="BackgroundData" format=3 uid="uid://5nr8qb5842gb"]
 
 [ext_resource type="Script" uid="uid://bn1rl1bkkavgq" path="res://scripts/datatypes/background_data.gd" id="1_3bqx4"]
-[ext_resource type="FontFile" uid="uid://dnb6jjvxuy0x7" path="res://assets/fonts/SIMYOU.TTF" id="1_enj61"]
+[ext_resource type="FontFile" uid="uid://cv4m0rys7x10i" path="res://assets/fonts/ChillRoundGothic_Bold.ttf" id="1_enj61"]
 [ext_resource type="Texture2D" uid="uid://dqdndnix5vng7" path="res://assets/backgrounds/gulou_spring.jpg" id="2_i84ph"]
 
 [resource]

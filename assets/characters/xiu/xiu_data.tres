@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CharacterData" format=3 uid="uid://crmidmn68m2t2"]
+
+[ext_resource type="Script" uid="uid://fsylenqllr31" path="res://scripts/datatypes/character_data.gd" id="1_11t4j"]
+[ext_resource type="Texture2D" uid="uid://1egsudsx7alo" path="res://assets/characters/xiu/default.png" id="1_g6is1"]
+[ext_resource type="Texture2D" uid="uid://6tl1dcefim6t" path="res://assets/characters/xiu/happy.png" id="2_mxncr"]
+[ext_resource type="Texture2D" uid="uid://bqtw64qf3372c" path="res://assets/characters/xiu/very_happy.png" id="3_82uql"]
+[ext_resource type="Texture2D" uid="uid://5fiohm70tkye" path="res://assets/characters/xiu/sad.png" id="4_dyxc0"]
+[ext_resource type="Texture2D" uid="uid://gqt4qf0d04jc" path="res://assets/characters/xiu/surprised.png" id="5_tb0u0"]
+[ext_resource type="Texture2D" uid="uid://dh0tjho30n6sk" path="res://assets/characters/xiu/confused.png" id="6_ww7cj"]
+[ext_resource type="Texture2D" uid="uid://c8l1ic6jwp58c" path="res://assets/characters/xiu/angry.png" id="7_ugevj"]
+
+[resource]
+script = ExtResource("1_11t4j")
+character_id = "xiu"
+display_name = "小貅"
+expressions = {
+"angry": ExtResource("7_ugevj"),
+"confused": ExtResource("6_ww7cj"),
+"default": ExtResource("1_g6is1"),
+"happy": ExtResource("2_mxncr"),
+"sad": ExtResource("4_dyxc0"),
+"surprised": ExtResource("5_tb0u0"),
+"very_happy": ExtResource("3_82uql")
+}
+metadata/_custom_type_script = "uid://fsylenqllr31"

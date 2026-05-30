@@ -29,6 +29,7 @@ signal long_dialogue_finished
 @onready var fullscreen_text: RichTextLabel = $LongDialogueLayer/TextureRect/FullscreenText
 @onready var long_close_btn: TextureButton = $LongDialogueLayer/TextureRect/CloseButton
 @onready var long_dialogue_container:TextureRect = $LongDialogueLayer/TextureRect
+@onready var wait: RichTextLabel = $Wait
 
 # ---------- 状态变量 ----------
 var is_waiting_for_input: bool = false
@@ -235,6 +236,7 @@ func _enable_input() -> void:
 
 # ================= 对话显示 =================
 func display_dialogue(data: Dictionary) -> void:
+	wait.visible = false
 	_current_line_recorded = false
 	choice_panel.hide()
 	_kill_typewriter()
@@ -325,6 +327,7 @@ func display_choices(choices: Array) -> void:
 	is_waiting_for_input = false
 	click_indicator.hide()
 	current_choices = choices
+	GameManager.pending_choices = choices.duplicate(true)
 
 	for i in range(choice_buttons.size()):
 		if i < choices.size():
@@ -639,48 +642,6 @@ func _on_home_tip_closed() -> void:
 		UIManager._return_button.visible = false
 	if UIManager._return_to_menu_button:
 		UIManager._return_to_menu_button.visible = false
-
-
-func _create_home_confirm_dialog() -> void:
-	var dialog = ConfirmationDialog.new()
-	dialog.name = "HomeConfirmDialog"
-	dialog.title = "提示"
-	dialog.dialog_text = "是否保存当前游戏进度？"
-	dialog.ok_button_text = "是（保存）"
-	dialog.cancel_button_text = "否（不保存）"
-	dialog.process_mode = PROCESS_MODE_ALWAYS
-	dialog.min_size = Vector2(450, 200)
-
-	if custom_font:
-		dialog.add_theme_font_override("title_font", custom_font)
-	dialog.add_theme_font_size_override("title_font_size", 30)
-	dialog.add_theme_constant_override("title_margin_top", 15)
-
-	var content_label = dialog.get_label()
-	if content_label:
-		if custom_font:
-			content_label.add_theme_font_override("font", custom_font)
-		content_label.add_theme_font_size_override("font_size", 30)
-
-	var ok_btn = dialog.get_ok_button()
-	var cancel_btn = dialog.get_cancel_button()
-	if custom_font:
-		ok_btn.add_theme_font_override("font", custom_font)
-		cancel_btn.add_theme_font_override("font", custom_font)
-	ok_btn.add_theme_font_size_override("font_size", 30)
-	cancel_btn.add_theme_font_size_override("font_size", 30)
-
-	var button_container = ok_btn.get_parent()
-	if button_container is Container:
-		button_container.add_theme_constant_override("separation", 10)
-
-	for btn in [ok_btn, cancel_btn]:
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
-
-	dialog.confirmed.connect(_on_home_save_confirmed)
-	dialog.canceled.connect(_on_home_cancel_confirmed)
-	add_child(dialog)
 
 
 func _on_home_save_confirmed() -> void:

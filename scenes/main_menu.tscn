@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://xmkfm1nat6ew"]
 
 [ext_resource type="Script" uid="uid://btdb8fgafc5vp" path="res://scripts/scenes/main_menu.gd" id="1_ekxnf"]
-[ext_resource type="Texture2D" uid="uid://bu50ib80xm8ly" path="res://assets/backgrounds/main_menu_bg.png" id="2_j7ex8"]
+[ext_resource type="Texture2D" uid="uid://cpwh4glooufq4" path="res://assets/backgrounds/beidalou.jpg" id="2_8egab"]
 [ext_resource type="Texture2D" uid="uid://cy08fpyecpnfn" path="res://assets/ui/title/标题_背景装饰遮罩_llf.png" id="3_flqon"]
 [ext_resource type="Texture2D" uid="uid://dfndmrb23uwbj" path="res://assets/ui/title/标题_开始游戏_默认_llf.png" id="3_lgwnu"]
 [ext_resource type="Texture2D" uid="uid://cfdajmp6r3tk5" path="res://assets/Title.png" id="4_8egab"]
@@ -37,7 +37,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-texture = ExtResource("2_j7ex8")
+texture = ExtResource("2_8egab")
 
 [node name="Mask" type="TextureRect" parent="." unique_id=697433643]
 layout_mode = 1

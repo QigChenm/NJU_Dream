@@ -111,8 +111,9 @@ anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 38.0
-offset_top = -1024.0
+offset_top = -883.0
 offset_right = 806.0
+offset_bottom = 141.0
 grow_vertical = 0
 script = ExtResource("5_2e7es")
 
@@ -124,8 +125,9 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -812.0
-offset_top = -1024.0
+offset_top = -883.0
 offset_right = -44.0
+offset_bottom = 141.0
 grow_horizontal = 0
 grow_vertical = 0
 script = ExtResource("5_2e7es")
@@ -330,3 +332,25 @@ offset_top = 1014.0
 offset_right = 1895.0
 offset_bottom = 1054.0
 texture = ExtResource("8_w4lkc")
+
+[node name="Wait" type="RichTextLabel" parent="." unique_id=1498277408]
+layout_mode = 0
+offset_left = 449.0
+offset_top = 783.0
+offset_right = 1662.0
+offset_bottom = 1083.0
+theme_override_colors/default_color = Color(0.8980392, 0.4509804, 0.4509804, 1)
+theme_override_fonts/normal_font = ExtResource("8_o6y45")
+theme_override_fonts/bold_font = ExtResource("8_o6y45")
+theme_override_fonts/bold_italics_font = ExtResource("8_o6y45")
+theme_override_fonts/italics_font = ExtResource("8_o6y45")
+theme_override_fonts/mono_font = ExtResource("8_o6y45")
+theme_override_font_sizes/normal_font_size = 60
+theme_override_font_sizes/bold_font_size = 60
+theme_override_font_sizes/bold_italics_font_size = 60
+theme_override_font_sizes/italics_font_size = 60
+theme_override_font_sizes/mono_font_size = 60
+bbcode_enabled = true
+text = "[wave amp=50.0 freq=5.0]请稍等，AI正在努力生成对话……[/wave]"
+horizontal_alignment = 1
+vertical_alignment = 1

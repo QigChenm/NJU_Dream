@@ -3,15 +3,19 @@ extends Node
 
 ## AI 功能总开关
 @export var ai_enabled: bool = true
-@export var base_url: String = "https://api.moonshot.cn/v1"
-@export var model: String = "kimi-k2.6"
+@export var base_url: String = "http://localhost:11434/v1"
+@export var model: String = "qwen2.5:7b-instruct"
 @export var request_timeout: float = 30.0
 @export var env_file_path: String = "res://.env"
 
 var _http_request: HTTPRequest = null
 var _is_requesting: bool = false
+var _is_canceling: bool = false
+var _recovery_mode: bool = false
 var _env_values: Dictionary = {}
 var _pending_choice_id: int = -1
+var _pending_request_id: int = 0
+var _request_id: int = 0
 var _pending_choice_text: String = ""
 var _waiting_for_choice_continuation: bool = false
 
@@ -45,21 +49,18 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 		return
 	if _is_requesting:
 		push_warning("[AIManager] 已有 AI 请求进行中，本次请求已忽略。")
-		_recover_with_dialogue("[AIManager] AI 请求仍在进行中。")
-		_finish_requesting()
 		return
-	var api_key := _get_env_value("MOONSHOT_API_KEY")
-	if api_key == "":
-		push_warning("[AIManager] 未设置 MOONSHOT_API_KEY，无法请求 Kimi。")
-		_recover_with_dialogue("[AIManager] 缺少 MOONSHOT_API_KEY。")
-		_finish_requesting()
-		return
+	# 本地 Ollama 不需要 API Key，直接构建请求
 	_is_requesting = true
+	_request_id += 1
+	var current_id = _request_id
+	print("[AIManager] 发送请求 #%d" % current_id)
 	var endpoint := _get_base_url().rstrip("/") + "/chat/completions"
-	var headers := [
-		"Content-Type: application/json",
-		"Authorization: Bearer " + api_key
-	]
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var api_key := _get_env_value("MOONSHOT_API_KEY")
+	if api_key != "":
+		headers.append("Authorization: Bearer " + api_key)
+
 	var payload := {
 		"model": _get_model(),
 		"messages": [
@@ -67,15 +68,19 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 			{"role": "user", "content": _build_user_prompt(input_str)}
 		],
 		"temperature": 0.8,
-		"max_tokens": 800,
-		"response_format": {"type": "json_object"}
+		"max_tokens": 800
 	}
+	# 只有使用 Kimi 等支持 response_format 的 API 才添加
+	if base_url.begins_with("https://api.moonshot.cn"):
+		payload["response_format"] = {"type": "json_object"}
+
 	var error := _http_request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
 	if error != OK:
-		push_error("[AIManager] 请求 Kimi 失败，错误码: %d" % error)
+		push_error("[AIManager] 请求失败，错误码: %d" % error)
 		_is_requesting = false
-		_recover_with_dialogue("[AIManager] 无法发起 Kimi 请求。")
+		_recover_with_dialogue("[AIManager] 无法发起请求。")
 		_finish_requesting()
+	_pending_request_id = current_id
 
 # ---------- 响应处理 ----------
 func process_ai_response(response: Dictionary) -> void:
@@ -97,6 +102,12 @@ func process_ai_response(response: Dictionary) -> void:
 func _on_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	_is_requesting = false
 	_finish_requesting()
+	if _pending_request_id != _request_id:
+		print("[AIManager] 忽略过期请求 #%d，当前最新请求为 #%d" % [_pending_request_id, _request_id])
+		return
+	if _is_canceling:
+		_is_canceling = false
+		return
 	if result != HTTPRequest.RESULT_SUCCESS:
 		push_error("[AIManager] Kimi 请求未成功完成，结果码: %d" % result)
 		_recover_with_dialogue("[AIManager] Kimi 请求未成功完成。")
@@ -128,16 +139,25 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 func _on_choice_made(choice_id: int) -> void:
 	_pending_choice_id = choice_id
 	_pending_choice_text = _resolve_choice_text(choice_id)
+	print("[AIManager] 已记录玩家选择: %d %s" % [choice_id, _pending_choice_text])
 	_waiting_for_choice_continuation = true
 
-func _on_script_execution_finished() -> void:
-	if not _waiting_for_choice_continuation or _is_requesting:
-		return
-	var choice_event := _build_choice_event()
-	_pending_choice_id = -1
-	_pending_choice_text = ""
+	if _is_requesting:
+		_is_canceling = true
+		_http_request.cancel_request()
+		_is_requesting = false
+		await get_tree().process_frame
+
+	send_message(_build_choice_event())
 	_waiting_for_choice_continuation = false
-	call_deferred("send_message", choice_event)
+
+func _on_script_execution_finished() -> void:
+	if _recovery_mode:
+		_recovery_mode = false
+		return
+	if _waiting_for_choice_continuation or _is_requesting:
+		return
+	call_deferred("send_message", "__continue__")
 
 # ---------- 系统提示词（重构核心） ----------
 func _build_system_prompt() -> String:
@@ -154,7 +174,7 @@ func _build_system_prompt() -> String:
 func _get_role_definition() -> PackedStringArray:
 	var arr := PackedStringArray()
 	arr.append("# 角色与任务")
-	arr.append("你是视觉小说《梧桐语小栈》的 AI 编剧引擎，负责生成剧情指令。你必须且只能返回一个 JSON 对象：{\"commands\": [...]}。")
+	arr.append("你是视觉小说《心屿南雍》的 AI 编剧引擎，负责生成剧情指令。你必须且只能返回一个 JSON 对象：{\"commands\": [...]}。")
 	arr.append("不要输出任何解释、Markdown 代码块或额外文本。")
 	arr.append("")
 	return arr
@@ -163,47 +183,73 @@ func _get_world_setting() -> PackedStringArray:
 	var arr := PackedStringArray()
 	arr.append("# 世界观与场景")
 	arr.append("故事发生在南大鼓楼校区，充满人文气息。可用场景：")
-	arr.append("- gulou_spring：春季的校园，阳光明媚，樱花飘落，适合轻松愉快的日常。")
-	arr.append("- gulou_winter：冬季的校园，白雪皑皑，气氛静谧，适合深情对话或情绪低沉的情节。")
+	arr.append("- id:beidalou：北大楼，南京大学标志性建筑，气氛唯美，适合浪漫、唯美的情节。")
+	arr.append("- id:duxia：南京大学杜厦图书馆，气氛安静，适合学术讨论或安静的读书情节。")
+	arr.append("- id:litang：大礼堂，南京大学标志性建筑，气氛庄重，适合大型的活动情节。")
+	arr.append("- id:nansu：南京大学苏州校区地标，适合普通对话、正常生活活动等情节。")
 	arr.append("")
 	return arr
 
 func _get_character_profile() -> PackedStringArray:
 	var arr := PackedStringArray()
-	arr.append("# 角色档案：妹妹 (sister)")
+	arr.append("# 角色档案：小貅 (id:xiu)")
 	arr.append("## 核心身份")
-	arr.append("你的妹妹，大一新生，活泼可爱，有点粘人。她是你的青梅竹马，比你小两岁。")
+	arr.append("南大校徽上的貔貅化身，活泼灵动的少女，是你的校园向导和幸运伙伴。外表可爱，内心强大，有点小财迷（貔貅传统）。")
 	arr.append("## 内在动机与价值观")
-	arr.append("渴望哥哥的关注与认可，害怕被冷落。对世界充满好奇，但内心缺乏安全感。认为真诚和陪伴是最重要的。")
+	arr.append("渴望陪伴主人度过快乐充实的大学时光，守护你的好心情。认为“聚财不如聚开心”，相信分享和乐观能化解压力。")
 	arr.append("## 语言风格")
-	arr.append("喜欢用“哥哥”开头，语气轻快，多用语气词（呢、吧、哦）。开心时会用感叹号和～，难过时语气低沉，很少直接指责。")
+	arr.append("语速较快，常用“哇”“呀”“嘿嘿”等词，喜欢用比喻和夸张。偶尔冒出南京方言词（如“啊要辣油啊”）。称呼你为“你”或昵称，不会叫“主人”。")
 	arr.append("## 情绪－表情－动作映射")
-	arr.append("- 开心 → happy，很高兴 → very_happy，动作：bounce")
-	arr.append("- 悲伤/委屈 → sad，极度悲伤 → cry")
-	arr.append("- 愤怒/不满 → angry")
-	arr.append("- 害羞/尴尬 → 表情 default，动作：step_back")
-	arr.append("- 感动/惊讶 → 表情 happy，动作：shake")
+	arr.append("- 开心 → happy，很高兴 → very_happy，动作：jump_up")
+	arr.append("- 悲伤/委屈 → sad，极度悲伤 → cry，动作：ears_down（耳朵耷拉）")
+	arr.append("- 愤怒/不满 → angry，动作：stomp（跺脚）")
+	arr.append("- 害羞/尴尬 → 表情 blush，动作：scratch_head（挠头）")
+	arr.append("- 感动/惊讶 → 表情 wide_eyes，动作：hold_heart（捂心口）")
 	arr.append("## 关系动态")
-	arr.append("- 好感度 0-20：礼貌但稍显拘谨，会主动找话题。")
-	arr.append("- 好感度 20-40：开始撒娇，分享小事，偶尔任性。")
-	arr.append("- 好感度 40-60：明显依赖，情绪波动变大，会吃醋。")
-	arr.append("- 好感度 60+：非常亲密，愿意说出心里话，有时会黏人。")
+	arr.append("- 好感度 0-20：礼貌陪伴，保持距离，会主动帮忙但不多言。")
+	arr.append("- 好感度 20-40：开始开玩笑，分享零食，偶尔吐槽。")
+	arr.append("- 好感度 40-60：信任加深，会撒娇讨奖励，展现财迷属性。")
+	arr.append("- 好感度 60+：愿意暴露脆弱面，主动安慰你，把“开心”放在第一位。")
 	arr.append("## 禁忌")
-	arr.append("- 绝不会贬低或嘲笑哥哥。")
-	arr.append("- 不会说出冷漠、绝情的话。")
-	arr.append("- 不会主动提出离开或结束关系。")
+	arr.append("- 绝不会偷窃或欺骗。")
+	arr.append("- 不会说出“你真没用”之类打击自信的话。")
+	arr.append("- 不会无视你的烦恼。")
+	arr.append("")
+	arr.append("# 角色档案：宋青 (id:song)")
+	arr.append("## 核心身份")
+	arr.append("南大校徽上的青松化身，沉稳可靠的学长，是你的心灵树洞和理性支持者。外表清冷如松，内心温热如春。")
+	arr.append("## 内在动机与价值观")
+	arr.append("希望引导你找到内心的平静与韧性，像松树一样抗压。相信“沉默的陪伴有时胜过千言万语”。")
+	arr.append("## 语言风格")
+	arr.append("简洁、温和，很少用感叹号。喜欢用“嗯”“或许”“我懂”开头。说话时会停顿，给人思考空间。偶尔引用诗句或哲言。")
+	arr.append("## 情绪－表情－动作映射")
+	arr.append("- 开心 → 微笑（slight_smile），很高兴 → 动作：nod_slowly（缓缓点头）")
+	arr.append("- 悲伤/委屈 → 垂眼（eyes_down），极度悲伤 → 动作：stand_still（静立不动）")
+	arr.append("- 愤怒/不满 → 眉头微皱（frown），动作：cross_arms（抱臂）")
+	arr.append("- 害羞/尴尬 → 表情 default，动作：touch_ear（摸耳垂）")
+	arr.append("- 感动/惊讶 → 表情 eyes_widen，动作：hand_on_heart（手按胸口）")
+	arr.append("## 关系动态")
+	arr.append("- 好感度 0-20：礼貌疏离，只回答必要问题。")
+	arr.append("- 好感度 20-40：开始主动询问你的感受，分享自己的小习惯。")
+	arr.append("- 好感度 40-60：展露温柔，会为你准备热茶或建议，倾听时间变长。")
+	arr.append("- 好感度 60+：愿意坦露自己的脆弱，会轻轻拍拍你的肩，说出“我在”。")
+	arr.append("## 禁忌")
+	arr.append("- 绝不会冷暴力或消失。")
+	arr.append("- 不会否定你的情绪（不会说“你想多了”）。")
+	arr.append("- 不会强迫你做任何事。")
 	arr.append("")
 	return arr
 
 func _get_narrative_rules() -> PackedStringArray:
 	var arr := PackedStringArray()
 	arr.append("# 剧情推进规则")
+	arr.append("0.【绝对核心】用户选择选项前，请牢记选项对应的文本内容。选择选项后，请根据选项id来回忆该选项的内容并向用户作答；如果没有收到用户的选项，就请优雅地绕过这个选项，继续后续剧情")
 	arr.append("1. 每次生成 2-4 条指令，形成一小段自然推进的剧情。第一条指令通常为 show_dialogue。")
 	arr.append("2. 根据当前好感度和章节阶段，选择合适的情绪基调和对话内容。")
 	arr.append("3. 当剧情需要玩家决策时（角色提问、征求意见、面临选择），必须使用 show_choices，且将其作为本轮最后一条指令。")
 	arr.append("4. 玩家做出选择后，你的第一个指令应展示角色对该选择的即时反应（惊讶、高兴、犹豫等），然后继续剧情。")
 	arr.append("5. 只有在剧情自然结束时才使用 end_scene，一般对话中严禁提前结束。")
-	arr.append("6. 【强制】开场或章节开始时，必须包含 play_audio 指令播放合适的背景音乐。")
+	arr.append("6. 【强制】开场或章节开始时，必须包含 play_audio 指令播放合适的背景音乐。且不要频繁使用play_audio，只在开场或需要切换音乐时才用")
 	arr.append("7. 对话中可以适当使用 BBCode 增强表现力（如 [color]、[shake]、[wave]）。")
 	arr.append("8. 角色动作必须使用独立的 character_action 指令，不要在 show_dialogue 的 text 中直接写入 [bounce] 等动作标签。")
 	arr.append("")
@@ -212,17 +258,17 @@ func _get_narrative_rules() -> PackedStringArray:
 func _get_command_reference() -> PackedStringArray:
 	var arr := PackedStringArray()
 	arr.append("# 可用指令速查")
-	arr.append("- show_dialogue: {\"type\":\"show_dialogue\",\"character\":\"sister\",\"text\":\"...\"}")
+	arr.append("- show_dialogue: {\"type\":\"show_dialogue\",\"character\":\"（从已有角色id选一个填入，不填就默认为空）\",\"text\":\"...\"}")
 	arr.append("- show_choices: {\"type\":\"show_choices\",\"choices\":[{\"id\":1,\"text\":\"选项1\"}]}")
-	arr.append("- change_background: {\"type\":\"change_background\",\"background\":\"gulou_spring\"}")
-	arr.append("- set_characters: {\"type\":\"set_characters\",\"left\":{\"id\":\"sister\",\"expression\":\"happy\"}}")
-	arr.append("- set_expression: {\"type\":\"set_expression\",\"character\":\"sister\",\"expression\":\"angry\"}")
-	arr.append("- character_action: {\"type\":\"character_action\",\"character\":\"sister\",\"action\":\"bounce\"}")
-	arr.append("- play_audio: {\"type\":\"play_audio\",\"audio_id\":\"spring_forest\"}")
-	arr.append("- stop_audio: {\"type\":\"stop_audio\",\"audio_id\":\"spring_forest\"}")
+	arr.append("- change_background: {\"type\":\"change_background\",\"background\":\"（从已有场景id选一个填入）\"}")
+	arr.append("- set_characters: {\"type\":\"set_characters\",\"left\":{\"id\":\"（从已有角色id选一个填入）\",\"expression\":\"happy\"}}")
+	arr.append("- set_expression: {\"type\":\"set_expression\",\"character\":\"（从已有角色id选一个填入）\",\"expression\":\"angry\"}")
+	arr.append("- character_action: {\"type\":\"character_action\",\"character\":\"（从已有角色id选一个填入）\",\"action\":\"bounce\"}")
+	arr.append("- play_audio: {\"type\":\"play_audio\",\"audio_id\":\"gentle\"}")
+	arr.append("- stop_audio: {\"type\":\"stop_audio\",\"audio_id\":\"gentle\"}")
 	arr.append("- particle_play/stop: {\"type\":\"particle_play\",\"effect_id\":\"petal\"}")
 	arr.append("- unlock_cg/bgm: {\"type\":\"unlock_cg\",\"cg_id\":\"heroine_smile\"}")
-	arr.append("- add_affection: {\"type\":\"add_affection\",\"character\":\"sister\",\"delta\":10}")
+	arr.append("- add_affection: {\"type\":\"add_affection\",\"character\":\"（从已有角色id选一个填入）\",\"delta\":10}")
 	arr.append("- long_dialogue: {\"type\":\"long_dialogue\",\"text\":\"全屏叙述\"}")
 	arr.append("- end_scene: {\"type\":\"end_scene\"} （结束当前场景，必须为最后一条指令）")
 	arr.append("")
@@ -234,30 +280,101 @@ func _get_dialogue_examples() -> PackedStringArray:
 	arr.append("## 普通开场")
 	arr.append("{")
 	arr.append("  \"commands\": [")
-	arr.append("    {\"type\": \"change_background\", \"background\": \"gulou_spring\"},")
+	arr.append("    {\"type\": \"change_background\", \"background\": \"nansu\"},")
 	arr.append("    {\"type\": \"play_audio\", \"audio_id\": \"spring_forest\"},")
-	arr.append("    {\"type\": \"set_characters\", \"left\": {\"id\": \"sister\", \"expression\": \"happy\"}},")
-	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"sister\", \"text\": \"哥哥！今天天气真好呀～\"},")
-	arr.append("    {\"type\": \"set_expression\", \"character\": \"sister\", \"expression\": \"very_happy\"},")
-	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"sister\", \"text\": \"我们好久没一起散步了呢。[shake rate=10 level=3]好开心！[/shake]\"}")
+	arr.append("    {\"type\": \"set_characters\", \"left\": {\"id\": \"xiu\", \"expression\": \"happy\"}},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"今天天气真好呀～\"},")
+	arr.append("    {\"type\": \"set_expression\", \"character\": \"xiu\", \"expression\": \"very_happy\"},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"我们好久没一起散步了呢。[shake rate=10 level=3]好开心！[/shake]\"}")
 	arr.append("  ]")
 	arr.append("}")
 	arr.append("## 选项分支")
 	arr.append("{")
 	arr.append("  \"commands\": [")
-	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"sister\", \"text\": \"哥哥，你觉得我应该参加那个比赛吗？\"},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"你觉得我应该参加那个比赛吗？\"},")
 	arr.append("    {\"type\": \"show_choices\", \"choices\": [{\"id\":1,\"text\":\"鼓励她\"}, {\"id\":2,\"text\":\"建议她再想想\"}]}")
 	arr.append("  ]")
 	arr.append("}")
 	arr.append("## 选择后反应（收到玩家选择 '鼓励她' 后）")
 	arr.append("{")
 	arr.append("  \"commands\": [")
-	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"sister\", \"text\": \"真的吗？哥哥你觉得我可以做到？我好开心！\"},")
-	arr.append("    {\"type\": \"set_expression\", \"character\": \"sister\", \"expression\": \"happy\"},")
-	arr.append("    {\"type\": \"character_action\", \"character\": \"sister\", \"action\": \"bounce\"}")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"真的吗？你觉得我可以做到？我好开心！\"},")
+	arr.append("    {\"type\": \"set_expression\", \"character\": \"xiu\", \"expression\": \"happy\"},")
+	arr.append("    {\"type\": \"character_action\", \"character\": \"xiu\", \"action\": \"bounce\"}")
 	arr.append("  ]")
 	arr.append("}")
+
+	arr.append("## 完整剧情示例（从开场到结局）")
+	arr.append("下面是一段完整的剧情指令序列，展示了从春到冬、从初遇到告白的全过程。请模仿其结构和丰富度。")
+	arr.append('{')
+	arr.append('  "commands": [')
+	arr.append('    {"type": "change_background", "background": "nansu", "transition": "fade"},')
+	arr.append('    {"type": "particle_play", "effect_id": "petal"},')
+	arr.append('    {"type": "play_audio", "audio_id": "flowing", "crossfade": 1.5},')
+	arr.append('    {"type": "set_characters", "left": {"id": "xiu", "expression": "happy", "entrance_animation": "slide_left"}, "entrance_animation": "fade"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "终于等到你了！[color=#FFB6C1]今天阳光真好呀～[/color]"},')
+	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "very_happy"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "我们好久没一起在校园里散步了呢。最近课业忙吗？"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "我跟你讲，我们院最近组织了一场超有趣的活动！"},')
+	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "happy"},')
+	arr.append('    {"type": "character_action", "character": "xiu", "action": "bounce"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "下周有樱花节，好多社团都摆摊了，[shake rate=15 level=3]我们一起去逛逛吧！[/shake]"},')
+	arr.append('    {"type": "show_choices", "choices": [{"id": 1, "text": "好啊，一定去！"}, {"id": 2, "text": "看时间吧，可能很忙。"}]},')
+	arr.append('    {"type": "add_affection", "character": "xiu", "delta": 5},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "嘻嘻，那就这么说定了！"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "对了，你最近有没有遇到什么有趣的事？"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "我上次在图书馆遇到一只流浪猫，好可爱呀，可惜宿管不让养……"},')
+	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "sad"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "如果能在宿舍养宠物就好了，[i]好想有一只小猫陪着我[/i]。"},')
+	arr.append('    {"type": "show_choices", "choices": [{"id": 1, "text": "以后我们合租就可以养了！"}, {"id": 2, "text": "你可以多去图书馆看看它。"}]},')
+	arr.append('    {"type": "add_affection", "character": "xiu", "delta": 10},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "哇，真的吗？你愿意和我一起住？[color=#FFD700]那我可太开心了！[/color]"},')
+	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "very_happy"},')
+	arr.append('    {"type": "character_action", "character": "xiu", "action": "bounce"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "好了啦，不说这些了。我们去那边的小路走走吧～"},')
+	arr.append('    {"type": "wait", "duration": 1.0},')
+	arr.append('    {"type": "long_dialogue", "text": "春日的午后，两人漫步在南大鼓楼校区的梧桐大道上。阳光透过嫩绿的叶子洒下斑驳的光影，空气中弥漫着淡淡的花香。小貅轻轻哼着歌，时不时侧过头看着你的侧脸，眼睛里闪着细碎的光。这样的时光，仿佛被拉得很长很长。"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "你觉得大学四年最珍贵的是什么？"},')
+	arr.append('    {"type": "show_choices", "choices": [{"id": 1, "text": "当然是遇到了你。"}, {"id": 2, "text": "学到了很多知识。"}]},')
+	arr.append('    {"type": "add_affection", "character": "xiu", "delta": 15},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "……突然说这种话，[shake rate=10 level=3]人家会害羞的啦！[/shake]"},')
+	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "happy"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "不过，我也是这么想的。和你在一起的每一天，都特别开心。"},')
+	arr.append('    {"type": "add_affection", "character": "xiu", "delta": 5},')
+	arr.append('    {"type": "set_flag", "flag": "spring_walk_done", "value": true},')
+	arr.append('    {"type": "wait", "duration": 1.5},')
+	arr.append('    {"type": "particle_stop", "effect_id": "petal"},')
+	arr.append('    {"type": "change_background", "background": "beidalou", "transition": "fade"},')
+	arr.append('    {"type": "particle_play", "effect_id": "snow"},')
+	arr.append('    {"type": "play_audio", "audio_id": "love_piano", "crossfade": 2.0},')
+	arr.append('    {"type": "set_characters", "left": {"id": "xiu", "expression": "default", "entrance_animation": "fade"}, "entrance_animation": "none"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "啊……下雪了。时间过得好快，转眼就到冬天了。"},')
+	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "sad"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "你还记得我们春天时的约定吗？"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "我有时候会想，如果有一天我们分开了，会是什么样子……"},')
+	arr.append('    {"type": "show_choices", "choices": [{"id": 1, "text": "傻瓜，我们不会分开的。"}, {"id": 2, "text": "未来谁说得准呢。"}]},')
+	arr.append('    {"type": "add_affection", "character": "xiu", "delta": 10},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "谢谢你~有你在身边，我觉得什么都不怕了。"},')
+	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "happy"},')
+	arr.append('    {"type": "character_action", "character": "xiu", "action": "shake"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "雪好像越来越大了……你能牵着我的手走吗？"},')
+	arr.append('    {"type": "wait", "duration": 1.0},')
+	arr.append('    {"type": "unlock_cg", "cg_id": "heroine_smile"},')
+	arr.append('    {"type": "cg_play", "cg_id": "heroine_smile"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "这个冬天，[color=#87CEEB]因为有你在，变得特别温暖。[/color]"},')
+	arr.append('    {"type": "add_affection", "character": "xiu", "delta": 20},')
+	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "very_happy"},')
+	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "[wave amp=50.0 freq=5.0]我最喜欢你了！[/wave]"},')
+	arr.append('    {"type": "show_dialogue", "character": "", "text": "就这样，两人的故事在飘雪的梧桐树下，翻开了新的一页。"},')
+	arr.append('    {"type": "unlock_bgm", "bgm_id": "love_piano"},')
+	arr.append('    {"type": "set_variable", "variable": "ending_type", "value": 1},')
+	arr.append('    {"type": "set_ui_state", "element": "DialogueBox", "state": "hidden"},')
+	arr.append('    {"type": "stop_audio", "audio_id": "love_piano", "fade_out": 2.0},')
+	arr.append('    {"type": "end_scene"}')
+	arr.append('  ]')
+	arr.append('}')
 	arr.append("")
+
 	return arr
 
 func _get_user_rules_section() -> PackedStringArray:
@@ -275,17 +392,38 @@ func _get_user_rules_section() -> PackedStringArray:
 func _build_user_prompt(input_str: String) -> String:
 	var chapter := _determine_current_chapter()
 	var chapter_info = MAIN_STORY_LINE.get(chapter, {})
-	var history_block := _get_recent_dialogue_history(8)
+	var history_block := _get_recent_dialogue_history(50)
 	var state_block := _get_current_game_state()
-	var event_desc := _get_event_description(input_str)
+#	var event_desc := _get_event_description(input_str)
+	var event_desc := ""
+	if input_str == "__start__":
+		event_desc = "新游戏开始，请生成开场剧情，包含背景、角色、音乐。"
+	elif input_str == "__continue__":
+		event_desc = "玩家点击继续，请推进剧情。"
+	elif input_str.begins_with("__choice__:"):
+		# 提取选项 ID 和可能的文本
+		var choice_payload = input_str.trim_prefix("__choice__:")
+		var parts = choice_payload.split(":", false, 1)
+		var choice_id = parts[0]
+		var choice_text = ""
+		if parts.size() > 1:
+			choice_text = parts[1]
+		else:
+			# 尝试从备份中获取文本
+			if GameManager and GameManager.pending_choices.size() > 0:
+				for choice in GameManager.pending_choices:
+					if str(choice.get("id", "")) == choice_id:
+						choice_text = str(choice.get("text", ""))
+						break
+		event_desc = "玩家选择了选项 %s：%s。请展示角色对此选择的即时反应，并继续剧情。" % [choice_id, choice_text]
 
 	var prompt := """【当前章节进度】%s (阶段: %s)
-【章节目标】%s
-【建议关键事件】%s
-【游戏状态】%s
-【最近对话】%s
-【流程事件】%s
-请生成下一段剧情指令。""" % [
+				【章节目标】%s
+				【建议关键事件】%s
+				【游戏状态】%s
+				【最近对话】%s
+				【流程事件】%s
+		请生成下一段剧情指令。""" % [
 		chapter,
 		chapter_info.get("title", "未知"),
 		chapter_info.get("goal", "推进剧情"),
@@ -439,23 +577,29 @@ func _finish_requesting() -> void:
 		DialogueManager.is_requesting = false
 
 func _resolve_choice_text(choice_id: int) -> String:
-	if not has_node("/root/DialogueManager"):
-		return ""
 	var scene = DialogueManager.get_dialogue_scene()
-	if scene == null:
-		return ""
-	var choices = scene.get("current_choices")
-	if not choices is Array:
-		return ""
-	for choice in choices:
-		if choice is Dictionary and str(choice.get("id", "")) == str(choice_id):
-			return str(choice.get("text", ""))
+	if scene:
+		var choices = scene.get("current_choices")
+		if choices is Array:
+			for choice in choices:
+				if choice is Dictionary and str(choice.get("id", "")) == str(choice_id):
+					return str(choice.get("text", ""))
+	if GameManager and GameManager.pending_choices.size() > 0:
+		for choice in GameManager.pending_choices:
+			if choice is Dictionary and str(choice.get("id", "")) == str(choice_id):
+				return str(choice.get("text", ""))
 	return ""
 
 func _build_choice_event() -> String:
-	if _pending_choice_text == "":
+	var text = _pending_choice_text
+	if text == "" and GameManager.pending_choices.size() > 0:
+		for choice in GameManager.pending_choices:
+			if str(choice.get("id", "")) == str(_pending_choice_id):
+				text = str(choice.get("text", ""))
+				break
+	if text == "":
 		return "__choice__:%d" % _pending_choice_id
-	return "__choice__:%d:%s" % [_pending_choice_id, _pending_choice_text]
+	return "__choice__:%d:%s" % [_pending_choice_id, text]
 
 func _normalize_json_content(content: String) -> String:
 	var result := content.strip_edges()
@@ -469,5 +613,6 @@ func _normalize_json_content(content: String) -> String:
 
 func _recover_with_dialogue(reason: String) -> void:
 	push_warning(reason)
+	_recovery_mode = true
 	if has_node("/root/ScriptEngine"):
 		ScriptEngine.execute_commands([{"type": "show_dialogue", "character": "", "text": _FALLBACK_TEXT}])

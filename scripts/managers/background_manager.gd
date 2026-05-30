@@ -15,11 +15,19 @@ const LOCATION_BAR_COLOR: Color = Color(0.0, 0.0, 0.0, 0.55)
 
 # ================= 属性 =================
 var background_database: Dictionary = {}
+var _texture_cache: Dictionary = {}
 var current_background_id: String = ""
 var _background_layer: TextureRect = null
 var _transition_canvas: CanvasLayer = null
 var transition_overlay: ColorRect = null
 var tween: Tween
+
+var bg_texture_map: Dictionary = {
+	"bg_main_1": "res://assets/backgrounds/beidalou.jpg",
+	"bg_main_2": "res://assets/backgrounds/duxia.jpg",
+	"bg_main_3": "res://assets/backgrounds/litang.jpg",
+	"bg_main_4": "res://assets/backgrounds/nansu.jpg"
+}
 
 # ================= 初始化 =================
 func _ready() -> void:
@@ -284,3 +292,26 @@ func set_background(bg_id: String) -> void:
 # ================= 废弃函数区？ =================
 func _retry_change_background(bg_id: String, transition_type: String, duration: float) -> void:
 	change_background(bg_id, transition_type, duration)
+	
+func get_all_background_ids() -> Array[String]:
+	var keys = bg_texture_map.keys()
+	var result: Array[String] = []
+	for k in keys:
+		result.append(str(k))
+	return result
+
+func get_background_texture(bg_id: String) -> Texture2D:
+	if not bg_texture_map.has(bg_id):
+		push_error("未找到背景 ID：", bg_id)
+		return null
+	
+	if _texture_cache.has(bg_id):
+		return _texture_cache[bg_id]
+	
+	var path = bg_texture_map[bg_id]
+	var texture = load(path) as Texture2D
+	if texture:
+		_texture_cache[bg_id] = texture
+	else:
+		push_error("无法加载背景纹理：", path)
+	return texture

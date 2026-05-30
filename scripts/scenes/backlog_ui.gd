@@ -37,7 +37,7 @@ func refresh_history() -> void:
 		var type = entry.get("type", "dialogue")
 		var character: String = entry.get("character", "")
 		var text: String = entry.get("text", "")
-		var char_id: String = entry.get("id", "")  # 优先使用ID
+		var char_id: String = entry.get("id", "")
 
 		_append_entry(type, character, text, char_id)
 

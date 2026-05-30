@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="AudioData" format=3 uid="uid://bhvamdt6gtwwv"]
+
+[ext_resource type="Script" uid="uid://c86w8rwqdond3" path="res://scripts/datatypes/audio_data.gd" id="1_tu4lp"]
+[ext_resource type="AudioStream" uid="uid://cyacnaysomn1b" path="res://assets/audio/bgm/gentle.mp3" id="2_tu4lp"]
+
+[resource]
+script = ExtResource("1_tu4lp")
+audio_id = "gentle"
+display_name = "柔情似水"
+audio_type = 0
+stream = ExtResource("2_tu4lp")
+metadata/_custom_type_script = "uid://c86w8rwqdond3"

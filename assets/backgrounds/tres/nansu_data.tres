@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BackgroundData" format=3 uid="uid://cllaf6vvc640r"]
+
+[ext_resource type="FontFile" uid="uid://cv4m0rys7x10i" path="res://assets/fonts/ChillRoundGothic_Bold.ttf" id="1_ab6na"]
+[ext_resource type="Script" uid="uid://bn1rl1bkkavgq" path="res://scripts/datatypes/background_data.gd" id="2_ab6na"]
+[ext_resource type="Texture2D" uid="uid://cnj2ee5nho6fg" path="res://assets/backgrounds/nansu.jpg" id="3_61blh"]
+
+[resource]
+script = ExtResource("2_ab6na")
+background_id = "nansu"
+display_name = "南苏"
+location_name = "南大苏州校区"
+location_font = ExtResource("1_ab6na")
+location_font_size = 40
+texture = ExtResource("3_61blh")
+metadata/_custom_type_script = "uid://bn1rl1bkkavgq"

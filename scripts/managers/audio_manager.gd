@@ -140,6 +140,8 @@ func get_bgm_player() -> AudioStreamPlayer:
 
 # ================= BGM 内部实现 =================
 func _play_bgm(data: AudioData, crossfade_duration: float) -> void:
+	if _bgm_player.playing and _bgm_player.stream == data.stream:
+		return
 	if _bgm_tween and _bgm_tween.is_valid():
 		_bgm_tween.kill()
 	_bgm_tween = create_tween()

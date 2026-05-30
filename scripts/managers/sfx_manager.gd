@@ -71,15 +71,12 @@ func _on_node_added(node: Node) -> void:
 	if node.name in ["Choice1", "Choice2", "Choice3"]:
 		if not node.pressed.is_connected(_play_option):
 			node.pressed.connect(_play_option)
-		print("[SFXManager] 为选项按钮 '%s' 绑定音效A" % node.name)
 	elif node.name == "SettingsButton":
 		if not node.pressed.is_connected(_play_settings):
 			node.pressed.connect(_play_settings)
-		print("[SFXManager] 为设置按钮绑定音效C")
 	else:
 		if not node.pressed.is_connected(_play_generic):
 			node.pressed.connect(_play_generic)
-		print("[SFXManager] 为通用按钮 '%s' 绑定音效D" % node.name)
 
 
 # ================= 播放函数 =================

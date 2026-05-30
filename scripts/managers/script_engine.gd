@@ -83,6 +83,44 @@ func _execute_next() -> void:
 	_current_cmd = _commands[_current_index]
 	var type: String = _current_cmd.get("type", "")
 	print("[ScriptEngine] 执行指令 (%d/%d): %s" % [_current_index + 1, _commands.size(), type])
+	
+	if type == "change_background":
+		var bg_id = _current_cmd.get("background", "")
+		if bg_id == BackgroundManager.current_background_id:
+			print("[ScriptEngine] 跳过重复背景切换指令")
+			_advance_to_next()
+			return
+	elif type == "play_audio":
+		var audio_id = _current_cmd.get("audio_id", "")
+		if AudioManager and audio_id == AudioManager.get_current_bgm_id():
+			print("[ScriptEngine] 跳过重复音乐播放指令")
+			_advance_to_next()
+			return
+	elif type == "set_characters":
+		var left_val = _current_cmd.get("left", null)
+		var right_val = _current_cmd.get("right", null)
+		var snapshot = CharacterManager.get_active_roles_data()
+		var current_left = snapshot.get("left", null)
+		var current_right = snapshot.get("right", null)
+		var left_id = ""; var left_expr = "default"
+		var right_id = ""; var right_expr = "default"
+		if typeof(left_val) == TYPE_DICTIONARY:
+			left_id = left_val.get("id", "")
+			left_expr = left_val.get("expression", "default")
+		elif typeof(left_val) == TYPE_STRING and left_val != "":
+			left_id = left_val
+		if typeof(right_val) == TYPE_DICTIONARY:
+			right_id = right_val.get("id", "")
+			right_expr = right_val.get("expression", "default")
+		elif typeof(right_val) == TYPE_STRING and right_val != "":
+			right_id = right_val
+		var left_same = (left_id == current_left.get("id", "") if current_left else left_id == "") and (left_expr == current_left.get("expression", "default") if current_left else left_expr == "default")
+		var right_same = (right_id == current_right.get("id", "") if current_right else right_id == "") and (right_expr == current_right.get("expression", "default") if current_right else right_expr == "default")
+		if left_same and right_same:
+			print("[ScriptEngine] 跳过重复 set_characters 指令")
+			_advance_to_next()
+			return
+
 
 	match type:
 		# --- 交互指令（无超时，等待玩家） ---
