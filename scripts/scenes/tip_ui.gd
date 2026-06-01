@@ -11,6 +11,7 @@ signal closed
 @onready var close_btn: TextureButton = $TipRect/CloseBtn
 @onready var confirm_txt: Label = $TipRect/ConfirmBtn/Label
 @onready var cancel_txt: Label = $TipRect/CancelBtn/Label
+@onready var feedback_input: LineEdit = $TipRect/InputEdit
 
 var _current_cancel_callback: Callable
 var _current_close_callback: Callable
@@ -54,6 +55,36 @@ func show_tip(text: String, confirm_text: String, cancel_text: String,
 
 	visible = true
 
+func show_feedback_tip(prompt_text: String, submit_callable: Callable, cancel_callable: Callable) -> void:
+	message_label.visible = false
+	feedback_input.visible = true
+	feedback_input.text = ""
+	confirm_txt.text = "提交"
+	cancel_txt.text = "取消"
+	close_btn.visible = false
+	
+	_disconnect_all()
+	
+	confirm_btn.pressed.connect(func():
+		var text = feedback_input.text.strip_edges()
+		if text != "" and submit_callable.is_valid():
+			submit_callable.call(text)
+		visible = false
+		message_label.visible = true
+		feedback_input.visible = false
+		_disconnect_all()
+	, CONNECT_ONE_SHOT)
+	
+	cancel_btn.pressed.connect(func():
+		if cancel_callable.is_valid():
+			cancel_callable.call()
+		visible = false
+		message_label.visible = true
+		feedback_input.visible = false
+		_disconnect_all()
+	, CONNECT_ONE_SHOT)
+	
+	visible = true
 
 func _disconnect_all():
 	for signal_name in ["pressed"]:

@@ -225,6 +225,152 @@ text = "确认"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="VolumeContainer" type="VBoxContainer" parent="VBoxContainerL" unique_id=651382289]
+layout_mode = 2
+
+[node name="TextureRect" type="TextureRect" parent="VBoxContainerL/VolumeContainer" unique_id=172424207]
+layout_mode = 2
+size_flags_horizontal = 0
+texture = ExtResource("11_6sl7h")
+
+[node name="Label" type="Label" parent="VBoxContainerL/VolumeContainer/TextureRect" unique_id=337831441]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -136.0
+offset_top = -66.0
+offset_right = 127.0
+offset_bottom = 29.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
+theme_override_colors/font_outline_color = Color(1, 1, 1, 1)
+theme_override_constants/outline_size = 10
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 48
+text = "音量调节"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BGMVolumeContainer" type="HBoxContainer" parent="VBoxContainerL/VolumeContainer" unique_id=2108595774]
+layout_mode = 2
+theme_override_constants/separation = 50
+
+[node name="Label" type="Label" parent="VBoxContainerL/VolumeContainer/BGMVolumeContainer" unique_id=482352215]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+size_flags_stretch_ratio = 0.5
+theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 36
+text = "背景音乐"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BGMVolume" type="HSlider" parent="VBoxContainerL/VolumeContainer/BGMVolumeContainer" unique_id=1635781651]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+theme_override_icons/grabber = ExtResource("5_63k7b")
+theme_override_icons/grabber_highlight = ExtResource("6_npu2v")
+theme_override_styles/slider = SubResource("StyleBoxTexture_npu2v")
+theme_override_styles/grabber_area = SubResource("StyleBoxTexture_inf46")
+theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_npu2v")
+min_value = -20.0
+max_value = 20.0
+step = 0.01
+value = 0.010000000000001563
+
+[node name="SFXVolumeContainer" type="HBoxContainer" parent="VBoxContainerL/VolumeContainer" unique_id=1354841113]
+layout_mode = 2
+theme_override_constants/separation = 50
+
+[node name="Label" type="Label" parent="VBoxContainerL/VolumeContainer/SFXVolumeContainer" unique_id=375493519]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+size_flags_stretch_ratio = 0.5
+theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 36
+text = "音效"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SFXVolume" type="HSlider" parent="VBoxContainerL/VolumeContainer/SFXVolumeContainer" unique_id=1759548501]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+theme_override_icons/grabber = ExtResource("5_63k7b")
+theme_override_icons/grabber_highlight = ExtResource("6_npu2v")
+theme_override_styles/slider = SubResource("StyleBoxTexture_npu2v")
+theme_override_styles/grabber_area = SubResource("StyleBoxTexture_inf46")
+theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_npu2v")
+min_value = -20.0
+max_value = 20.0
+step = 0.01
+value = 0.010000000000001563
+
+[node name="VoiceVolumeContainer" type="HBoxContainer" parent="VBoxContainerL/VolumeContainer" unique_id=1577095991]
+layout_mode = 2
+theme_override_constants/separation = 50
+
+[node name="Label" type="Label" parent="VBoxContainerL/VolumeContainer/VoiceVolumeContainer" unique_id=1362930035]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+size_flags_stretch_ratio = 0.5
+theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 36
+text = "语音"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="VoiceVolume" type="HSlider" parent="VBoxContainerL/VolumeContainer/VoiceVolumeContainer" unique_id=2029494132]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+theme_override_icons/grabber = ExtResource("5_63k7b")
+theme_override_icons/grabber_highlight = ExtResource("6_npu2v")
+theme_override_styles/slider = SubResource("StyleBoxTexture_npu2v")
+theme_override_styles/grabber_area = SubResource("StyleBoxTexture_inf46")
+theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_npu2v")
+min_value = -20.0
+max_value = 20.0
+step = 0.01
+value = 0.010000000000001563
+
+[node name="SFXContainer" type="HBoxContainer" parent="VBoxContainerL/VolumeContainer" unique_id=2053437901]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+theme_override_constants/separation = 50
+
+[node name="Label" type="Label" parent="VBoxContainerL/VolumeContainer/SFXContainer" unique_id=1582860528]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+size_flags_stretch_ratio = 0.5
+theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 36
+text = "启用点击音效"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SFXToggle" type="CheckButton" parent="VBoxContainerL/VolumeContainer/SFXContainer" unique_id=837425529]
+layout_mode = 2
+size_flags_horizontal = 2
+theme_override_icons/checked = ExtResource("12_ucsy7")
+theme_override_icons/unchecked = ExtResource("13_tfy2e")
+
 [node name="FullscreenContainer" type="HBoxContainer" parent="VBoxContainerL" unique_id=100613049]
 visible = false
 layout_mode = 2
@@ -314,15 +460,16 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 50
 
-[node name="VolumeContainer" type="VBoxContainer" parent="VBoxContainerR" unique_id=651382289]
+[node name="AIURLContainer" type="VBoxContainer" parent="VBoxContainerR" unique_id=1450461267]
 layout_mode = 2
+theme_override_constants/separation = 20
 
-[node name="TextureRect" type="TextureRect" parent="VBoxContainerR/VolumeContainer" unique_id=172424207]
+[node name="TextureRect" type="TextureRect" parent="VBoxContainerR/AIURLContainer" unique_id=1584916105]
 layout_mode = 2
 size_flags_horizontal = 0
 texture = ExtResource("11_6sl7h")
 
-[node name="Label" type="Label" parent="VBoxContainerR/VolumeContainer/TextureRect" unique_id=337831441]
+[node name="Label" type="Label" parent="VBoxContainerR/AIURLContainer/TextureRect" unique_id=1690024493]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -340,15 +487,15 @@ theme_override_colors/font_outline_color = Color(1, 1, 1, 1)
 theme_override_constants/outline_size = 10
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 48
-text = "音量调节"
+text = "AI设置"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="BGMVolumeContainer" type="HBoxContainer" parent="VBoxContainerR/VolumeContainer" unique_id=2108595774]
+[node name="AIBaseURL" type="HBoxContainer" parent="VBoxContainerR/AIURLContainer" unique_id=517847717]
 layout_mode = 2
 theme_override_constants/separation = 50
 
-[node name="Label" type="Label" parent="VBoxContainerR/VolumeContainer/BGMVolumeContainer" unique_id=482352215]
+[node name="Label" type="Label" parent="VBoxContainerR/AIURLContainer/AIBaseURL" unique_id=1194221573]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 1
@@ -356,30 +503,22 @@ size_flags_stretch_ratio = 0.5
 theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 36
-text = "背景音乐"
+text = "AI Base URL"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="BGMVolume" type="HSlider" parent="VBoxContainerR/VolumeContainer/BGMVolumeContainer" unique_id=1635781651]
-custom_minimum_size = Vector2(0, 60)
+[node name="LineEdit" type="LineEdit" parent="VBoxContainerR/AIURLContainer/AIBaseURL" unique_id=1576883770]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 1
-theme_override_icons/grabber = ExtResource("5_63k7b")
-theme_override_icons/grabber_highlight = ExtResource("6_npu2v")
-theme_override_styles/slider = SubResource("StyleBoxTexture_npu2v")
-theme_override_styles/grabber_area = SubResource("StyleBoxTexture_inf46")
-theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_npu2v")
-min_value = -20.0
-max_value = 20.0
-step = 0.01
-value = 0.010000000000001563
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 32
+placeholder_text = "请填写调用的API地址"
 
-[node name="SFXVolumeContainer" type="HBoxContainer" parent="VBoxContainerR/VolumeContainer" unique_id=1354841113]
+[node name="AIModel" type="HBoxContainer" parent="VBoxContainerR/AIURLContainer" unique_id=765834878]
 layout_mode = 2
 theme_override_constants/separation = 50
 
-[node name="Label" type="Label" parent="VBoxContainerR/VolumeContainer/SFXVolumeContainer" unique_id=375493519]
+[node name="Label" type="Label" parent="VBoxContainerR/AIURLContainer/AIModel" unique_id=260223074]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 1
@@ -387,30 +526,22 @@ size_flags_stretch_ratio = 0.5
 theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 36
-text = "音效"
+text = "AI Model"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="SFXVolume" type="HSlider" parent="VBoxContainerR/VolumeContainer/SFXVolumeContainer" unique_id=1759548501]
-custom_minimum_size = Vector2(0, 60)
+[node name="LineEdit" type="LineEdit" parent="VBoxContainerR/AIURLContainer/AIModel" unique_id=267379277]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 1
-theme_override_icons/grabber = ExtResource("5_63k7b")
-theme_override_icons/grabber_highlight = ExtResource("6_npu2v")
-theme_override_styles/slider = SubResource("StyleBoxTexture_npu2v")
-theme_override_styles/grabber_area = SubResource("StyleBoxTexture_inf46")
-theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_npu2v")
-min_value = -20.0
-max_value = 20.0
-step = 0.01
-value = 0.010000000000001563
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 32
+placeholder_text = "请填写调用的AI模型"
 
-[node name="VoiceVolumeContainer" type="HBoxContainer" parent="VBoxContainerR/VolumeContainer" unique_id=1577095991]
+[node name="APIKey" type="HBoxContainer" parent="VBoxContainerR/AIURLContainer" unique_id=1596938885]
 layout_mode = 2
 theme_override_constants/separation = 50
 
-[node name="Label" type="Label" parent="VBoxContainerR/VolumeContainer/VoiceVolumeContainer" unique_id=1362930035]
+[node name="Label" type="Label" parent="VBoxContainerR/AIURLContainer/APIKey" unique_id=1802384879]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 1
@@ -418,44 +549,13 @@ size_flags_stretch_ratio = 0.5
 theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 36
-text = "语音"
+text = "API Key"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="VoiceVolume" type="HSlider" parent="VBoxContainerR/VolumeContainer/VoiceVolumeContainer" unique_id=2029494132]
-custom_minimum_size = Vector2(0, 60)
+[node name="LineEdit" type="LineEdit" parent="VBoxContainerR/AIURLContainer/APIKey" unique_id=109185551]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 1
-theme_override_icons/grabber = ExtResource("5_63k7b")
-theme_override_icons/grabber_highlight = ExtResource("6_npu2v")
-theme_override_styles/slider = SubResource("StyleBoxTexture_npu2v")
-theme_override_styles/grabber_area = SubResource("StyleBoxTexture_inf46")
-theme_override_styles/grabber_area_highlight = SubResource("StyleBoxFlat_npu2v")
-min_value = -20.0
-max_value = 20.0
-step = 0.01
-value = 0.010000000000001563
-
-[node name="SFXContainer" type="HBoxContainer" parent="VBoxContainerR/VolumeContainer" unique_id=2053437901]
-custom_minimum_size = Vector2(0, 60)
-layout_mode = 2
-theme_override_constants/separation = 50
-
-[node name="Label" type="Label" parent="VBoxContainerR/VolumeContainer/SFXContainer" unique_id=1582860528]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 1
-size_flags_stretch_ratio = 0.5
-theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
 theme_override_fonts/font = ExtResource("4_inf46")
-theme_override_font_sizes/font_size = 36
-text = "启用点击音效"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="SFXToggle" type="CheckButton" parent="VBoxContainerR/VolumeContainer/SFXContainer" unique_id=837425529]
-layout_mode = 2
-size_flags_horizontal = 2
-theme_override_icons/checked = ExtResource("12_ucsy7")
-theme_override_icons/unchecked = ExtResource("13_tfy2e")
+theme_override_font_sizes/font_size = 32
+placeholder_text = "如果使用本地模型，此处请留空"

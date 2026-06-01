@@ -4,12 +4,15 @@ extends CanvasLayer
 # ================= 节点引用 =================
 @onready var text_speed_slider: HSlider = $VBoxContainerL/SpeedContainer/TextSpeedContainer/TextSpeed
 @onready var auto_speed_slider: HSlider = $VBoxContainerL/SpeedContainer/AutoSpeedContainer/AutoSpeed
-@onready var bgm_volume_slider: HSlider = $VBoxContainerR/VolumeContainer/BGMVolumeContainer/BGMVolume
-@onready var sfx_volume_slider: HSlider = $VBoxContainerR/VolumeContainer/SFXVolumeContainer/SFXVolume
-@onready var voice_volume_slider: HSlider = $VBoxContainerR/VolumeContainer/VoiceVolumeContainer/VoiceVolume
+@onready var bgm_volume_slider: HSlider = $VBoxContainerL/VolumeContainer/BGMVolumeContainer/BGMVolume
+@onready var sfx_volume_slider: HSlider = $VBoxContainerL/VolumeContainer/SFXVolumeContainer/SFXVolume
+@onready var voice_volume_slider: HSlider = $VBoxContainerL/VolumeContainer/VoiceVolumeContainer/VoiceVolume
 @onready var fullscreen_check: CheckButton = $VBoxContainerL/FullscreenContainer/Fullscreen
-@onready var ui_sound_toggle: CheckButton = $VBoxContainerR/VolumeContainer/SFXContainer/SFXToggle
+@onready var ui_sound_toggle: CheckButton = $VBoxContainerL/VolumeContainer/SFXContainer/SFXToggle
 @onready var clear_save_btn = $VBoxContainerL/LockContainer/ClearSaveContainer/ClearSave
+@onready var ai_url_edit = $VBoxContainerR/AIURLContainer/AIBaseURL/LineEdit
+@onready var ai_model_edit = $VBoxContainerR/AIURLContainer/AIModel/LineEdit
+@onready var ai_key_edit = $VBoxContainerR/AIURLContainer/APIKey/LineEdit
 
 # ================= 初始化 =================
 func _ready() -> void:
@@ -29,6 +32,13 @@ func _connect_signals() -> void:
 	sfx_volume_slider.value_changed.connect(_on_sfx_volume_changed)
 	voice_volume_slider.value_changed.connect(_on_voice_volume_changed)
 	fullscreen_check.toggled.connect(_on_fullscreen_toggled)
+	
+	ai_url_edit.text = GameManager.get_ai_setting("base_url")
+	ai_model_edit.text = GameManager.get_ai_setting("model")
+	ai_key_edit.text = GameManager.get_ai_setting("api_key")
+	ai_url_edit.text_changed.connect(_on_ai_url_changed)
+	ai_model_edit.text_changed.connect(_on_ai_model_changed)
+	ai_key_edit.text_changed.connect(_on_ai_key_changed)
 
 	if clear_save_btn:
 		clear_save_btn.pressed.connect(_on_reset_unlocks)
@@ -122,3 +132,12 @@ func _on_panel_opened(panel_name: String) -> void:
 	if panel_name == "SettingsUI":
 		if ui_sound_toggle and SFXManager:
 			ui_sound_toggle.button_pressed = SFXManager.enabled
+
+func _on_ai_url_changed(new_text: String):
+	GameManager.set_ai_setting("base_url", new_text)
+
+func _on_ai_model_changed(new_text: String):
+	GameManager.set_ai_setting("model", new_text)
+
+func _on_ai_key_changed(new_text: String):
+	GameManager.set_ai_setting("api_key", new_text)

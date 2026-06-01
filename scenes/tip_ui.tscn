@@ -59,6 +59,17 @@ bbcode_enabled = true
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="InputEdit" type="LineEdit" parent="TipRect" unique_id=171878595]
+visible = false
+layout_mode = 0
+offset_left = 26.0
+offset_top = 20.0
+offset_right = 781.0
+offset_bottom = 144.0
+theme_override_fonts/font = ExtResource("3_kealq")
+theme_override_font_sizes/font_size = 28
+caret_blink = true
+
 [node name="ConfirmBtn" type="TextureButton" parent="TipRect" unique_id=431689291]
 layout_mode = 0
 offset_left = 157.0

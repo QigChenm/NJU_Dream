@@ -13,6 +13,7 @@ const UNLOCK_FILE := "user://unlocks.cfg"
 
 # ================= 属性 =================
 var variables: Dictionary = {}
+var ai_settings: Dictionary = {}
 var flags: Dictionary = {}
 var dialogue_history: Array = []
 var pending_choices: Array = []
@@ -38,8 +39,22 @@ func _ready() -> void:
 	print("[GameManager] 游戏管理器初始化...")
 	_load_character_database()
 	_load_unlocks()
-	_load_config()          # 从 JSON 文件加载全局设置
+	_load_config()
+	_load_all_resources_from_index()
 	_create_affection_ui()
+	_load_ai_settings()
+
+func check_ollama_status() -> bool:
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request("http://localhost:11434/api/tags", [], HTTPClient.METHOD_GET)
+	var result = await http.request_completed
+	if result[0] == HTTPRequest.RESULT_SUCCESS:
+		print("[GameManager] Ollama 服务正常运行")
+		return true
+	else:
+		print("[GameManager] 未检测到 Ollama 服务")
+		return false
 
 
 func _create_affection_ui() -> void:
@@ -230,3 +245,88 @@ func _load_config() -> void:
 		AudioServer.set_bus_volume_db(AudioServer.get_bus_index("Voice"), a.get("voice_default_volume_db", 0.0))
 
 	print("[GameManager] 全局配置已从 game_settings.json 加载。")
+
+func _load_ai_settings() -> void:
+	var config = ConfigFile.new()
+	if config.load("user://ai_settings.cfg") == OK:
+		ai_settings["base_url"] = config.get_value("ai", "base_url", "http://localhost:11434/v1")
+		ai_settings["model"] = config.get_value("ai", "model", "qwen2.5:7b-instruct")
+		ai_settings["api_key"] = config.get_value("ai", "api_key", "")
+	else:
+		# 默认值
+		ai_settings["base_url"] = "http://localhost:11434/v1"
+		ai_settings["model"] = "qwen2.5:7b-instruct"
+		ai_settings["api_key"] = ""
+		_save_ai_settings()
+
+func _save_ai_settings() -> void:
+	var config = ConfigFile.new()
+	config.set_value("ai", "base_url", ai_settings["base_url"])
+	config.set_value("ai", "model", ai_settings["model"])
+	config.set_value("ai", "api_key", ai_settings["api_key"])
+	config.save("user://ai_settings.cfg")
+
+func get_ai_setting(key: String) -> String:
+	return ai_settings.get(key, "")
+
+func set_ai_setting(key: String, value: String) -> void:
+	ai_settings[key] = value
+	_save_ai_settings()
+
+func _load_all_resources_from_index() -> void:
+	var file = FileAccess.open("res://config/resource_index.json", FileAccess.READ)
+	if file == null:
+		push_error("[GameManager] 无法打开 resource_index.json，请确保文件存在。")
+		return
+	var json_string = file.get_as_text()
+	file.close()
+
+	var json = JSON.new()
+	var error = json.parse(json_string)
+	if error != OK:
+		push_error("[GameManager] resource_index.json 解析失败。")
+		return
+
+	var data = json.data
+	if not data is Dictionary:
+		return
+
+	# 加载角色
+	if data.has("characters"):
+		for path in data["characters"]:
+			var res = load(path)
+			if res is CharacterData and res.character_id != "":
+				character_database[res.character_id] = res
+	print("[GameManager] 角色数据库加载完成，共 %d 个角色。" % character_database.size())
+
+	# 加载背景
+	if data.has("backgrounds"):
+		for path in data["backgrounds"]:
+			var res = load(path)
+			if res is BackgroundData and res.background_id != "":
+				BackgroundManager.background_database[res.background_id] = res
+	print("[GameManager] 背景数据库加载完成，共 %d 个背景。" % BackgroundManager.background_database.size())
+
+	# 加载音频（BGM）
+	if data.has("audio_bgm"):
+		for path in data["audio_bgm"]:
+			var res = load(path)
+			if res is AudioData and res.audio_id != "":
+				AudioManager.audio_database[res.audio_id] = res
+	print("[GameManager] 音频数据库加载完成，共 %d 个音频。" % AudioManager.audio_database.size())
+
+	# 加载粒子
+	if data.has("particles"):
+		for path in data["particles"]:
+			var res = load(path)
+			if res is ParticleEffectData and res.effect_id != "":
+				ParticleManager.particle_database[res.effect_id] = res
+	print("[GameManager] 粒子数据库加载完成，共 %d 个效果。" % ParticleManager.particle_database.size())
+
+	# 加载 CG
+	if data.has("cg"):
+		for path in data["cg"]:
+			var res = load(path)
+			if res is CGData and res.cg_id != "":
+				CGManager.cg_database[res.cg_id] = res
+	print("[GameManager] CG数据库加载完成，共 %d 个CG。" % CGManager.cg_database.size())

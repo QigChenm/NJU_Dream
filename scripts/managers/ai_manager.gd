@@ -16,6 +16,7 @@ var _env_values: Dictionary = {}
 var _pending_choice_id: int = -1
 var _pending_request_id: int = 0
 var _request_id: int = 0
+var _last_error_code: int = 0
 var _pending_choice_text: String = ""
 var _waiting_for_choice_continuation: bool = false
 
@@ -47,17 +48,24 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 		_recover_with_dialogue("[AIManager] AI 功能未启用。")
 		_finish_requesting()
 		return
+
 	if _is_requesting:
 		push_warning("[AIManager] 已有 AI 请求进行中，本次请求已忽略。")
 		return
-	# 本地 Ollama 不需要 API Key，直接构建请求
+
 	_is_requesting = true
 	_request_id += 1
 	var current_id = _request_id
 	print("[AIManager] 发送请求 #%d" % current_id)
-	var endpoint := _get_base_url().rstrip("/") + "/chat/completions"
+
+	var endpoint = _get_base_url().rstrip("/") + "/chat/completions"
+
 	var headers := PackedStringArray(["Content-Type: application/json"])
-	var api_key := _get_env_value("MOONSHOT_API_KEY")
+	var api_key = ""
+	if GameManager:
+		api_key = GameManager.get_ai_setting("api_key")
+	if api_key == "":
+		api_key = _get_env_value("MOONSHOT_API_KEY")
 	if api_key != "":
 		headers.append("Authorization: Bearer " + api_key)
 
@@ -70,16 +78,18 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 		"temperature": 0.8,
 		"max_tokens": 800
 	}
-	# 只有使用 Kimi 等支持 response_format 的 API 才添加
-	if base_url.begins_with("https://api.moonshot.cn"):
+	var user_base_url = _get_base_url()
+	if user_base_url.begins_with("https://api.moonshot.cn") or user_base_url.begins_with("https://api.openai.com"):
 		payload["response_format"] = {"type": "json_object"}
 
-	var error := _http_request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+	var error = _http_request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
 	if error != OK:
 		push_error("[AIManager] 请求失败，错误码: %d" % error)
 		_is_requesting = false
 		_recover_with_dialogue("[AIManager] 无法发起请求。")
 		_finish_requesting()
+		return
+
 	_pending_request_id = current_id
 
 # ---------- 响应处理 ----------
@@ -109,8 +119,9 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 		_is_canceling = false
 		return
 	if result != HTTPRequest.RESULT_SUCCESS:
-		push_error("[AIManager] Kimi 请求未成功完成，结果码: %d" % result)
-		_recover_with_dialogue("[AIManager] Kimi 请求未成功完成。")
+		_last_error_code = result
+		push_error("[AIManager] 请求失败，结果码: %d" % result)
+		_recover_with_dialogue("[AIManager] 请求未成功完成。")
 		return
 	if response_code < 200 or response_code >= 300:
 		push_error("[AIManager] Kimi 返回 HTTP %d: %s" % [response_code, body.get_string_from_utf8()])
@@ -174,7 +185,7 @@ func _build_system_prompt() -> String:
 func _get_role_definition() -> PackedStringArray:
 	var arr := PackedStringArray()
 	arr.append("# 角色与任务")
-	arr.append("你是视觉小说《心屿南雍》的 AI 编剧引擎，负责生成剧情指令。你必须且只能返回一个 JSON 对象：{\"commands\": [...]}。")
+	arr.append("你是视觉小说《最南幻想》的 AI 编剧引擎，负责生成剧情指令。你必须且只能返回一个 JSON 对象：{\"commands\": [...]}。")
 	arr.append("不要输出任何解释、Markdown 代码块或额外文本。")
 	arr.append("")
 	return arr
@@ -271,6 +282,20 @@ func _get_command_reference() -> PackedStringArray:
 	arr.append("- add_affection: {\"type\":\"add_affection\",\"character\":\"（从已有角色id选一个填入）\",\"delta\":10}")
 	arr.append("- long_dialogue: {\"type\":\"long_dialogue\",\"text\":\"全屏叙述\"}")
 	arr.append("- end_scene: {\"type\":\"end_scene\"} （结束当前场景，必须为最后一条指令）")
+	arr.append("")
+	arr.append("# 可用背景音乐 (BGM)id")
+	arr.append("- spring_forest：春日的森林")
+	arr.append("- love_piano：爱的钢琴曲")
+	arr.append("- gentle：柔情之夜")
+	arr.append("- flowing：温柔似水")
+	arr.append("")
+	arr.append("# 可用角色动作id")
+	arr.append("- bounce：弹跳（高兴时使用）")
+	arr.append("- shake：抖动（感动、惊讶、被吓到时使用）")
+	arr.append("- nod：点头（表示同意）")
+	arr.append("- step_back：后退（害羞、尴尬时使用）")
+	arr.append("- shrug：耸肩（无奈、疑问时使用）")
+	arr.append("（注意：breathe 是自动循环的呼吸动画，不要在 character_action 中调用）")
 	arr.append("")
 	return arr
 
@@ -401,7 +426,6 @@ func _build_user_prompt(input_str: String) -> String:
 	elif input_str == "__continue__":
 		event_desc = "玩家点击继续，请推进剧情。"
 	elif input_str.begins_with("__choice__:"):
-		# 提取选项 ID 和可能的文本
 		var choice_payload = input_str.trim_prefix("__choice__:")
 		var parts = choice_payload.split(":", false, 1)
 		var choice_id = parts[0]
@@ -409,7 +433,6 @@ func _build_user_prompt(input_str: String) -> String:
 		if parts.size() > 1:
 			choice_text = parts[1]
 		else:
-			# 尝试从备份中获取文本
 			if GameManager and GameManager.pending_choices.size() > 0:
 				for choice in GameManager.pending_choices:
 					if str(choice.get("id", "")) == choice_id:
@@ -529,12 +552,18 @@ func add_user_rule(rule_text: String) -> void:
 
 # ---------- 工具函数 ----------
 func _get_base_url() -> String:
-	var env_base_url := _get_env_value("MOONSHOT_BASE_URL")
-	return env_base_url if env_base_url != "" else base_url
+	if GameManager:
+		var user_url = GameManager.get_ai_setting("base_url")
+		if user_url != "":
+			return user_url
+	return base_url
 
 func _get_model() -> String:
-	var env_model := _get_env_value("MOONSHOT_MODEL")
-	return env_model if env_model != "" else model
+	if GameManager:
+		var user_model = GameManager.get_ai_setting("model")
+		if user_model != "":
+			return user_model
+	return model
 
 func _get_env_value(key: String) -> String:
 	var system_value := OS.get_environment(key)
@@ -614,5 +643,14 @@ func _normalize_json_content(content: String) -> String:
 func _recover_with_dialogue(reason: String) -> void:
 	push_warning(reason)
 	_recovery_mode = true
+
+	var help_text = ""
+	if _last_error_code == 13: # CANT_CONNECT
+		help_text = "无法连接到AI服务。\n\n可能的原因：\n1. 如果您是本地运行，请确保Ollama已启动。\n2. 如果您使用云端API，请检查网络和API设置。\n\n您可以在“设置”中调整AI连接方式。"
+	elif _last_error_code == 4: # TIMEOUT
+		help_text = "AI服务响应超时，请稍后重试。"
+	else:
+		help_text = "AI服务暂时不可用，请检查您的网络或AI设置。"
+
 	if has_node("/root/ScriptEngine"):
-		ScriptEngine.execute_commands([{"type": "show_dialogue", "character": "", "text": _FALLBACK_TEXT}])
+		ScriptEngine.execute_commands([{"type": "show_dialogue", "character": "", "text": help_text}])

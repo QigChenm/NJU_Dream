@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_tu4lp")
 audio_id = "gentle"
-display_name = "柔情似水"
+display_name = "柔情之夜"
 audio_type = 0
 stream = ExtResource("2_tu4lp")
 metadata/_custom_type_script = "uid://c86w8rwqdond3"

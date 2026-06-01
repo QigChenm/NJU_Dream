@@ -1,0 +1,31 @@
+{
+	"characters": [
+		"res://assets/characters/sister/sister_data.tres",
+		"res://assets/characters/xiu/xiu_data.tres",
+		"res://assets/characters/song/song_data.tres"
+	],
+	"backgrounds": [
+		"res://assets/backgrounds/tres/beidalou_data.tres",
+		"res://assets/backgrounds/tres/duxia_data.tres",
+		"res://assets/backgrounds/tres/litang_data.tres",
+		"res://assets/backgrounds/tres/nansu_data.tres",
+		"res://assets/backgrounds/tres/gulou_spring_data.tres",
+        "res://assets/backgrounds/tres/gulou_winter_data.tres"
+	],
+	"audio_bgm": [
+		"res://assets/audio/bgm/tres/bgm_spring_forest.tres",
+		"res://assets/audio/bgm/tres/bgm_piano.tres",
+		"res://assets/audio/bgm/tres/bgm_gentle.tres",
+		"res://assets/audio/bgm/tres/bgm_flowing.tres",
+	],
+	"particles": [
+		"res://assets/particles/tres/petal_data.tres",
+		"res://assets/particles/tres/rain_data.tres",
+		"res://assets/particles/tres/snow_data.tres",
+		"res://assets/particles/tres/fireflies_data.tres",
+		"res://assets/particles/tres/falling_leaves_data.tres"
+	],
+	"cg": [
+        "res://assets/cg/heroine_smile_cg_data.tres"
+	]
+}

@@ -587,7 +587,22 @@ func _on_continue_clicked() -> void:
 func _on_affection_button_pressed() -> void: UIManager.open_panel("AffectionUI")
 func _on_save_button_pressed() -> void: UIManager.open_panel("SaveUI")
 func _on_load_button_pressed() -> void: UIManager.open_panel("LoadUI")
-func _on_feedback_button_pressed() -> void: _show_feedback_dialog()
+func _on_feedback_button_pressed() -> void:
+	var tip_panel = UIManager._panels.get("TipUI")
+	if not tip_panel:
+		return
+
+	tip_panel.show_feedback_tip("请输入纠正指令：",
+		func(text: String):
+			if has_node("/root/AIManager"):
+				get_node("/root/AIManager").add_user_rule(text)
+				print("[DialogueScene] 规则已提交")
+			_set_return_buttons_visible(true),
+		func():
+			_set_return_buttons_visible(true)
+	)
+	_set_return_buttons_visible(false)
+	
 func _on_backlog_button_pressed() -> void:
 	var panel = UIManager._panels.get("BacklogUI")
 	if panel and panel.has_method("refresh_history"):
@@ -904,29 +919,3 @@ func clean_up_all_ui() -> void:
 		if is_instance_valid(dialog):
 			dialog.queue_free()
 	print("[DialogueScene] 动态UI清理完成。")
-
-# ================= 辅助功能 =================
-func _show_feedback_dialog() -> void:
-	var dialog = AcceptDialog.new()
-	dialog.title = "纠正 AI 错误"
-	dialog.process_mode = PROCESS_MODE_ALWAYS
-
-	var line_edit = LineEdit.new()
-	line_edit.name = "RuleInput"
-	line_edit.placeholder_text = "输入纠正规则..."
-	line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	dialog.add_child(line_edit)
-
-	dialog.get_label().text = "请输入纠正指令："
-
-	add_child(dialog)
-
-	dialog.confirmed.connect(func():
-		var text = line_edit.text.strip_edges()
-		if text != "" and has_node("/root/AIManager"):
-			get_node("/root/AIManager").add_user_rule(text)
-			print("[DialogueScene] 规则已提交")
-		dialog.queue_free()  # 用完后销毁
-	)
-
-	dialog.popup_centered()
