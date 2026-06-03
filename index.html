@@ -46,7 +46,6 @@
       opacity: 1;
     }
 
-    /* 遮罩 */
     .overlay {
       position: fixed;
       top: 0;
@@ -176,8 +175,286 @@
       color: #dddddd;
     }
 
+    .scroll-hint {
+      position: relative;
+      margin-top: 2rem;
+      font-size: 2rem;
+      animation: bounce 2s infinite;
+      color: rgba(255,255,255,0.7);
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(10px); }
+    }
+
+    /* 关于游戏操作指南板块 */
+    .about-section {
+      position: relative;
+      z-index: 2;
+      padding: 4rem 1.5rem 2rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .about-title {
+      font-size: 2.5rem;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #f3e3c9;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+    }
+
+    .steps-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 2.5rem;
+    }
+
+    .step-card {
+      background: rgba(255,255,255,0.09);
+      backdrop-filter: blur(12px);
+      border-radius: 24px;
+      padding: 1.5rem;
+      width: 280px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.18);
+      transition: transform 0.3s ease;
+    }
+
+    .step-card:hover {
+      transform: translateY(-6px);
+    }
+
+    .step-card img {
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      margin-bottom: 1rem;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+
+    .step-card img:hover {
+      opacity: 0.85;
+    }
+
+    .step-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #f3e3c9;
+      margin-bottom: 0.5rem;
+    }
+
+    .step-desc {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #dddddd;
+    }
+
+    /* ---------- 灯箱样式 ---------- */
+    .lightbox-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.92);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .lightbox-overlay.active {
+      display: flex;
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 2.5rem;
+      color: #ccc;
+      cursor: pointer;
+      z-index: 1002;
+      transition: color 0.2s;
+    }
+    .lightbox-close:hover {
+      color: #fff;
+    }
+
+    .lightbox-prev, .lightbox-next {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 3rem;
+      color: #ccc;
+      cursor: pointer;
+      z-index: 1002;
+      user-select: none;
+      padding: 0 10px;
+      transition: color 0.2s;
+    }
+    .lightbox-prev:hover, .lightbox-next:hover {
+      color: #fff;
+    }
+    .lightbox-prev { left: 20px; }
+    .lightbox-next { right: 20px; }
+
+    .lightbox-img-container {
+      max-width: 90%;
+      max-height: 85%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1001;
+    }
+    .lightbox-img-container img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    /* ---------- 反馈与联系板块 ---------- */
+    .feedback-section {
+      position: relative;
+      z-index: 2;
+      padding: 4rem 1.5rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .feedback-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2.5rem;
+      justify-content: center;
+    }
+
+    .feedback-form, .contact-info {
+      background: rgba(255,255,255,0.09);
+      backdrop-filter: blur(12px);
+      border-radius: 24px;
+      padding: 2rem;
+      flex: 1 1 350px;
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+
+    .feedback-form h3, .contact-info h3 {
+      font-size: 1.8rem;
+      color: #f3e3c9;
+      margin-bottom: 1.5rem;
+    }
+
+    .feedback-form label {
+      display: block;
+      margin-bottom: 0.4rem;
+      color: #ccc;
+      font-weight: 500;
+    }
+
+    .feedback-form input, .feedback-form textarea {
+      width: 100%;
+      padding: 0.8rem 1rem;
+      margin-bottom: 1.2rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.3);
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    .feedback-form input:focus, .feedback-form textarea:focus {
+      border-color: #c9a96e;
+    }
+
+    .feedback-form button {
+      background: #c9a96e;
+      border: none;
+      color: #1a1a1a;
+      font-weight: 600;
+      padding: 0.8rem 2rem;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.3s;
+    }
+    .feedback-form button:hover {
+      background: #dbb87c;
+    }
+
+    .contact-info p {
+      font-size: 1rem;
+      line-height: 2;
+      color: #ddd;
+    }
+    .contact-info a {
+      color: #c9a96e;
+      text-decoration: none;
+    }
+    .contact-info a:hover {
+      text-decoration: underline;
+    }
+
+    /* 团队介绍 */
+    .team-section {
+      position: relative;
+      z-index: 2;
+      padding: 2rem 1.5rem 4rem;
+      max-width: 800px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .team-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .team-member {
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 1.5rem;
+      width: 180px;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .team-member img {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 0.8rem;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+
+    .team-member h4 {
+      color: #f3e3c9;
+      font-size: 1.1rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .team-member p {
+      font-size: 0.9rem;
+      color: #bbb;
+    }
+
     .footer {
-      margin-top: 3rem;
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 2rem;
       font-size: 0.85rem;
       color: #aaa;
       text-shadow: 0 1px 5px rgba(0,0,0,0.5);
@@ -192,11 +469,13 @@
         padding: 0.7rem 1.8rem;
         font-size: 1rem;
       }
+      .feedback-form, .contact-info {
+        flex: 1 1 100%;
+      }
     }
   </style>
 </head>
 <body>
-  <!-- 背景图片轮播 -->
   <div class="bg-slideshow" id="bgSlideshow">
     <div class="bg-slide active" style="background-image: url('./assets/backgrounds/beidalou.jpg');"></div>
     <div class="bg-slide" style="background-image: url('./assets/backgrounds/duxia.jpg');"></div>
@@ -205,12 +484,12 @@
   </div>
   <div class="overlay"></div>
 
-  <!-- 主内容 -->
+  <!-- 首屏内容 -->
   <div class="main-content">
     <h1 class="logo">最南幻想</h1>
     <div class="subtitle">AI 情感陪伴 Galgame · 南大校园主题</div>
     <div class="description">
-      在南大梧桐树下，遇见TA<br>
+      在南大梧桐树下，遇见你的TA<br>
       实时 AI 剧情生成，双重 AI 模式，沉浸式演出，温暖陪伴你的大学时光。
     </div>
 
@@ -242,28 +521,217 @@
       </div>
     </div>
 
-    <div class="footer">
-      Copyright © 2025 GuTeam · 南京大学
+    <div class="scroll-hint">↓</div>
+  </div>
+
+  <!-- 关于游戏操作指南 -->
+  <section class="about-section">
+    <h2 class="about-title">游戏操作指南</h2>
+    <div class="steps-grid">
+      <!-- 步骤1~6 同上，略 -->
+      <div class="step-card">
+        <img class="lightbox-item" src="./assets/index/pushforward.png" alt="推进对话1">
+        <img class="lightbox-item" src="./assets/index/pushforward1.png" alt="推进对话2" style="display:none;">
+        <div class="step-title">1. 推进对话</div>
+        <div class="step-desc">点击鼠标左键、空格键或回车键，即可逐句阅读故事。文本将以打字机效果逐字显示。</div>
+      </div>
+      <div class="step-card">
+        <img class="lightbox-item" src="./assets/index/choose.png" alt="选择选项">
+        <img class="lightbox-item" src="./assets/index/choose1.png" alt="选择选项2" style="display:none;">
+        <div class="step-title">2. 做出选择</div>
+        <div class="step-desc">当画面出现选项按钮时，用鼠标点击你心仪的分支，你的决定将影响剧情走向和好感度。</div>
+      </div>
+      <div class="step-card">
+        <img class="lightbox-item" src="./assets/index/save.png" alt="存档与读档">
+        <img class="lightbox-item" src="./assets/index/save1.png" alt="存档与读档2" style="display:none;">
+        <img class="lightbox-item" src="./assets/index/save2.png" alt="存档与读档3" style="display:none;">
+        <div class="step-title">3. 存档 / 读档</div>
+        <div class="step-desc">点击右上角的“存档”按钮保存进度，或者选择“读档”回到任意时刻。支持多页槽位管理。</div>
+      </div>
+      <div class="step-card">
+        <img class="lightbox-item" src="./assets/index/auto.png" alt="自动与快进">
+        <img class="lightbox-item" src="./assets/index/auto1.png" alt="自动与快进2" style="display:none;">
+        <div class="step-title">4. 自动 & 快进</div>
+        <div class="step-desc">开启“自动”模式，文本显示完后会自动前进；开启“快进”模式，长对话将在1秒后跳过。</div>
+      </div>
+      <div class="step-card">
+        <img class="lightbox-item" src="./assets/index/gallery.png" alt="鉴赏">
+        <img class="lightbox-item" src="./assets/index/gallery1.png" alt="鉴赏2" style="display:none;">
+        <div class="step-title">5. 鉴赏</div>
+        <div class="step-desc">在“鉴赏”界面可以浏览已解锁的 CG 插画和背景音乐。</div>
+      </div>
+      <div class="step-card">
+        <img class="lightbox-item" src="./assets/index/settings.png" alt="设置与调整">
+        <div class="step-title">6. 个性化设置</div>
+        <div class="step-desc">在设置界面中，你可以调整文本速度、音量大小、全屏模式，甚至修改 AI 连接方式。</div>
+      </div>
     </div>
+  </section>
+
+  <!-- 玩家反馈 & 联系我们 -->
+  <section class="feedback-section">
+    <h2 class="about-title">玩家反馈</h2>
+    <div class="feedback-grid">
+      <!-- 反馈表单 -->
+      <div class="feedback-form">
+        <h3>写下你的感受</h3>
+        <form id="feedbackForm" action="https://forminit.com/f/6aj9m8si636" method="POST">
+          <label for="name">昵称</label>
+          <input type="text" id="name" name="fi-sender-fullName" placeholder="你的昵称" required>
+          <label for="email">邮箱</label>
+          <input type="email" id="email" name="fi-sender-email" placeholder="example@mail.com" required>
+          <label for="message">反馈内容</label>
+          <textarea id="message" name="fi-text-message" rows="5" placeholder="在这里写下你的宝贵意见..."></textarea>
+          <button type="submit">发送反馈</button>
+        </form>
+      </div>
+      <!-- 联系方式 -->
+      <div class="contact-info">
+        <h3>联系我们</h3>
+        <p>邮箱：<a href="mailto:2054907845@qq.com">2054907845@qq.com</a></p>
+        <p>GitHub：<a href="https://github.com/QigChenm/GuTeamGame" target="_blank">GuTeamGame</a></p>
+        <p>官方QQ群：1106719329</p>
+        <p>南京大学鼓楼校区</p>
+        <p>我们非常期待听到你的声音，无论是bug反馈、剧情建议还是想加入我们，都欢迎随时联系！</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 团队介绍 -->
+  <section class="team-section">
+    <h2 class="about-title">团队</h2>
+    <div class="team-grid">
+      <div class="team-member">
+        <img src="./assets/index/qingcheng.jpg" alt="成员1">
+        <h4>青丞</h4>
+        <p>项目负责人 · 程序</p>
+      </div>
+      <div class="team-member">
+        <img src="./assets/index/uke.jpg" alt="成员2">
+        <h4>uke</h4>
+        <p>AI 开发 · 提示词工程</p>
+      </div>
+      <div class="team-member">
+        <img src="./assets/index/Leechee.jpg" alt="成员3">
+        <h4>Leechee</h4>
+        <p>美术设计 · UI/UX</p>
+      </div>
+      <div class="team-member">
+        <img src="./assets/index/Victoria.jpg" alt="成员4">
+        <h4>Victoria</h4>
+        <p>音频制作 · 剧情测试</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer">
+    Copyright © 2025 GuTeam · 南京大学
+  </div>
+
+  <!-- 灯箱容器（动态生成内容） -->
+  <div id="lightbox" class="lightbox-overlay">
+    <span class="lightbox-close">&times;</span>
+    <span class="lightbox-prev">&lsaquo;</span>
+    <span class="lightbox-next">&rsaquo;</span>
+    <div class="lightbox-img-container"></div>
   </div>
 
   <script>
     (function() {
+      // ---------- 背景轮播 ----------
       const slides = document.querySelectorAll('.bg-slide');
-      if (slides.length === 0) return;
-      let current = 0;
-      const total = slides.length;
-
-      function nextSlide() {
-        slides[current].classList.remove('active');
-        current = (current + 1) % total;
-        slides[current].classList.add('active');
+      if (slides.length > 0) {
+        let current = 0;
+        const total = slides.length;
+        function nextSlide() {
+          slides[current].classList.remove('active');
+          current = (current + 1) % total;
+          slides[current].classList.add('active');
+        }
+        slides[0].classList.add('active');
+        setInterval(nextSlide, 5000);
       }
 
-      // 初始激活第一个
-      slides[0].classList.add('active');
-      // 每5秒切换
-      setInterval(nextSlide, 5000);
+      // ---------- 灯箱逻辑 ----------
+      const lightboxOverlay = document.getElementById('lightbox');
+      const imgContainer = lightboxOverlay.querySelector('.lightbox-img-container');
+      const closeBtn = lightboxOverlay.querySelector('.lightbox-close');
+      const prevBtn = lightboxOverlay.querySelector('.lightbox-prev');
+      const nextBtn = lightboxOverlay.querySelector('.lightbox-next');
+
+      let currentImages = [];
+      let currentIndex = 0;
+
+      function openLightbox(images, startIndex) {
+        if (images.length === 0) return;
+        currentImages = images;
+        currentIndex = startIndex >= 0 ? startIndex : 0;
+        updateImage();
+        lightboxOverlay.classList.add('active');
+      }
+
+      function closeLightbox() {
+        lightboxOverlay.classList.remove('active');
+        imgContainer.innerHTML = '';
+        currentImages = [];
+        currentIndex = 0;
+      }
+
+      function updateImage() {
+        if (currentImages.length === 0) return;
+        const src = currentImages[currentIndex];
+        imgContainer.innerHTML = `<img src="${src}" alt="预览图片">`;
+        prevBtn.style.display = currentIndex > 0 ? 'block' : 'none';
+        nextBtn.style.display = currentIndex < currentImages.length - 1 ? 'block' : 'none';
+      }
+
+      function prevImage() {
+        if (currentIndex > 0) {
+          currentIndex--;
+          updateImage();
+        }
+      }
+
+      function nextImage() {
+        if (currentIndex < currentImages.length - 1) {
+          currentIndex++;
+          updateImage();
+        }
+      }
+
+      function onKeyDown(e) {
+        if (!lightboxOverlay.classList.contains('active')) return;
+        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'ArrowLeft') prevImage();
+        if (e.key === 'ArrowRight') nextImage();
+      }
+
+      closeBtn.addEventListener('click', closeLightbox);
+      prevBtn.addEventListener('click', prevImage);
+      nextBtn.addEventListener('click', nextImage);
+      document.addEventListener('keydown', onKeyDown);
+
+      const allItems = document.querySelectorAll('.lightbox-item');
+      allItems.forEach(img => {
+        img.addEventListener('click', function() {
+          const card = this.closest('.step-card');
+          if (!card) return;
+          const imgsInCard = card.querySelectorAll('.lightbox-item');
+          const imageList = [];
+          let clickedIdx = 0;
+          imgsInCard.forEach((item, idx) => {
+            imageList.push(item.src);
+            if (item === this) clickedIdx = idx;
+          });
+          openLightbox(imageList, clickedIdx);
+        });
+      });
+
+      lightboxOverlay.addEventListener('click', function(e) {
+        if (e.target === lightboxOverlay) {
+          closeLightbox();
+        }
+      });
     })();
   </script>
 </body>
