@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bs86it1pwet60"
-path="res://.godot/imported/auto.png-0764d0c8863cb2c9ab89113fb8e50f47.ctex"
+uid="uid://yxf6i1duurqu"
+path="res://.godot/imported/litang.jpg-bebe42548fc20f593aa63880a4e363f7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/index/auto.png"
-dest_files=["res://.godot/imported/auto.png-0764d0c8863cb2c9ab89113fb8e50f47.ctex"]
+source_file="res://docs/index/litang.jpg"
+dest_files=["res://.godot/imported/litang.jpg-bebe42548fc20f593aa63880a4e363f7.ctex"]
 
 [params]
 

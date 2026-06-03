@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dw61xuvrngga5"
-path="res://.godot/imported/Leechee.jpg-455ebe71f613f3ecb67b437be304d6a6.ctex"
+uid="uid://c88ub1fe0q6m"
+path="res://.godot/imported/auto1.png-84ff24a472eea68fcf5db9002e65f57d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/index/Leechee.jpg"
-dest_files=["res://.godot/imported/Leechee.jpg-455ebe71f613f3ecb67b437be304d6a6.ctex"]
+source_file="res://docs/index/auto1.png"
+dest_files=["res://.godot/imported/auto1.png-84ff24a472eea68fcf5db9002e65f57d.ctex"]
 
 [params]
 

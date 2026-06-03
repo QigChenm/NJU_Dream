@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ckj7jgcbvlowl"
-path="res://.godot/imported/uke.jpg-4b054d7f2b549b5d1f129e9775570924.ctex"
+uid="uid://cwpj324d7dgew"
+path="res://.godot/imported/gallery.png-9c618c41155e19943694312d346ecb04.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/index/uke.jpg"
-dest_files=["res://.godot/imported/uke.jpg-4b054d7f2b549b5d1f129e9775570924.ctex"]
+source_file="res://docs/index/gallery.png"
+dest_files=["res://.godot/imported/gallery.png-9c618c41155e19943694312d346ecb04.ctex"]
 
 [params]
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cwpj324d7dgew"
-path="res://.godot/imported/gallery.png-d6f978d16656d853243dd77e81f22264.ctex"
+uid="uid://dln1qxrd17luq"
+path="res://.godot/imported/duxia.jpg-993768cc0d5e7f6552b261599fe09469.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/index/gallery.png"
-dest_files=["res://.godot/imported/gallery.png-d6f978d16656d853243dd77e81f22264.ctex"]
+source_file="res://docs/index/duxia.jpg"
+dest_files=["res://.godot/imported/duxia.jpg-993768cc0d5e7f6552b261599fe09469.ctex"]
 
 [params]
 
