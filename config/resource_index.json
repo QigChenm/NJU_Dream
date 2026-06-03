@@ -1,6 +1,5 @@
 {
 	"characters": [
-		"res://assets/characters/sister/sister_data.tres",
 		"res://assets/characters/xiu/xiu_data.tres",
 		"res://assets/characters/song/song_data.tres"
 	],
@@ -9,8 +8,6 @@
 		"res://assets/backgrounds/tres/duxia_data.tres",
 		"res://assets/backgrounds/tres/litang_data.tres",
 		"res://assets/backgrounds/tres/nansu_data.tres",
-		"res://assets/backgrounds/tres/gulou_spring_data.tres",
-        "res://assets/backgrounds/tres/gulou_winter_data.tres"
 	],
 	"audio_bgm": [
 		"res://assets/audio/bgm/tres/bgm_spring_forest.tres",

@@ -15,7 +15,7 @@ config/version="0.1.00"
 run/main_scene="uid://bl0x60ry2c2mp"
 config/features=PackedStringArray("4.6", "Mobile")
 boot_splash/show_image=false
-config/icon="uid://efkjlktb28u1"
+config/icon="uid://dlbtvd6y3rk1c"
 
 [audio]
 

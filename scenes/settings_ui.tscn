@@ -15,6 +15,7 @@
 [ext_resource type="Texture2D" uid="uid://xb5gph80d615" path="res://assets/ui/confirm/确认_按钮_焦点_llf.png" id="12_knh0g"]
 [ext_resource type="Texture2D" uid="uid://c08ge57nx0xc5" path="res://assets/ui/settings/switch_on.png" id="12_ucsy7"]
 [ext_resource type="Texture2D" uid="uid://d3l1w63b6qbxo" path="res://assets/ui/settings/switch_off.png" id="13_tfy2e"]
+[ext_resource type="Texture2D" uid="uid://crlytbu5f2p73" path="res://assets/ui/settings/设置_速度与透明度测试框_llf.png" id="16_knh0g"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_npu2v"]
 texture = ExtResource("7_inf46")
@@ -503,7 +504,7 @@ size_flags_stretch_ratio = 0.5
 theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 36
-text = "AI Base URL"
+text = "Base URL"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -526,7 +527,7 @@ size_flags_stretch_ratio = 0.5
 theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 36
-text = "AI Model"
+text = "Model"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -559,3 +560,29 @@ size_flags_horizontal = 3
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 32
 placeholder_text = "如果使用本地模型，此处请留空"
+secret = true
+secret_character = "*"
+
+[node name="TipRect" type="TextureRect" parent="." unique_id=1123207025]
+offset_left = 1022.0
+offset_top = 441.0
+offset_right = 1768.0
+offset_bottom = 667.0
+size_flags_horizontal = 0
+texture = ExtResource("16_knh0g")
+
+[node name="Label" type="Label" parent="TipRect" unique_id=1612378320]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 35.0
+offset_top = 25.0
+offset_right = -23.0
+offset_bottom = -18.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 32
+text = "保密承诺：我们尊重您的个人权益，绝不会收集和使用任何有关您的API密钥。API Key已设置为密文，请妥善保管您的密钥，防止被他人盗取。如果您在本游戏中有任何私自使用他人密钥的行为，将依法追究法律责任。"
+autowrap_mode = 2

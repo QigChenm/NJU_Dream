@@ -2,9 +2,9 @@
   <h1>最南幻想</h1>
   <p><strong>AI 情感陪伴 Galgame · 南京大学校园主题</strong></p>
   <p>
-    <a href="https://github.com/QigChenm/GuTeamGame/releases"><img src="https://img.shields.io/badge/下载-Windows-blue?logo=windows" alt="Windows"></a>
-    <a href="https://github.com/QigChenm/GuTeamGame/releases"><img src="https://img.shields.io/badge/下载-macOS-silver?logo=apple" alt="macOS"></a>
-    <a href="https://github.com/QigChenm/GuTeamGame"><img src="https://img.shields.io/github/license/QigChenm/GuTeamGame" alt="License"></a>
+	<a href="https://github.com/QigChenm/GuTeamGame/releases"><img src="https://img.shields.io/badge/下载-Windows-blue?logo=windows" alt="Windows"></a>
+	<a href="https://github.com/QigChenm/GuTeamGame/releases"><img src="https://img.shields.io/badge/下载-macOS-silver?logo=apple" alt="macOS"></a>
+	<a href="https://github.com/QigChenm/GuTeamGame"><img src="https://img.shields.io/github/license/QigChenm/GuTeamGame" alt="License"></a>
   </p>
 </div>
 
@@ -16,7 +16,7 @@
 ## 二、核心特色
 
 - **全 AI 叙事**：游戏内所有剧情均由 AI 实时生成，无预设剧本，玩家的每次选择都能得到即时、连贯的反馈。
-- **双重 AI 模式**：支持本地 Ollama 模型（低延迟、无网络）和云端 Kimi API（高智能、免部署），可灵活切换。
+- **双重 AI 模式**：支持本地 Ollama 模型（低延迟、无网络）和云端 API（高智能、免部署），可灵活切换。
 - **沉浸式演出**：角色拥有丰富的表情、动作、入场动画；支持背景切换、粒子天气、CG 动画、多声道音频系统。
 - **完整的 Galgame 系统**：包含设置、存档、读档、对话历史、好感度、鉴赏模式（CG/音乐）、自动/快进模式等商业级功能。
 - **校园心理关怀**：剧情设计融入正向情感引导，帮助玩家缓解压力、提升心理韧性。
@@ -32,11 +32,15 @@
 1. 安装 [Ollama](https://ollama.com)。
 2. 下载模型：`ollama pull qwen2.5:7b-instruct`。
 3. 启动 Ollama 服务：`ollama serve`。
-4. 运行游戏，AI 将自动连接本地服务。
+4. 运行游戏，AI 将默认自动连接本地服务。
+5. 本地模型可以在游戏设置 > AI设置里面查看和更改。
 
-#### 使用云端 Kimi API
-1. 在 `res://.env` 文件中设置 `MOONSHOT_API_KEY=你的API_KEY`。
-2. 运行游戏，AI 将使用 Kimi 大模型。
+#### 使用云端 API
+如果您不想使用本地AI模型，我们提供了另外的方法：
+
+1. 启动游戏前，请先配置好您的云端API。
+1. 开始游戏前，请先前往游戏设置 > AI设置界面填写您使用的Base URL、Model 和 API 密钥。
+1. 游戏将自动保存您的修改，后续您也可以打开设置进行改动。
 
 ### 3. 操作说明
 - **鼠标点击 / 空格键**：推进对话
@@ -64,7 +68,7 @@ res://
 ## 五、技术栈
 
 - **游戏引擎**：Godot 4.6.2 (GDScript)
-- **AI 接口**：Ollama / Kimi API (HTTP)
+- **AI 接口**：Ollama / 云端 API (HTTP)
 - **指令体系**：自定义 JSON DSL 命令流
 - **数据存储**：本地 JSON 文件存档 + ConfigFile
 - **音频系统**：AudioServer 多总线管理

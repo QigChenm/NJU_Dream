@@ -84,12 +84,11 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 
 	var error = _http_request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
 	if error != OK:
-		push_error("[AIManager] 请求失败，错误码: %d" % error)
 		_is_requesting = false
+		_last_error_code = error
 		_recover_with_dialogue("[AIManager] 无法发起请求。")
 		_finish_requesting()
 		return
-
 	_pending_request_id = current_id
 
 # ---------- 响应处理 ----------
@@ -124,6 +123,7 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 		_recover_with_dialogue("[AIManager] 请求未成功完成。")
 		return
 	if response_code < 200 or response_code >= 300:
+		_last_error_code = response_code
 		push_error("[AIManager] Kimi 返回 HTTP %d: %s" % [response_code, body.get_string_from_utf8()])
 		_recover_with_dialogue("[AIManager] Kimi HTTP 响应异常。")
 		return
