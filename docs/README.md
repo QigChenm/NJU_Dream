@@ -5,8 +5,10 @@
 	<a href="https://github.com/QigChenm/GuTeamGame/releases"><img src="https://img.shields.io/badge/下载-Windows-blue?logo=windows" alt="Windows"></a>
 	<a href="https://github.com/QigChenm/GuTeamGame/releases"><img src="https://img.shields.io/badge/下载-macOS-silver?logo=apple" alt="macOS"></a>
 	<a href="https://github.com/QigChenm/GuTeamGame/blob/main/docs/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
+    <a href="https://qigchenm.github.io/GuTeamGame"><img src="https://img.shields.io/badge/项目网站-最南幻想-ff69b4?logo=google-chrome" alt="Website"></a>
   </p>
 </div>
+
 
 
 
