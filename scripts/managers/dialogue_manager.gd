@@ -4,7 +4,7 @@ extends Node
 # ================= 信号 =================
 signal dialogue_finished()
 signal line_finished
-signal choice_made(choice_id: int)
+signal choice_made(choice_id: int, choice_text: String)
 
 # ================= 属性 =================
 var ai_adapter = null
@@ -147,9 +147,8 @@ func display_options(choices: Array) -> void:
 		_cache_scene_instance()
 	if _scene_instance and _scene_instance.has_method("display_choices"):
 		_scene_instance.display_choices(choices)
-		if _scene_instance.is_connected("choice_selected", _on_choice):
-			_scene_instance.disconnect("choice_selected", _on_choice)
-		_scene_instance.connect("choice_selected", _on_choice, CONNECT_ONE_SHOT)
+		if not _scene_instance.is_connected("choice_selected", _on_choice):
+			_scene_instance.connect("choice_selected", _on_choice, CONNECT_ONE_SHOT)
 		print("[DialogueManager] 选项信号已连接")
 	else:
 		push_error("[DialogueManager] 无法显示选项，场景实例无效。")
@@ -162,8 +161,15 @@ func _on_continue() -> void:
 
 
 func _on_choice(choice_id: int) -> void:
-	print("[DialogueManager] 玩家选择选项 %d，发射 choice_made" % choice_id)
-	choice_made.emit(choice_id)
+	var text := ""
+	var choices = _scene_instance.get("current_choices") if _scene_instance else []
+	if choices is Array:
+		for c in choices:
+			if c is Dictionary and str(c.get("id", "")) == str(choice_id):
+				text = str(c.get("text", ""))
+				break
+	print("[DialogueManager] 收到选择: %d -> %s" % [choice_id, text])
+	choice_made.emit(choice_id, text)
 
 
 # ================= 辅助方法 =================

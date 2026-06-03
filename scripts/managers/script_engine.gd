@@ -360,7 +360,7 @@ func _on_line_finished() -> void:
 	_advance_to_next()
 
 
-func _on_choice_made(choice_id: int) -> void:
+func _on_choice_made(choice_id: int, choice_text: String) -> void:
 	if not _interaction_pending: return
 	_command_pending = false
 	_interaction_pending = false

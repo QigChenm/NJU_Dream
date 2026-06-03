@@ -112,44 +112,66 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	_is_requesting = false
 	_finish_requesting()
 	if _pending_request_id != _request_id:
-		print("[AIManager] 忽略过期请求 #%d，当前最新请求为 #%d" % [_pending_request_id, _request_id])
+		print("[AIManager] 忽略过期请求 #%d" % _pending_request_id)
 		return
 	if _is_canceling:
 		_is_canceling = false
 		return
-	if result != HTTPRequest.RESULT_SUCCESS:
+
+	if result != HTTPRequest.RESULT_SUCCESS or response_code < 200 or response_code >= 300:
 		_last_error_code = result
 		push_error("[AIManager] 请求失败，结果码: %d" % result)
 		_recover_with_dialogue("[AIManager] 请求未成功完成。")
 		return
-	if response_code < 200 or response_code >= 300:
-		_last_error_code = response_code
-		push_error("[AIManager] Kimi 返回 HTTP %d: %s" % [response_code, body.get_string_from_utf8()])
-		_recover_with_dialogue("[AIManager] Kimi HTTP 响应异常。")
-		return
-	var raw_response = JSON.parse_string(body.get_string_from_utf8())
+
+	var raw_text := body.get_string_from_utf8()
+	print("[AIManager] 原始响应前1000字符: ", raw_text.substr(0, 1000))
+
+	var raw_response = JSON.parse_string(raw_text)
 	if not raw_response is Dictionary:
-		_recover_with_dialogue("[AIManager] Kimi 响应不是 JSON 对象。")
+		push_error("[AIManager] 顶级响应不是 JSON 对象。原始文本: ", raw_text)
+		_recover_with_dialogue("[AIManager] AI 响应格式错误（非JSON对象）。")
 		return
+
 	var choices: Array = raw_response.get("choices", [])
 	if choices.is_empty():
-		_recover_with_dialogue("[AIManager] Kimi 响应缺少 choices。")
+		push_error("[AIManager] 响应中缺少 choices。原始文本: ", raw_text)
+		_recover_with_dialogue("[AIManager] AI 响应中无 choices。")
 		return
+
 	var message = choices[0].get("message", {})
 	if not message is Dictionary:
-		_recover_with_dialogue("[AIManager] Kimi message 格式异常。")
+		push_error("[AIManager] message 格式异常。原始文本: ", raw_text)
+		_recover_with_dialogue("[AIManager] AI message 格式异常。")
 		return
+
 	var content: String = message.get("content", "")
-	var ai_response = JSON.parse_string(_normalize_json_content(content))
+	if content.strip_edges() == "":
+		push_error("[AIManager] AI 返回的 content 为空！完整响应: %s" % raw_text)
+		_recover_with_dialogue("[AIManager] AI 正在思考中~")
+		return
+
+	print("[AIManager] 原始 content: ", content)
+
+	var clean_content := _normalize_json_content(content)
+	print("[AIManager] 清洗后 content: ", clean_content)
+
+	var ai_response = JSON.parse_string(clean_content)
 	if not ai_response is Dictionary:
-		_recover_with_dialogue("[AIManager] Kimi 返回内容不是有效 JSON。")
+		push_error("[AIManager] 解析 commands 失败。原始: %s, 清洗后: %s" % [content, clean_content])
+		_recover_with_dialogue("[AIManager] AI 生成的 JSON 格式无效。")
 		return
 	process_ai_response(ai_response)
 
 # ---------- 选项续写 ----------
-func _on_choice_made(choice_id: int) -> void:
+func _on_choice_made(choice_id: int, choice_text: String = "") -> void:
 	_pending_choice_id = choice_id
-	_pending_choice_text = _resolve_choice_text(choice_id)
+	_pending_choice_text = choice_text
+	if _pending_choice_text == "" and GameManager and GameManager.pending_choices.size() > 0:
+		for c in GameManager.pending_choices:
+			if str(c.get("id", "")) == str(choice_id):
+				_pending_choice_text = str(c.get("text", ""))
+				break
 	print("[AIManager] 已记录玩家选择: %d %s" % [choice_id, _pending_choice_text])
 	_waiting_for_choice_continuation = true
 
@@ -185,8 +207,10 @@ func _build_system_prompt() -> String:
 func _get_role_definition() -> PackedStringArray:
 	var arr := PackedStringArray()
 	arr.append("# 角色与任务")
-	arr.append("你是视觉小说《最南幻想》的 AI 编剧引擎，负责生成剧情指令。你必须且只能返回一个 JSON 对象：{\"commands\": [...]}")
-	arr.append("不要输出任何解释、Markdown 代码块或额外文本。")
+	arr.append("【绝对核心】你是视觉小说《最南幻想》的 AI 编剧引擎，负责生成剧情指令。你必须且只能返回一个 JSON 对象：{\"commands\": [...]}")
+	arr.append("【绝对强制】不要输出任何推理过程、思考内容、解释或 Markdown。如果你需要思考，请在内部完成，最终只输出 JSON。")
+	arr.append("【绝对强制】你的全部输出必须能被 JSON 解析器直接解析，不能有任何前缀或后缀。")
+	arr.append("【绝对强制】确保输出的 JSON 格式完整，所有括号和引号必须正确闭合。")
 	arr.append("")
 	return arr
 
@@ -261,14 +285,14 @@ func _get_narrative_rules() -> PackedStringArray:
 	arr.append("4. 玩家做出选择后，你的第一个指令应展示角色对该选择的即时反应（惊讶、高兴、犹豫等），然后继续剧情。")
 	arr.append("5. 只有在剧情自然结束时才使用 end_scene，一般对话中严禁提前结束。")
 	arr.append("6. 【强制】开场或章节开始时，必须包含 play_audio 指令播放合适的背景音乐。且不要频繁使用play_audio，只在开场或需要切换音乐时才用")
-	arr.append("7. 对话中可以适当使用 BBCode 增强表现力（如 [color]、[shake]、[wave]）。")
+	arr.append("7. 对话中可以适当使用 BBCode 增强表现力（如 [color]、[shake]、[wave]），严禁使用任何与 BBCode 无关的符号")
 	arr.append("8. 角色动作必须使用独立的 character_action 指令，不要在 show_dialogue 的 text 中直接写入 [bounce] 等动作标签。")
 	arr.append("")
 	return arr
 
 func _get_command_reference() -> PackedStringArray:
 	var arr := PackedStringArray()
-	arr.append("# 可用指令速查")
+	arr.append("# 【绝对核心】可用指令速查（请严格遵守下列 JSON 格式，严禁出现格式或指令错误）")
 	arr.append("- show_dialogue: {\"type\":\"show_dialogue\",\"character\":\"（从已有角色id选一个填入，不填就默认为空）\",\"text\":\"...\"}")
 	arr.append("- show_choices: {\"type\":\"show_choices\",\"choices\":[{\"id\":1,\"text\":\"选项1\"}]}")
 	arr.append("- change_background: {\"type\":\"change_background\",\"background\":\"（从已有场景id选一个填入）\"}")
@@ -425,19 +449,22 @@ func _build_user_prompt(input_str: String) -> String:
 	elif input_str == "__continue__":
 		event_desc = "玩家点击继续，请推进剧情。"
 	elif input_str.begins_with("__choice__:"):
-		var choice_payload = input_str.trim_prefix("__choice__:")
-		var parts = choice_payload.split(":", false, 1)
-		var choice_id = parts[0]
-		var choice_text = ""
+		var payload = input_str.trim_prefix("__choice__:")
+		var parts = payload.split(":", false, 1)
+		var cid = parts[0]
+		var ctext = ""
 		if parts.size() > 1:
-			choice_text = parts[1]
+			ctext = parts[1]
 		else:
 			if GameManager and GameManager.pending_choices.size() > 0:
-				for choice in GameManager.pending_choices:
-					if str(choice.get("id", "")) == choice_id:
-						choice_text = str(choice.get("text", ""))
+				for c in GameManager.pending_choices:
+					if str(c.get("id", "")) == cid:
+						ctext = str(c.get("text", ""))
 						break
-		event_desc = "玩家选择了选项 %s：%s。请展示角色对此选择的即时反应，并继续剧情。" % [choice_id, choice_text]
+		if ctext != "":
+			event_desc = "玩家选择了选项 %s：\"%s\"。请展示角色对此选择的即时反应，并继续剧情。" % [cid, ctext]
+		else:
+			event_desc = "玩家选择了选项 %s。请根据上下文推测玩家的选择，并做出合理反应。" % cid
 
 	var prompt := """【当前章节进度】%s (阶段: %s)
 				【章节目标】%s
@@ -454,6 +481,7 @@ func _build_user_prompt(input_str: String) -> String:
 		history_block,
 		event_desc
 	]
+	prompt += "\n\n请直接返回 JSON 指令，不要包含任何推理过程。"
 	return prompt
 
 func _get_event_description(input_str: String) -> String:
@@ -619,24 +647,31 @@ func _resolve_choice_text(choice_id: int) -> String:
 	return ""
 
 func _build_choice_event() -> String:
-	var text = _pending_choice_text
-	if text == "" and GameManager.pending_choices.size() > 0:
-		for choice in GameManager.pending_choices:
-			if str(choice.get("id", "")) == str(_pending_choice_id):
-				text = str(choice.get("text", ""))
-				break
-	if text == "":
-		return "__choice__:%d" % _pending_choice_id
-	return "__choice__:%d:%s" % [_pending_choice_id, text]
+	if _pending_choice_text != "":
+		return "__choice__:%d:%s" % [_pending_choice_id, _pending_choice_text]
+	return "__choice__:%d" % _pending_choice_id
 
 func _normalize_json_content(content: String) -> String:
 	var result := content.strip_edges()
+	if result.begins_with("\uFEFF"):
+		result = result.trim_prefix("\uFEFF")
 	if result.begins_with("```json"):
 		result = result.trim_prefix("```json").strip_edges()
 	elif result.begins_with("```"):
 		result = result.trim_prefix("```").strip_edges()
 	if result.ends_with("```"):
 		result = result.trim_suffix("```").strip_edges()
+	while result.ends_with(",") or result.ends_with(":"):
+		result = result.left(result.length() - 1)
+
+	var open_braces = result.count("{")
+	var close_braces = result.count("}")
+	var open_brackets = result.count("[")
+	var close_brackets = result.count("]")
+	for i in range(open_braces - close_braces):
+		result += "}"
+	for i in range(open_brackets - close_brackets):
+		result += "]"
 	return result
 
 func _recover_with_dialogue(reason: String) -> void:
@@ -649,7 +684,7 @@ func _recover_with_dialogue(reason: String) -> void:
 	elif _last_error_code == 4: # TIMEOUT
 		help_text = "AI服务响应超时，请稍后重试。"
 	else:
-		help_text = "AI服务暂时不可用，请检查您的网络或AI设置。"
+		help_text = "AI正在全力思考中，稍等哦~"
 
 	if has_node("/root/ScriptEngine"):
 		ScriptEngine.execute_commands([{"type": "show_dialogue", "character": "", "text": help_text}])
