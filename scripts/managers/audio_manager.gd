@@ -131,7 +131,9 @@ func set_bus_volume(bus_name: String, volume_db: float) -> void:
 
 
 func get_current_bgm_id() -> String:
-	return current_bgm_id
+	if _bgm_player and _bgm_player.playing:
+		return current_bgm_id
+	return ""
 
 
 func get_bgm_player() -> AudioStreamPlayer:

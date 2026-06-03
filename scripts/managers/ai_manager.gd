@@ -76,7 +76,7 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 			{"role": "user", "content": _build_user_prompt(input_str)}
 		],
 		"temperature": 0.8,
-		"max_tokens": 800
+		"max_tokens": 600
 	}
 	var user_base_url = _get_base_url()
 	if user_base_url.begins_with("https://api.moonshot.cn") or user_base_url.begins_with("https://api.openai.com"):
@@ -185,7 +185,7 @@ func _build_system_prompt() -> String:
 func _get_role_definition() -> PackedStringArray:
 	var arr := PackedStringArray()
 	arr.append("# 角色与任务")
-	arr.append("你是视觉小说《最南幻想》的 AI 编剧引擎，负责生成剧情指令。你必须且只能返回一个 JSON 对象：{\"commands\": [...]}。")
+	arr.append("你是视觉小说《最南幻想》的 AI 编剧引擎，负责生成剧情指令。你必须且只能返回一个 JSON 对象：{\"commands\": [...]}")
 	arr.append("不要输出任何解释、Markdown 代码块或额外文本。")
 	arr.append("")
 	return arr
@@ -283,13 +283,13 @@ func _get_command_reference() -> PackedStringArray:
 	arr.append("- long_dialogue: {\"type\":\"long_dialogue\",\"text\":\"全屏叙述\"}")
 	arr.append("- end_scene: {\"type\":\"end_scene\"} （结束当前场景，必须为最后一条指令）")
 	arr.append("")
-	arr.append("# 可用背景音乐 (BGM)id")
+	arr.append("# 可用背景音乐(BGM) id")
 	arr.append("- spring_forest：春日的森林")
 	arr.append("- love_piano：爱的钢琴曲")
 	arr.append("- gentle：柔情之夜")
 	arr.append("- flowing：温柔似水")
 	arr.append("")
-	arr.append("# 可用角色动作id")
+	arr.append("# 可用角色动作 id")
 	arr.append("- bounce：弹跳（高兴时使用）")
 	arr.append("- shake：抖动（感动、惊讶、被吓到时使用）")
 	arr.append("- nod：点头（表示同意）")
@@ -417,9 +417,8 @@ func _get_user_rules_section() -> PackedStringArray:
 func _build_user_prompt(input_str: String) -> String:
 	var chapter := _determine_current_chapter()
 	var chapter_info = MAIN_STORY_LINE.get(chapter, {})
-	var history_block := _get_recent_dialogue_history(50)
+	var history_block := _get_recent_dialogue_history(25)
 	var state_block := _get_current_game_state()
-#	var event_desc := _get_event_description(input_str)
 	var event_desc := ""
 	if input_str == "__start__":
 		event_desc = "新游戏开始，请生成开场剧情，包含背景、角色、音乐。"

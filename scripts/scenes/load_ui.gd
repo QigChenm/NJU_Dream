@@ -21,7 +21,6 @@ func _ready() -> void:
 	visible = false
 	process_mode = PROCESS_MODE_ALWAYS
 
-	# 从主界面进入读档时，隐藏切换按钮
 	if SaveManager.continue_mode:
 		switch_btn.visible = false
 	else:
@@ -49,6 +48,8 @@ func _ready() -> void:
 	switch_btn.pressed.connect(_on_switch_pressed)
 
 	_refresh_page()
+	if not UIManager.is_connected("panel_opened", _on_panel_opened):
+		UIManager.connect("panel_opened", _on_panel_opened)
 
 func _refresh_page() -> void:
 	for i in range(_slot_buttons.size()):
@@ -210,3 +211,7 @@ func _on_right_arrow() -> void:
 func _on_switch_pressed() -> void:
 	UIManager.close_panel("LoadUI", false)
 	UIManager.open_panel("SaveUI")
+	
+func _on_panel_opened(panel_name: String) -> void:
+	if panel_name == "LoadUI":
+		_refresh_page()

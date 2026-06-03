@@ -21,7 +21,6 @@ func _ready() -> void:
 	visible = false
 	process_mode = PROCESS_MODE_ALWAYS
 
-	# 收集槽位按钮（每个按钮需带子节点：Thumbnail, InfoBg, Info, DeleteBtn）
 	_slot_buttons.clear()
 	for child in slot_grid.get_children():
 		if child is TextureButton:
@@ -31,7 +30,6 @@ func _ready() -> void:
 				del_btn.pressed.connect(_on_delete_pressed.bind(_slot_buttons.size()))
 			_slot_buttons.append(child)
 
-	# 收集页码按钮（元数据 "page" 存储页码 0~8）
 	_page_buttons.clear()
 	for child in page_buttons_grid.get_children():
 		if child is TextureButton:
@@ -45,6 +43,8 @@ func _ready() -> void:
 	switch_btn.pressed.connect(_on_switch_pressed)
 
 	_refresh_page()
+	if not UIManager.is_connected("panel_opened", _on_panel_opened):
+		UIManager.connect("panel_opened", _on_panel_opened)
 
 func _refresh_page() -> void:
 	for i in range(_slot_buttons.size()):
@@ -225,3 +225,7 @@ func _on_right_arrow() -> void:
 func _on_switch_pressed() -> void:
 	UIManager.close_panel("SaveUI", false)
 	UIManager.open_panel("LoadUI")
+
+func _on_panel_opened(panel_name: String) -> void:
+	if panel_name == "SaveUI":
+		_refresh_page()
