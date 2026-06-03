@@ -585,4 +585,4 @@ grow_vertical = 2
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 32
 text = "保密承诺：我们尊重您的个人权益，绝不会收集和使用任何有关您的API密钥。API Key已设置为密文，请妥善保管您的密钥，防止被他人盗取。如果您在本游戏中有任何私自使用他人密钥的行为，将依法追究法律责任。"
-autowrap_mode = 2
+autowrap_mode = 3
