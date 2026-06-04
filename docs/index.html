@@ -143,36 +143,99 @@
       border-color: #dbb87c;
     }
 
-    .feature-grid {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 2rem;
-      max-width: 900px;
-      margin: 1rem auto 0;
+    /* 特色轮播区域 */
+    .feature-carousel-section {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: 1000px;
+      margin: 0 auto 3rem;
+      padding: 0 1.5rem;
     }
 
-    .feature-item {
-      background: rgba(255,255,255,0.08);
-      backdrop-filter: blur(10px);
+    .carousel-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      border-radius: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .carousel-slide {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background-size: cover;
+      background-position: center;
+      opacity: 0;
+      transition: opacity 0.5s ease-in-out;
+    }
+    .carousel-slide.active {
+      opacity: 1;
+    }
+
+    .carousel-caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 2rem;
+      background: linear-gradient(transparent, rgba(0,0,0,0.7));
+      text-align: left;
+    }
+    .carousel-caption h3 {
+      font-size: 2rem; color: #f3e3c9; margin-bottom: 0.5rem;
+    }
+    .carousel-caption p {
+      font-size: 1.1rem; color: #eee; line-height: 1.6;
+    }
+
+
+    .carousel-prev, .carousel-next {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 2.5rem; color: #fff;
+      cursor: pointer;
+      z-index: 10;
+      padding: 0.5rem;
+      background: rgba(0,0,0,0.4);
+      border-radius: 50%;
+      width: 50px; height: 50px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.3s;
+      user-select: none;
+    }
+    .carousel-prev:hover, .carousel-next:hover { background: rgba(0,0,0,0.7); }
+    .carousel-prev { left: 15px; }
+    .carousel-next { right: 15px; }
+
+    .carousel-dots {
+      display: flex; justify-content: center; gap: 0.8rem; margin-top: 1rem;
+    }
+    .carousel-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: rgba(255,255,255,0.4); cursor: pointer;
+    }
+    .carousel-dot.active { background: #c9a96e; }
+
+    /* 视频区域 */
+    .video-section {
+      position: relative;
+      z-index: 2;
+      max-width: 1000px;
+      margin: 0 auto 4rem;
+      padding: 0 1.5rem;
+    }
+
+    .video-section video {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 16 / 9;
       border-radius: 20px;
-      padding: 1.5rem 1.8rem;
-      flex: 1 1 220px;
-      max-width: 260px;
-      text-align: center;
-      border: 1px solid rgba(255,255,255,0.15);
-    }
-
-    .feature-item h3 {
-      font-size: 1.3rem;
-      margin-bottom: 0.5rem;
-      color: #f3e3c9;
-    }
-
-    .feature-item p {
-      font-size: 0.95rem;
-      line-height: 1.6;
-      color: #dddddd;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
 
     .scroll-hint {
@@ -469,8 +532,8 @@
         padding: 0.7rem 1.8rem;
         font-size: 1rem;
       }
-      .feedback-form, .contact-info {
-        flex: 1 1 100%;
+      .carousel-slide {
+        height: 300px;
       }
     }
   </style>
@@ -481,6 +544,7 @@
     <div class="bg-slide" style="background-image: url('./index/duxia.jpg');"></div>
     <div class="bg-slide" style="background-image: url('./index/litang.jpg');"></div>
     <div class="bg-slide" style="background-image: url('./index/nansu.jpg');"></div>
+      <div class="bg-slide" style="background-image: url('./index/duxia_night.png');"></div>
   </div>
   <div class="overlay"></div>
 
@@ -495,40 +559,76 @@
 
     <div class="btn-group">
       <a href="https://github.com/QigChenm/GuTeamGame/releases" class="btn primary" target="_blank">
-        ⬇下载游戏 (Windows)
+        <img src="./index/windows_icon.png" alt="Windows" style="width:22px; height:22px; vertical-align:middle; margin-right:6px;">
+        下载游戏
       </a>
       <a href="https://github.com/QigChenm/GuTeamGame" class="btn" target="_blank">
         GitHub 仓库
       </a>
     </div>
 
-    <div class="feature-grid">
-      <div class="feature-item">
-        <h3>全 AI 叙事</h3>
-        <p>剧情由 AI 实时生成，每次对话都独一无二，你的选择真的能改变故事。</p>
+    <!-- 6大特色轮播 -->
+    <div class="feature-carousel-section">
+      <div class="carousel-container" id="featureCarousel">
+        <div class="carousel-slide active" style="background-image: url('./index/beidalou.jpg');">
+          <div class="carousel-caption">
+            <h3>全 AI 叙事</h3>
+            <p>剧情由 AI 实时生成，每次对话都独一无二，你的选择真的能改变故事。</p>
+          </div>
+        </div>
+        <div class="carousel-slide" style="background-image: url('./index/duxia.jpg');">
+          <div class="carousel-caption">
+            <h3>真实校园</h3>
+            <p>以北大楼、杜厦图书馆等南大地标为舞台，还原鼓楼校区的四季美景。</p>
+          </div>
+        </div>
+        <div class="carousel-slide" style="background-image: url('./index/litang.jpg');">
+          <div class="carousel-caption">
+            <h3>丰富演出</h3>
+            <p>角色表情、动作、粒子天气、CG 动画，带来沉浸式视觉小说体验。</p>
+          </div>
+        </div>
+        <div class="carousel-slide" style="background-image: url('./index/nansu.jpg');">
+          <div class="carousel-caption">
+            <h3>本地 + 云端</h3>
+            <p>支持本地 Ollama 免费模型，亦可接入云端 API，按需切换，一键部署，灵活自由。</p>
+          </div>
+        </div>
+        <div class="carousel-slide" style="background-image: url('./index/beidalou.jpg');">
+          <div class="carousel-caption">
+            <h3>心理关怀</h3>
+            <p>剧情融入正向情感引导，帮助缓解大学生压力，提升心理韧性。</p>
+          </div>
+        </div>
+        <div class="carousel-slide" style="background-image: url('./index/duxia.jpg');">
+          <div class="carousel-caption">
+            <h3>智能双模</h3>
+            <p>增设AI开关，支持非AI传统剧情和AI实时剧情双模式。</p>
+          </div>
+        </div>
+        <span class="carousel-prev" id="featurePrev">‹</span>
+        <span class="carousel-next" id="featureNext">›</span>
       </div>
-      <div class="feature-item">
-        <h3>真实校园</h3>
-        <p>以北大楼、杜厦图书馆等南大地标为舞台，还原鼓楼校区的四季美景。</p>
-      </div>
-      <div class="feature-item">
-        <h3>丰富演出</h3>
-        <p>角色表情、动作、粒子天气、CG 动画，带来沉浸式视觉小说体验。</p>
-      </div>
-      <div class="feature-item">
-        <h3>本地 + 云端</h3>
-        <p>支持本地 Ollama 免费模型，亦可接入云端 API，按需切换，灵活自由。</p>
-      </div>
+      <div class="carousel-dots" id="featureDots"></div>
     </div>
 
     <div class="scroll-hint">↓</div>
   </div>
 
+  <!-- 演示视频 -->
+  <section class="video-section">
+    <h2 class="about-title">演示视频</h2>
+    <video controls poster="./index/beidalou.jpg">
+      <source src="./index/intro.mp4" type="video/mp4">
+      您的浏览器不支持视频播放。
+    </video>
+  </section>
+
   <!-- 关于游戏操作指南 -->
   <section class="about-section">
     <h2 class="about-title">游戏操作指南</h2>
     <div class="steps-grid">
-      <!-- 步骤1~6 同上，略 -->
+      <!-- 步骤1~6 保持不变 -->
       <div class="step-card">
         <img class="lightbox-item" src="./index/pushforward.png" alt="推进对话1">
         <img class="lightbox-item" src="./index/pushforward1.png" alt="推进对话2" style="display:none;">
@@ -572,7 +672,6 @@
   <section class="feedback-section">
     <h2 class="about-title">玩家反馈</h2>
     <div class="feedback-grid">
-      <!-- 反馈表单 -->
       <div class="feedback-form">
         <h3>写下你的感受</h3>
         <form id="feedbackForm" action="https://forminit.com/f/6aj9m8si636" method="POST">
@@ -585,7 +684,6 @@
           <button type="submit">发送反馈</button>
         </form>
       </div>
-      <!-- 联系方式 -->
       <div class="contact-info">
         <h3>联系我们</h3>
         <p>邮箱：<a href="mailto:2054907845@qq.com">2054907845@qq.com</a></p>
@@ -628,7 +726,7 @@
     Copyright © 2025 GuTeam · 南京大学
   </div>
 
-  <!-- 灯箱容器（动态生成内容） -->
+  <!-- 灯箱容器 -->
   <div id="lightbox" class="lightbox-overlay">
     <span class="lightbox-close">&times;</span>
     <span class="lightbox-prev">&lsaquo;</span>
@@ -639,25 +737,52 @@
   <script>
     (function() {
       // ---------- 背景轮播 ----------
-      const slides = document.querySelectorAll('.bg-slide');
-      if (slides.length > 0) {
-        let current = 0;
-        const total = slides.length;
-        function nextSlide() {
-          slides[current].classList.remove('active');
-          current = (current + 1) % total;
-          slides[current].classList.add('active');
+      const bgSlides = document.querySelectorAll('#bgSlideshow .bg-slide');
+      let bgIndex = 0;
+      if (bgSlides.length > 0) {
+        function nextBgSlide() {
+          bgSlides[bgIndex].classList.remove('active');
+          bgIndex = (bgIndex + 1) % bgSlides.length;
+          bgSlides[bgIndex].classList.add('active');
         }
-        slides[0].classList.add('active');
-        setInterval(nextSlide, 5000);
+        bgSlides[0].classList.add('active');
+        setInterval(nextBgSlide, 5000);
       }
+
+      // ---------- 特色轮播 ----------
+      const featureSlides = document.querySelectorAll('#featureCarousel .carousel-slide');
+      const prevBtn = document.getElementById('featurePrev');
+      const nextBtn = document.getElementById('featureNext');
+      const dotsContainer = document.getElementById('featureDots');
+      let featureIndex = 0;
+
+      // 生成指示点
+      for (let i = 0; i < featureSlides.length; i++) {
+        const dot = document.createElement('span');
+        dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
+        dot.addEventListener('click', () => goToSlide(i));
+        dotsContainer.appendChild(dot);
+      }
+
+      function goToSlide(index) {
+        featureSlides[featureIndex].classList.remove('active');
+        dotsContainer.children[featureIndex].classList.remove('active');
+        featureIndex = (index + featureSlides.length) % featureSlides.length;
+        featureSlides[featureIndex].classList.add('active');
+        dotsContainer.children[featureIndex].classList.add('active');
+      }
+
+      prevBtn.addEventListener('click', () => goToSlide(featureIndex - 1));
+      nextBtn.addEventListener('click', () => goToSlide(featureIndex + 1));
+      // 自动轮播
+      setInterval(() => goToSlide(featureIndex + 1), 6000);
 
       // ---------- 灯箱逻辑 ----------
       const lightboxOverlay = document.getElementById('lightbox');
       const imgContainer = lightboxOverlay.querySelector('.lightbox-img-container');
       const closeBtn = lightboxOverlay.querySelector('.lightbox-close');
-      const prevBtn = lightboxOverlay.querySelector('.lightbox-prev');
-      const nextBtn = lightboxOverlay.querySelector('.lightbox-next');
+      const lbPrevBtn = lightboxOverlay.querySelector('.lightbox-prev');
+      const lbNextBtn = lightboxOverlay.querySelector('.lightbox-next');
 
       let currentImages = [];
       let currentIndex = 0;
@@ -679,25 +804,13 @@
 
       function updateImage() {
         if (currentImages.length === 0) return;
-        const src = currentImages[currentIndex];
-        imgContainer.innerHTML = `<img src="${src}" alt="预览图片">`;
-        prevBtn.style.display = currentIndex > 0 ? 'block' : 'none';
-        nextBtn.style.display = currentIndex < currentImages.length - 1 ? 'block' : 'none';
+        imgContainer.innerHTML = `<img src="${currentImages[currentIndex]}" alt="预览图片">`;
+        lbPrevBtn.style.display = currentIndex > 0 ? 'block' : 'none';
+        lbNextBtn.style.display = currentIndex < currentImages.length - 1 ? 'block' : 'none';
       }
 
-      function prevImage() {
-        if (currentIndex > 0) {
-          currentIndex--;
-          updateImage();
-        }
-      }
-
-      function nextImage() {
-        if (currentIndex < currentImages.length - 1) {
-          currentIndex++;
-          updateImage();
-        }
-      }
+      function prevImage() { if (currentIndex > 0) { currentIndex--; updateImage(); } }
+      function nextImage() { if (currentIndex < currentImages.length - 1) { currentIndex++; updateImage(); } }
 
       function onKeyDown(e) {
         if (!lightboxOverlay.classList.contains('active')) return;
@@ -707,8 +820,8 @@
       }
 
       closeBtn.addEventListener('click', closeLightbox);
-      prevBtn.addEventListener('click', prevImage);
-      nextBtn.addEventListener('click', nextImage);
+      lbPrevBtn.addEventListener('click', prevImage);
+      lbNextBtn.addEventListener('click', nextImage);
       document.addEventListener('keydown', onKeyDown);
 
       const allItems = document.querySelectorAll('.lightbox-item');
@@ -728,9 +841,7 @@
       });
 
       lightboxOverlay.addEventListener('click', function(e) {
-        if (e.target === lightboxOverlay) {
-          closeLightbox();
-        }
+        if (e.target === lightboxOverlay) closeLightbox();
       });
     })();
   </script>
