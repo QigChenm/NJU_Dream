@@ -8,6 +8,7 @@
 		"res://assets/backgrounds/tres/duxia_data.tres",
 		"res://assets/backgrounds/tres/litang_data.tres",
 		"res://assets/backgrounds/tres/nansu_data.tres",
+		"res://assets/backgrounds/tres/duxia_night_data.tres"
 	],
 	"audio_bgm": [
 		"res://assets/audio/bgm/tres/bgm_spring_forest.tres",

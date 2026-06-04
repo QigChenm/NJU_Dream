@@ -14,6 +14,9 @@ extends CanvasLayer
 @onready var ai_model_edit = $VBoxContainerR/AIURLContainer/AIModel/LineEdit
 @onready var ai_key_edit = $VBoxContainerR/AIURLContainer/APIKey/LineEdit
 @onready var deploy_btn = $VBoxContainerR/AIURLContainer/DeployAI/DeployAIBtn
+@onready var ai_enabled_toggle = $VBoxContainerR/AIURLContainer/AIControl/AIEnabledToggle
+
+var _can_toggle_ai: bool = false
 
 # ================= 初始化 =================
 func _ready() -> void:
@@ -22,7 +25,6 @@ func _ready() -> void:
 
 	_load_settings()
 	_connect_signals()
-	
 	UIManager.panel_opened.connect(_on_panel_opened)
 
 
@@ -47,6 +49,9 @@ func _connect_signals() -> void:
 		ui_sound_toggle.toggled.connect(_on_ui_sound_toggled)
 	if deploy_btn:
 		deploy_btn.pressed.connect(_on_deploy_ai_pressed)
+	if ai_enabled_toggle:
+		ai_enabled_toggle.toggled.connect(_on_ai_enabled_toggled)
+	visibility_changed.connect(_on_visibility_changed)
 
 
 # ================= 设置读写 =================
@@ -153,3 +158,34 @@ func _on_deploy_ai_pressed() -> void:
 		return
 	OS.shell_open(script_path)
 	OS.alert("部署脚本已启动，请在弹出的命令行窗口中查看进度。完成后重启游戏或进入设置将AI地址改为 http://localhost:11434/v1", "提示")
+
+func _on_visibility_changed() -> void:
+	if not visible:
+		return
+	# 使用 GameManager.is_settings_from_main_menu 判断是否为主界面进入的设置
+	_can_toggle_ai = GameManager.is_settings_from_main_menu
+	if ai_enabled_toggle:
+		ai_enabled_toggle.disabled = not _can_toggle_ai
+		ai_enabled_toggle.button_pressed = GameManager.ai_enabled
+	# 重置标志，防止下一次打开设置时误判
+	GameManager.is_settings_from_main_menu = false
+
+func _on_ai_enabled_toggled(button_pressed: bool) -> void:
+	if not _can_toggle_ai:
+		# 不允许切换时，恢复开关原状态
+		ai_enabled_toggle.set_pressed_no_signal(!button_pressed)
+		return
+	GameManager.set_ai_enabled_direct(button_pressed)
+	# 保存设置
+	var config = ConfigFile.new()
+	config.load("user://settings.cfg")
+	config.set_value("ai", "enabled", button_pressed)
+	config.save("user://settings.cfg")
+
+func _save_ai_setting(enabled: bool) -> void:
+	var config = ConfigFile.new()
+	config.load("user://settings.cfg")
+	config.set_value("ai", "enabled", enabled)
+	config.save("user://settings.cfg")
+	if has_node("/root/AIManager"):
+		get_node("/root/AIManager").ai_enabled = enabled

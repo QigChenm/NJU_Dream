@@ -473,9 +473,9 @@ func stop_execution() -> void:
 
 
 func hard_reset() -> void:
-	print("[ScriptEngine] 执行硬重置...")
 	stop_execution()
 	_interaction_pending = false
+	_clear_timeout()
 	print("[ScriptEngine] 硬重置完成。")
 
 

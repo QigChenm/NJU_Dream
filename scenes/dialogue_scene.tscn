@@ -351,6 +351,6 @@ theme_override_font_sizes/bold_italics_font_size = 60
 theme_override_font_sizes/italics_font_size = 60
 theme_override_font_sizes/mono_font_size = 60
 bbcode_enabled = true
-text = "[wave amp=50.0 freq=5.0]请稍等，AI正在努力生成对话……[/wave]"
+text = "[wave amp=50.0 freq=5.0]请稍等，正在初始化游戏……[/wave]"
 horizontal_alignment = 1
 vertical_alignment = 1

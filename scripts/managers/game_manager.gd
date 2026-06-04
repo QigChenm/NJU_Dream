@@ -18,6 +18,7 @@ var flags: Dictionary = {}
 var dialogue_history: Array = []
 var pending_choices: Array = []
 var current_scene: String = ""
+var ai_enabled: bool = true
 var open_settings_on_load: bool = false
 var open_gallery_on_load: bool = false
 var open_about_on_load: bool = false
@@ -27,6 +28,7 @@ var is_auto_mode: bool = false
 var is_skip_mode: bool = false
 var character_database: Dictionary = {}
 var affection_ui_instance: CanvasLayer = null
+var is_settings_from_main_menu: bool = false
 
 # 解锁数据
 var unlocked_cgs: Array[String] = []
@@ -37,6 +39,7 @@ var unlocked_bgms: Array[String] = []
 func _ready() -> void:
 	set_process_input(true)
 	print("[GameManager] 游戏管理器初始化...")
+	_load_ai_enabled_setting()
 	_load_character_database()
 	_load_unlocks()
 	_load_config()
@@ -330,3 +333,20 @@ func _load_all_resources_from_index() -> void:
 			if res is CGData and res.cg_id != "":
 				CGManager.cg_database[res.cg_id] = res
 	print("[GameManager] CG数据库加载完成，共 %d 个CG。" % CGManager.cg_database.size())
+
+# ================= AI 模式 =================
+func _load_ai_enabled_setting() -> void:
+	var config = ConfigFile.new()
+	if config.load("user://settings.cfg") == OK:
+		ai_enabled = config.get_value("ai", "enabled", true)
+	else:
+		ai_enabled = true
+
+func set_ai_enabled_direct(enabled: bool) -> void:
+	ai_enabled = enabled
+	var config = ConfigFile.new()
+	config.load("user://settings.cfg")
+	config.set_value("ai", "enabled", enabled)
+	config.save("user://settings.cfg")
+	if has_node("/root/AIManager"):
+		get_node("/root/AIManager").ai_enabled = enabled

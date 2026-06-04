@@ -79,6 +79,7 @@ func _on_continue() -> void:
 
 
 func _on_settings() -> void:
+	GameManager.is_settings_from_main_menu = true
 	GameManager.open_settings_on_load = true
 	get_tree().change_scene_to_file("res://scenes/dialogue_scene.tscn")
 

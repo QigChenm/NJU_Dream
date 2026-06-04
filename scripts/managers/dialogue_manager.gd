@@ -51,11 +51,14 @@ func submit_choice(choice_id: int) -> void:
 
 
 func request_ai_response(input_str: String) -> void:
+	if not GameManager.ai_enabled:
+		LocalStory.execute_local_story()
+		return
 	if ai_adapter and ai_adapter.has_method("send_message"):
 		is_requesting = true
 		await ai_adapter.send_message(input_str, _on_ai_response)
 	else:
-		# 测试用命令序列（未接入 AI 时自动执行）
+		# 测试用命令序列
 		var test_script = [
 	{"type": "change_background", "background": "nansu", "transition": "fade"},
 	{"type": "particle_play", "effect_id": "petal"},

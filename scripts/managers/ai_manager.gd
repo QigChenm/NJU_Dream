@@ -78,7 +78,7 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 			"stream": false,
 			"options": {
 				"temperature": 0.8,
-				"num_predict": 800
+				"num_predict": 1200
 			}
 		}
 	else:
@@ -98,7 +98,7 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 				{"role": "user", "content": _build_user_prompt(input_str)}
 			],
 			"temperature": 0.8,
-			"max_tokens": 800,
+			"max_tokens": 1000,
 		}
 		var user_base_url = _get_base_url()
 		if user_base_url.begins_with("https://api.deepseek.com") or user_base_url.begins_with("https://api.moonshot.cn"):
@@ -239,7 +239,7 @@ func _get_role_definition() -> PackedStringArray:
 	arr.append("【绝对核心】你是视觉小说《最南幻想》的 AI 编剧引擎，负责生成剧情指令。你必须且只能返回一个 JSON 对象：{\"commands\": [...]}")
 	arr.append("【绝对强制】不要输出任何推理过程、思考内容、解释或 Markdown。如果你需要思考，请在内部完成，最终只输出 JSON。")
 	arr.append("【绝对强制】你的全部输出必须能被 JSON 解析器直接解析，不能有任何前缀或后缀。")
-	arr.append("【绝对强制】确保输出的 JSON 格式完整，所有括号和引号必须正确闭合。")
+	arr.append("【绝对强制】确保所有 JSON 括号正确闭合，特别是以 show_choices 结尾时，务必补全 } 和 ]。")
 	arr.append("")
 	return arr
 
@@ -323,10 +323,12 @@ func _get_narrative_rules() -> PackedStringArray:
 func _get_command_reference() -> PackedStringArray:
 	var arr := PackedStringArray()
 	arr.append("# 【绝对核心】可用指令速查（请严格遵守下列 JSON 格式，严禁出现格式或指令错误）")
-	arr.append("- show_dialogue: {\"type\":\"show_dialogue\",\"character\":\"（从已有角色id选一个填入，不填就默认为空）\",\"text\":\"...\"}")
+	arr.append("# 【绝对强制】每次新对话开始时、切换角色时，都必须使用set_characters来确保角色在台上")
+	arr.append("- show_dialogue: {\"type\":\"show_dialogue\",\"character\":\"（必填项，根据当前角色填入角色id，玩家就填写“玩家”）\",\"text\":\"（此处严禁出现任何角色名，包括玩家）...\"}")
 	arr.append("- show_choices: {\"type\":\"show_choices\",\"choices\":[{\"id\":1,\"text\":\"选项1\"}]}")
 	arr.append("- change_background: {\"type\":\"change_background\",\"background\":\"（从已有场景id选一个填入）\"}")
-	arr.append("- set_characters: {\"type\":\"set_characters\",\"left\":{\"id\":\"（从已有角色id选一个填入）\",\"expression\":\"happy\"}}")
+	arr.append("- set_characters: {\"type\":\"set_characters\",\"left\":{\"id\":\"（从已有角色id选一个填入）\",\"expression\":\"happy\"},\"right\":{\"id\":\"（从已有角色id选一个填入，不能和左边角色重复）\",\"expression\":\"happy\"}}")
+	arr.append("【注意】set_characters中right字段为选填项，建议多个角色登场时使用（一左一右）；单个角色在场使用{\"type\":\"set_characters\",\"left\":{\"id\":\"（从已有角色id选一个填入）\",\"expression\":\"happy\"}}或者{\"type\":\"set_characters\",\"right\":{\"id\":\"（从已有角色id选一个填入）\",\"expression\":\"happy\"}}")
 	arr.append("- set_expression: {\"type\":\"set_expression\",\"character\":\"（从已有角色id选一个填入）\",\"expression\":\"angry\"}")
 	arr.append("- character_action: {\"type\":\"character_action\",\"character\":\"（从已有角色id选一个填入）\",\"action\":\"bounce\"}")
 	arr.append("- play_audio: {\"type\":\"play_audio\",\"audio_id\":\"gentle\"}")
@@ -383,75 +385,60 @@ func _get_dialogue_examples() -> PackedStringArray:
 	arr.append("  ]")
 	arr.append("}")
 
-	arr.append("## 完整剧情示例（从开场到结局）")
-	arr.append("下面是一段完整的剧情指令序列，展示了从春到冬、从初遇到告白的全过程。请模仿其结构和丰富度。")
-	arr.append('{')
-	arr.append('  "commands": [')
-	arr.append('    {"type": "change_background", "background": "nansu", "transition": "fade"},')
-	arr.append('    {"type": "particle_play", "effect_id": "petal"},')
-	arr.append('    {"type": "play_audio", "audio_id": "flowing", "crossfade": 1.5},')
-	arr.append('    {"type": "set_characters", "left": {"id": "xiu", "expression": "happy", "entrance_animation": "slide_left"}, "entrance_animation": "fade"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "终于等到你了！[color=#FFB6C1]今天阳光真好呀～[/color]"},')
-	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "very_happy"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "我们好久没一起在校园里散步了呢。最近课业忙吗？"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "我跟你讲，我们院最近组织了一场超有趣的活动！"},')
-	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "happy"},')
-	arr.append('    {"type": "character_action", "character": "xiu", "action": "bounce"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "下周有樱花节，好多社团都摆摊了，[shake rate=15 level=3]我们一起去逛逛吧！[/shake]"},')
-	arr.append('    {"type": "show_choices", "choices": [{"id": 1, "text": "好啊，一定去！"}, {"id": 2, "text": "看时间吧，可能很忙。"}]},')
-	arr.append('    {"type": "add_affection", "character": "xiu", "delta": 5},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "嘻嘻，那就这么说定了！"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "对了，你最近有没有遇到什么有趣的事？"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "我上次在图书馆遇到一只流浪猫，好可爱呀，可惜宿管不让养……"},')
-	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "sad"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "如果能在宿舍养宠物就好了，[i]好想有一只小猫陪着我[/i]。"},')
-	arr.append('    {"type": "show_choices", "choices": [{"id": 1, "text": "以后我们合租就可以养了！"}, {"id": 2, "text": "你可以多去图书馆看看它。"}]},')
-	arr.append('    {"type": "add_affection", "character": "xiu", "delta": 10},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "哇，真的吗？你愿意和我一起住？[color=#FFD700]那我可太开心了！[/color]"},')
-	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "very_happy"},')
-	arr.append('    {"type": "character_action", "character": "xiu", "action": "bounce"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "好了啦，不说这些了。我们去那边的小路走走吧～"},')
-	arr.append('    {"type": "wait", "duration": 1.0},')
-	arr.append('    {"type": "long_dialogue", "text": "春日的午后，两人漫步在南大鼓楼校区的梧桐大道上。阳光透过嫩绿的叶子洒下斑驳的光影，空气中弥漫着淡淡的花香。小貅轻轻哼着歌，时不时侧过头看着你的侧脸，眼睛里闪着细碎的光。这样的时光，仿佛被拉得很长很长。"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "你觉得大学四年最珍贵的是什么？"},')
-	arr.append('    {"type": "show_choices", "choices": [{"id": 1, "text": "当然是遇到了你。"}, {"id": 2, "text": "学到了很多知识。"}]},')
-	arr.append('    {"type": "add_affection", "character": "xiu", "delta": 15},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "……突然说这种话，[shake rate=10 level=3]人家会害羞的啦！[/shake]"},')
-	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "happy"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "不过，我也是这么想的。和你在一起的每一天，都特别开心。"},')
-	arr.append('    {"type": "add_affection", "character": "xiu", "delta": 5},')
-	arr.append('    {"type": "set_flag", "flag": "spring_walk_done", "value": true},')
-	arr.append('    {"type": "wait", "duration": 1.5},')
-	arr.append('    {"type": "particle_stop", "effect_id": "petal"},')
-	arr.append('    {"type": "change_background", "background": "beidalou", "transition": "fade"},')
-	arr.append('    {"type": "particle_play", "effect_id": "snow"},')
-	arr.append('    {"type": "play_audio", "audio_id": "love_piano", "crossfade": 2.0},')
-	arr.append('    {"type": "set_characters", "left": {"id": "xiu", "expression": "default", "entrance_animation": "fade"}, "entrance_animation": "none"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "啊……下雪了。时间过得好快，转眼就到冬天了。"},')
-	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "sad"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "你还记得我们春天时的约定吗？"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "我有时候会想，如果有一天我们分开了，会是什么样子……"},')
-	arr.append('    {"type": "show_choices", "choices": [{"id": 1, "text": "傻瓜，我们不会分开的。"}, {"id": 2, "text": "未来谁说得准呢。"}]},')
-	arr.append('    {"type": "add_affection", "character": "xiu", "delta": 10},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "谢谢你~有你在身边，我觉得什么都不怕了。"},')
-	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "happy"},')
-	arr.append('    {"type": "character_action", "character": "xiu", "action": "shake"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "雪好像越来越大了……你能牵着我的手走吗？"},')
-	arr.append('    {"type": "wait", "duration": 1.0},')
-	arr.append('    {"type": "unlock_cg", "cg_id": "heroine_smile"},')
-	arr.append('    {"type": "cg_play", "cg_id": "heroine_smile"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "这个冬天，[color=#87CEEB]因为有你在，变得特别温暖。[/color]"},')
-	arr.append('    {"type": "add_affection", "character": "xiu", "delta": 20},')
-	arr.append('    {"type": "set_expression", "character": "xiu", "expression": "very_happy"},')
-	arr.append('    {"type": "show_dialogue", "character": "xiu", "text": "[wave amp=50.0 freq=5.0]我最喜欢你了！[/wave]"},')
-	arr.append('    {"type": "show_dialogue", "character": "", "text": "就这样，两人的故事在飘雪的梧桐树下，翻开了新的一页。"},')
-	arr.append('    {"type": "unlock_bgm", "bgm_id": "love_piano"},')
-	arr.append('    {"type": "set_variable", "variable": "ending_type", "value": 1},')
-	arr.append('    {"type": "set_ui_state", "element": "DialogueBox", "state": "hidden"},')
-	arr.append('    {"type": "stop_audio", "audio_id": "love_piano", "fade_out": 2.0},')
-	arr.append('    {"type": "end_scene"}')
-	arr.append('  ]')
-	arr.append('}')
+	arr.append("## 【特别重要】完整剧情示例（从开场到结局）")
+	arr.append("## 多幕剧情示例：大学生心理减压（请严格模仿这段话的内容和结构，每幕包含一个场景和一次心灵启示）")
+	arr.append("// 第一幕：北大楼前，释放压力")
+	arr.append("{")
+	arr.append("  \"commands\": [")
+	arr.append("    {\"type\": \"change_background\", \"background\": \"beidalou\"},")
+	arr.append("    {\"type\": \"particle_play\", \"effect_id\": \"petal\"},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"你看，北大楼前的樱花多美呀。深呼吸——闻到春天的味道了吗？\"},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"有时候我们只需要停下来，感受一下周围的美好，心情就会轻松很多。\"},")
+	arr.append("    {\"type\": \"long_dialogue\", \"text\": \"阳光透过松柏洒下斑驳的光影，几只灰喜鹊在草坪上跳跃。小貅轻轻哼着歌谣，钟声在远处回荡。\"},")
+	arr.append("    {\"type\": \"show_choices\", \"choices\": [{\"id\":1,\"text\":\"嗯，舒服多了。\"}, {\"id\":2,\"text\":\"谢谢你，小貅。\"}]},")
+	arr.append("    {\"type\": \"add_affection\", \"character\": \"xiu\", \"delta\": 10}")
+	arr.append("  ]")
+	arr.append("}")
+	arr.append("// 第二幕：大礼堂的音乐疗愈")
+	arr.append("{")
+	arr.append("  \"commands\": [")
+	arr.append("    {\"type\": \"change_background\", \"background\": \"litang\"},")
+	arr.append("    {\"type\": \"play_audio\", \"audio_id\": \"love_piano\"},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"大礼堂今天有校乐团的排练，我们进去听听吧。\"},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"音乐是最好的疗愈师，沉浸其中，大脑会释放多巴胺。\"},")
+	arr.append("    {\"type\": \"long_dialogue\", \"text\": \"音符如水般流淌，你闭上眼睛，所有焦虑都随着旋律消散了。\"},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"[wave amp=50.0 freq=5.0]以后不开心就来找我，我带你听音乐！[/wave]\"},")
+	arr.append("    {\"type\": \"add_affection\", \"character\": \"xiu\", \"delta\": 5}")
+	arr.append("  ]")
+	arr.append("}")
+	arr.append("// 第三幕：心理中心的正念冥想")
+	arr.append("{")
+	arr.append("  \"commands\": [")
+	arr.append("    {\"type\": \"change_background\", \"background\": \"nansu\"},")
+	arr.append("    {\"type\": \"play_audio\", \"audio_id\": \"flowing\"},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"这里是心理中心，我帮你预约了正念冥想，体验一下吧。\"},")
+	arr.append("    {\"type\": \"unlock_cg\", \"cg_id\": \"heroine_smile\"},")
+	arr.append("    {\"type\": \"cg_play\", \"cg_id\": \"heroine_smile\"},")
+	arr.append("    {\"type\": \"long_dialogue\", \"text\": \"跟着引导呼吸，你将积压的疲惫一点点呼出体外，整个人变得轻盈。\"},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"关注心理健康是爱自己的第一步，要记得常来哦。\"},")
+	arr.append("    {\"type\": \"add_affection\", \"character\": \"xiu\", \"delta\": 10}")
+	arr.append("  ]")
+	arr.append("}")
+	arr.append("// 第四幕：操场夜跑与星空下的约定")
+	arr.append("{")
+	arr.append("  \"commands\": [")
+	arr.append("    {\"type\": \"change_background\", \"background\": \"beidalou\"},")
+	arr.append("    {\"type\": \"play_audio\", \"audio_id\": \"spring_forest\"},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"运动能分泌内啡肽，我们去操场跑两圈吧！\"},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"\", \"text\": \"你们在晚风中慢跑，汗水带走了烦恼。\"},")
+	arr.append("    {\"type\": \"change_background\", \"background\": \"duxia\"},")
+	arr.append("    {\"type\": \"play_audio\", \"audio_id\": \"gentle\"},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"看，木星周围有小卫星环绕，我们从来都不是孤独的。\"},")
+	arr.append("    {\"type\": \"long_dialogue\", \"text\": \"星光下，你感到前所未有的安宁，所有压力都变得不再沉重。\"},")
+	arr.append("    {\"type\": \"show_dialogue\", \"character\": \"xiu\", \"text\": \"[wave amp=50.0 freq=5.0]记住，我是你的心灵充电宝！[/wave]\"},")
+	arr.append("    {\"type\": \"add_affection\", \"character\": \"xiu\", \"delta\": 15}")
+	arr.append("  ]")
+	arr.append("}")
 	arr.append("")
 
 	return arr
@@ -683,41 +670,59 @@ func _build_choice_event() -> String:
 
 func _normalize_json_content(content: String) -> String:
 	var result := content.strip_edges()
-	if result.begins_with("\uFEFF"):
-		result = result.trim_prefix("\uFEFF")
-	if result.begins_with("```json"):
-		result = result.trim_prefix("```json").strip_edges()
-	elif result.begins_with("```"):
-		result = result.trim_prefix("```").strip_edges()
-	if result.ends_with("```"):
-		result = result.trim_suffix("```").strip_edges()
+	if result.begins_with("\uFEFF"): result = result.trim_prefix("\uFEFF")
+	if result.begins_with("```json"): result = result.trim_prefix("```json").strip_edges()
+	elif result.begins_with("```"): result = result.trim_prefix("```").strip_edges()
+	if result.ends_with("```"): result = result.trim_suffix("```").strip_edges()
 
-	while result.ends_with(",") or result.ends_with(":"):
-		result = result.left(result.length() - 1)
+	var parse_result = JSON.parse_string(result)
+	if parse_result is Dictionary:
+		return result
 
-	var max_attempts = 3
-	for attempt in range(max_attempts):
-		var test_result = result
-		var open_braces = test_result.count("{")
-		var close_braces = test_result.count("}")
-		var open_brackets = test_result.count("[")
-		var close_brackets = test_result.count("]")
-		# 补齐缺失的闭合符号
-		for i in range(open_braces - close_braces):
-			test_result += "}"
-		for i in range(open_brackets - close_brackets):
-			test_result += "]"
-		var parse_result = JSON.parse_string(test_result)
-		if parse_result is Dictionary:
-			return test_result
-		if test_result.ends_with("]") and close_brackets > open_brackets:
-			test_result = test_result.left(test_result.length() - 1)
-		elif test_result.ends_with("}") and close_braces > open_braces:
-			test_result = test_result.left(test_result.length() - 1)
-		else:
-			break
-		result = test_result
-	return result
+	var cleaned = result
+	while cleaned.ends_with(",") or cleaned.ends_with(":"):
+		cleaned = cleaned.left(cleaned.length() - 1)
+	parse_result = JSON.parse_string(cleaned)
+	if parse_result is Dictionary:
+		return cleaned
+
+	var open_braces = _count_char_outside_string(cleaned, '{')
+	var close_braces = _count_char_outside_string(cleaned, '}')
+	var open_brackets = _count_char_outside_string(cleaned, '[')
+	var close_brackets = _count_char_outside_string(cleaned, ']')
+	var test = cleaned
+	for i in range(open_braces - close_braces):
+		test += "}"
+	for i in range(open_brackets - close_brackets):
+		test += "]"
+	parse_result = JSON.parse_string(test)
+	if parse_result is Dictionary:
+		return test
+
+	if test.ends_with("}"):
+		test = test.left(test.length() - 1)
+	elif test.ends_with("]"):
+		test = test.left(test.length() - 1)
+	parse_result = JSON.parse_string(test)
+	if parse_result is Dictionary:
+		return test
+
+	return cleaned
+
+func _count_char_outside_string(s: String, c: String) -> int:
+	var count = 0
+	var in_string = false
+	var i = 0
+	while i < s.length():
+		if s[i] == '\\':
+			i += 2  # 跳过转义
+			continue
+		if s[i] == '"':
+			in_string = !in_string
+		elif not in_string and s[i] == c:
+			count += 1
+		i += 1
+	return count
 
 func _recover_with_dialogue(reason: String) -> void:
 	push_warning(reason)
