@@ -10,9 +10,6 @@
 </div>
 
 
-
-
-
 ## 一、项目简介
 
 **最南幻想** 是一款基于 Godot 4 引擎开发的 AI 驱动 Galgame，专为大学生群体设计。游戏以南大鼓楼校区为背景，通过大语言模型实时生成对话与剧情，提供个性化、沉浸式的情感陪伴体验。玩家可以与 AI 角色进行多轮对话、触发分支剧情、解锁精美 CG 和音乐，在春去冬来的季节流转中感受温暖与感动。
@@ -28,25 +25,34 @@
 ## 三、快速开始
 
 ### 1. 下载与运行
-- 前往 [Releases 页面](https://github.com/你的用户名/你的仓库名/releases) 下载对应平台的最新版本压缩包。
+
+- 前往 [Releases 页面](https://github.com/QigChenm/GuTeamGame/releases) 下载对应平台的最新版本压缩包。
 - 解压后直接运行 `最南幻想.exe` (Windows) 或 `最南幻想.app` (macOS)。
 
-### 2. 配置 AI 服务
-#### 使用本地 Ollama（推荐）
-1. 安装 [Ollama](https://ollama.com)。
-2. 下载模型：`ollama pull qwen2.5:7b-instruct`。
+### 2. 配置 AI 服务（重要！）
+
+**开始游戏前，请先进入游戏主菜单的「游戏设置 → AI设置」页面，选择你的 AI 连接方式。** 游戏默认使用本地 Ollama，如果你希望直接体验，请确保已安装并启动 Ollama。
+
+#### 🌐 选项一：一键部署本地 AI（推荐）
+
+游戏目录下提供了 `deploy_ollama.bat` 脚本，可以自动帮你安装 Ollama 并下载推荐模型（千问 7B）。
+你也可以在游戏内的**「游戏设置」**界面点击 **「Ollama一键部署」** 按钮来启动该脚本。
+部署完成后，将 AI 地址设置为 `http://localhost:11434/v1`，模型选择 `qwen2.5:7b-instruct` 即可。
+
+#### 🖥️ 选项二：手动配置本地 Ollama
+
+1. 安装 [Ollama](https://ollama.com/)。
+2. 打开终端，下载模型：`ollama pull qwen2.5:7b-instruct`。
 3. 启动 Ollama 服务：`ollama serve`。
-4. 运行游戏，AI 将默认自动连接本地服务。
-5. 本地模型可以在游戏设置 > AI设置里面查看和更改。
+4. 在游戏设置中确认 AI 地址为 `http://localhost:11434/v1`，模型为 `qwen2.5:7b-instruct`。
 
-#### 使用云端 API
-如果您不想使用本地AI模型，我们提供了另外的方法：
+#### ☁️ 选项三：使用云端 API
 
-1. 启动游戏前，请先配置好您的云端API。
-1. 开始游戏前，请先前往游戏设置 > AI设置界面填写您使用的Base URL、Model 和 API 密钥。
-1. 游戏将自动保存您的修改，后续您也可以打开设置进行改动。
+1. 在「设置 → AI设置」中填写你的 **Base URL**（例如 `https://api.deepseek.com/v1`）、**Model**（例如 `deepseek-chat`）和 **API 密钥**。
+2. 游戏会自动保存这些设置，后续可直接使用。
 
 ### 3. 操作说明
+
 - **鼠标点击 / 空格键**：推进对话
 - **鼠标左键**：选择选项
 - **鼠标右键**：打开好感度面板
@@ -57,16 +63,16 @@
 
 ```text
 res://
-├── scenes/ # 场景文件
-├── scripts/ # 核心脚本
-| ├── datatypes/ # 自定义资源文件类型
-│ ├── managers/ # 自动加载单例（GameManager, AIManager, ScriptEngine等）
-│ ├── plugins/ # 辅助插件
-│ └── scenes/ # 场景挂载脚本（DialogueScene等）
-├── assets/ # 资源文件（图片、音频、字体等）
-├── config/ # 配置文件（game_settings.json等）
-├── docs/ # 说明文档，含README和游戏操作手册等
-└── project.godot # Godot 项目文件
+├── scenes/                 # 场景文件
+├── scripts/                # 核心脚本
+│   ├── datatypes/          # 自定义资源类型
+│   ├── managers/           # 自动加载管理器
+│   ├── plugins/            # 辅助插件
+│   └── scenes/             # 场景脚本
+├── assets/                 # 资源（图片、音频、字体）
+├── config/                 # 配置文件
+├── docs/                   # 文档（README、操作手册）
+└── project.godot
 ```
 
 ## 五、技术栈
@@ -74,28 +80,26 @@ res://
 - **游戏引擎**：Godot 4.6.2 (GDScript)
 - **AI 接口**：Ollama / 云端 API (HTTP)
 - **指令体系**：自定义 JSON DSL 命令流
-- **数据存储**：本地 JSON 文件存档 + ConfigFile
+- **数据存储**：本地 JSON 存档 + ConfigFile
 - **音频系统**：AudioServer 多总线管理
 
 ## 六、贡献者
 
-| 成员   | 职责                                   |
-| ------ | -------------------------------------- |
-| 赵卿成 | 项目负责人、核心框架开发、游戏系统设计 |
-| 俞天镒 | AI 模块对接、提示词工程、本地模型部署  |
-| 汤艺暄 | 美术设计（角色立绘、背景、UI）         |
-| 卞涵砚 | 音频资源制作、剧情测试、文档撰写       |
+| 成员   | 职责                                       |
+| :----- | :----------------------------------------- |
+| 赵卿成 | 项目负责人、核心框架开发、游戏系统设计     |
+| 俞天镒 | AI 模块、提示词工程、本地模型部署          |
+| 汤艺暄 | 美术设计（角色立绘、背景、UI、游戏网站）   |
+| 卞涵砚 | 音频资源制作、剧情测试、文档撰写、网站开发 |
 
 ## 七、许可证
 
-本项目采用 MIT 许可证。详情请见 [LICENSE](LICENSE) 文件。
+本项目采用 MIT 许可证。详情见 [LICENSE](https://license/)。
 
 ## 八、致谢
 
-- 感谢南京大学 EL 程序设计大赛组委会提供的平台。
-- 感谢 [Godot Engine](https://godotengine.org/) 提供的强大开源引擎。
-- 感谢 [Ollama](https://ollama.com/) 提供的本地 AI 部署方案。
+- 南京大学 EL 程序设计大赛组委会
+- [Godot Engine](https://godotengine.org/)
+- [Ollama](https://ollama.com/)
 
----
-**如果觉得项目不错，请给我们一个 Star ⭐！**  
-**如有任何问题或建议，欢迎提交 Issue 或 Pull Request。**
+**喜欢的话请给我们一个 Star ⭐！**
