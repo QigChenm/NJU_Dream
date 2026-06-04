@@ -10,6 +10,7 @@ extends Node
 
 var _http_request: HTTPRequest = null
 var _is_requesting: bool = false
+var _is_ollama_request: bool = false
 var _is_canceling: bool = false
 var _recovery_mode: bool = false
 var _env_values: Dictionary = {}
@@ -21,8 +22,9 @@ var _pending_choice_text: String = ""
 var _waiting_for_choice_continuation: bool = false
 
 const _FALLBACK_TEXT := "AI 暂时不可用，请稍后再试。"
+# .env文件已废弃，现可直接从设置中读取
 const _FALLBACK_ENV_FILE_PATH := "res://env"
-const MEMORY_FILE := "user://ai_rules.json"
+const MEMORY_FILE := "res://config/ai_rules.json"
 
 # ---------- 初始化 ----------
 func _ready() -> void:
@@ -58,30 +60,53 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 	var current_id = _request_id
 	print("[AIManager] 发送请求 #%d" % current_id)
 
-	var endpoint = _get_base_url().rstrip("/") + "/chat/completions"
+	var is_ollama = _get_base_url().begins_with("http://127.0.0.1:11434") or _get_base_url().begins_with("http://localhost:11434")
+	_is_ollama_request = is_ollama
 
+	var endpoint := ""
 	var headers := PackedStringArray(["Content-Type: application/json"])
-	var api_key = ""
-	if GameManager:
-		api_key = GameManager.get_ai_setting("api_key")
-	if api_key == "":
-		api_key = _get_env_value("MOONSHOT_API_KEY")
-	if api_key != "":
-		headers.append("Authorization: Bearer " + api_key)
+	var payload: Dictionary
 
-	var payload := {
-		"model": _get_model(),
-		"messages": [
-			{"role": "system", "content": _build_system_prompt()},
-			{"role": "user", "content": _build_user_prompt(input_str)}
-		],
-		"temperature": 0.8,
-		"max_tokens": 600
-	}
-	var user_base_url = _get_base_url()
-	if user_base_url.begins_with("https://api.moonshot.cn") or user_base_url.begins_with("https://api.openai.com"):
-		payload["response_format"] = {"type": "json_object"}
+	if is_ollama:
+		endpoint = "http://127.0.0.1:11434/api/chat"
+		payload = {
+			"model": _get_model(),
+			"messages": [
+				{"role": "system", "content": _build_system_prompt()},
+				{"role": "user", "content": _build_user_prompt(input_str)}
+			],
+			"stream": false,
+			"options": {
+				"temperature": 0.8,
+				"num_predict": 800
+			}
+		}
+	else:
+		endpoint = _get_base_url().rstrip("/") + "/chat/completions"
+		var api_key = ""
+		if GameManager:
+			api_key = GameManager.get_ai_setting("api_key")
+		if api_key == "":
+			api_key = _get_env_value("MOONSHOT_API_KEY")
+		if api_key != "":
+			headers.append("Authorization: Bearer " + api_key)
 
+		payload = {
+			"model": _get_model(),
+			"messages": [
+				{"role": "system", "content": _build_system_prompt()},
+				{"role": "user", "content": _build_user_prompt(input_str)}
+			],
+			"temperature": 0.8,
+			"max_tokens": 800,
+		}
+		var user_base_url = _get_base_url()
+		if user_base_url.begins_with("https://api.deepseek.com") or user_base_url.begins_with("https://api.moonshot.cn"):
+			payload["extra_body"] = {"thinking": {"type": "disabled"}}
+		if user_base_url.begins_with("https://api.moonshot.cn") or user_base_url.begins_with("https://api.openai.com"):
+			payload["response_format"] = {"type": "json_object"}
+
+	print("[AIManager] 实际请求 URL: %s" % endpoint)
 	var error = _http_request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
 	if error != OK:
 		_is_requesting = false
@@ -125,7 +150,7 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 		return
 
 	var raw_text := body.get_string_from_utf8()
-	print("[AIManager] 原始响应前1000字符: ", raw_text.substr(0, 1000))
+	print("[AIManager] 原始响应前2000字符: ", raw_text.substr(0, 2000))
 
 	var raw_response = JSON.parse_string(raw_text)
 	if not raw_response is Dictionary:
@@ -133,13 +158,17 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 		_recover_with_dialogue("[AIManager] AI 响应格式错误（非JSON对象）。")
 		return
 
-	var choices: Array = raw_response.get("choices", [])
-	if choices.is_empty():
-		push_error("[AIManager] 响应中缺少 choices。原始文本: ", raw_text)
-		_recover_with_dialogue("[AIManager] AI 响应中无 choices。")
-		return
+	var message: Dictionary
+	if _is_ollama_request:
+		message = raw_response.get("message", {})
+	else:
+		var choices: Array = raw_response.get("choices", [])
+		if choices.is_empty():
+			push_error("[AIManager] 响应中缺少 choices。原始文本: ", raw_text)
+			_recover_with_dialogue("[AIManager] AI 响应中无 choices。")
+			return
+		message = choices[0].get("message", {})
 
-	var message = choices[0].get("message", {})
 	if not message is Dictionary:
 		push_error("[AIManager] message 格式异常。原始文本: ", raw_text)
 		_recover_with_dialogue("[AIManager] AI message 格式异常。")
@@ -278,7 +307,8 @@ func _get_character_profile() -> PackedStringArray:
 func _get_narrative_rules() -> PackedStringArray:
 	var arr := PackedStringArray()
 	arr.append("# 剧情推进规则")
-	arr.append("0.【绝对核心】用户选择选项前，请牢记选项对应的文本内容。选择选项后，请根据选项id来回忆该选项的内容并向用户作答；如果没有收到用户的选项，就请优雅地绕过这个选项，继续后续剧情")
+	arr.append("【绝对核心】用户选择选项前，请牢记选项对应的文本内容。选择选项后，请根据选项id来回忆该选项的内容并向用户作答；如果没有收到用户的选项，就请优雅地绕过这个选项，继续后续剧情")
+	arr.append("【绝对核心】show_dialogue命令中，严禁将角色id放在text里面，角色id必须放在character里面")
 	arr.append("1. 每次生成 2-4 条指令，形成一小段自然推进的剧情。第一条指令通常为 show_dialogue。")
 	arr.append("2. 根据当前好感度和章节阶段，选择合适的情绪基调和对话内容。")
 	arr.append("3. 当剧情需要玩家决策时（角色提问、征求意见、面临选择），必须使用 show_choices，且将其作为本轮最后一条指令。")
@@ -581,9 +611,9 @@ func add_user_rule(rule_text: String) -> void:
 func _get_base_url() -> String:
 	if GameManager:
 		var user_url = GameManager.get_ai_setting("base_url")
-		if user_url != "":
+		if user_url != "http://localhost:11434/v1":
 			return user_url
-	return base_url
+	return base_url.replace("localhost", "127.0.0.1")
 
 func _get_model() -> String:
 	if GameManager:
@@ -661,17 +691,32 @@ func _normalize_json_content(content: String) -> String:
 		result = result.trim_prefix("```").strip_edges()
 	if result.ends_with("```"):
 		result = result.trim_suffix("```").strip_edges()
+
 	while result.ends_with(",") or result.ends_with(":"):
 		result = result.left(result.length() - 1)
 
-	var open_braces = result.count("{")
-	var close_braces = result.count("}")
-	var open_brackets = result.count("[")
-	var close_brackets = result.count("]")
-	for i in range(open_braces - close_braces):
-		result += "}"
-	for i in range(open_brackets - close_brackets):
-		result += "]"
+	var max_attempts = 3
+	for attempt in range(max_attempts):
+		var test_result = result
+		var open_braces = test_result.count("{")
+		var close_braces = test_result.count("}")
+		var open_brackets = test_result.count("[")
+		var close_brackets = test_result.count("]")
+		# 补齐缺失的闭合符号
+		for i in range(open_braces - close_braces):
+			test_result += "}"
+		for i in range(open_brackets - close_brackets):
+			test_result += "]"
+		var parse_result = JSON.parse_string(test_result)
+		if parse_result is Dictionary:
+			return test_result
+		if test_result.ends_with("]") and close_brackets > open_brackets:
+			test_result = test_result.left(test_result.length() - 1)
+		elif test_result.ends_with("}") and close_braces > open_braces:
+			test_result = test_result.left(test_result.length() - 1)
+		else:
+			break
+		result = test_result
 	return result
 
 func _recover_with_dialogue(reason: String) -> void:

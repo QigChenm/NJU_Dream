@@ -563,11 +563,49 @@ placeholder_text = "如果使用本地模型，此处请留空"
 secret = true
 secret_character = "*"
 
+[node name="DeployAI" type="HBoxContainer" parent="VBoxContainerR/AIURLContainer" unique_id=1111627825]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+theme_override_constants/separation = 50
+
+[node name="Label" type="Label" parent="VBoxContainerR/AIURLContainer/DeployAI" unique_id=38185662]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+size_flags_stretch_ratio = 0.5
+theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 36
+text = "Ollama服务"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DeployAIBtn" type="TextureButton" parent="VBoxContainerR/AIURLContainer/DeployAI" unique_id=371126679]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 2
+texture_normal = ExtResource("11_tfy2e")
+texture_pressed = ExtResource("12_knh0g")
+texture_hover = ExtResource("12_knh0g")
+
+[node name="Label" type="Label" parent="VBoxContainerR/AIURLContainer/DeployAI/DeployAIBtn" unique_id=542975406]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 32
+text = "一键部署"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="TipRect" type="TextureRect" parent="." unique_id=1123207025]
-offset_left = 1022.0
-offset_top = 441.0
-offset_right = 1768.0
-offset_bottom = 667.0
+offset_left = 1023.0
+offset_top = 522.0
+offset_right = 1769.0
+offset_bottom = 748.0
 size_flags_horizontal = 0
 texture = ExtResource("16_knh0g")
 

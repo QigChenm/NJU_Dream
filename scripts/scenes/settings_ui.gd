@@ -13,6 +13,7 @@ extends CanvasLayer
 @onready var ai_url_edit = $VBoxContainerR/AIURLContainer/AIBaseURL/LineEdit
 @onready var ai_model_edit = $VBoxContainerR/AIURLContainer/AIModel/LineEdit
 @onready var ai_key_edit = $VBoxContainerR/AIURLContainer/APIKey/LineEdit
+@onready var deploy_btn = $VBoxContainerR/AIURLContainer/DeployAI/DeployAIBtn
 
 # ================= 初始化 =================
 func _ready() -> void:
@@ -44,6 +45,8 @@ func _connect_signals() -> void:
 		clear_save_btn.pressed.connect(_on_reset_unlocks)
 	if ui_sound_toggle:
 		ui_sound_toggle.toggled.connect(_on_ui_sound_toggled)
+	if deploy_btn:
+		deploy_btn.pressed.connect(_on_deploy_ai_pressed)
 
 
 # ================= 设置读写 =================
@@ -141,3 +144,12 @@ func _on_ai_model_changed(new_text: String):
 
 func _on_ai_key_changed(new_text: String):
 	GameManager.set_ai_setting("api_key", new_text)
+	
+func _on_deploy_ai_pressed() -> void:
+	var exe_dir = OS.get_executable_path().get_base_dir()
+	var script_path = exe_dir + "/deploy_ollama.bat"
+	if not FileAccess.file_exists(script_path):
+		OS.alert("未找到部署脚本 deploy_ollama.bat，请确保脚本与游戏在同一目录。", "部署失败")
+		return
+	OS.shell_open(script_path)
+	OS.alert("部署脚本已启动，请在弹出的命令行窗口中查看进度。完成后重启游戏或进入设置将AI地址改为 http://localhost:11434/v1", "提示")
