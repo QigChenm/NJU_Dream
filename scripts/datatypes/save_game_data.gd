@@ -37,6 +37,7 @@ extends Resource
 @export var commands: Array = []
 @export var command_index: int = 0
 @export var pending_commands: Array = []
+@export var ai_prediction_state: Dictionary = {}
 
 
 ## 从字典恢复数据（供加载时使用）
@@ -61,6 +62,7 @@ func restore_from_dict(dict: Dictionary) -> void:
 	commands = dict.get("commands", [])
 	command_index = dict.get("command_index", 0)
 	pending_commands = dict.get("pending_commands", [])
+	ai_prediction_state = dict.get("ai_prediction_state", {})
 
 
 ## 将数据转为可 JSON 序列化的字典
@@ -88,4 +90,5 @@ func to_dict() -> Dictionary:
 		"commands": commands,
 		"command_index": command_index,
 		"pending_commands": pending_commands,
+		"ai_prediction_state": ai_prediction_state,
 	}

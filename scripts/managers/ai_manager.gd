@@ -22,14 +22,30 @@ var _waiting_for_choice_continuation: bool = false
 var _prediction_cache: Dictionary = {}
 var _prediction_requests: Dictionary = {}
 var _active_prediction_context_key: String = ""
+var _prediction_history_snapshot: Array = []
+var _prediction_choices_snapshot: Array = []
+var _selected_prediction_key: String = ""
+var _selected_prediction_commands: Array = []
+var _waiting_for_prediction_result: bool = false
+var _selected_prediction_execute_queued: bool = false
+var _selected_prediction_choice_id: int = -1
+var _selected_prediction_is_fallback: bool = false
 var _warmup_request: HTTPRequest = null
 var _warmup_start_response: Dictionary = {}
 var _warmup_start_pending: bool = false
 var _warmup_consume_pending: bool = false
+var _active_input_str: String = ""
+var _main_retry_count: int = 0
+var _main_retry_timer: Timer = null
+var _warmup_retry_count: int = 0
+var _warmup_retry_timer: Timer = null
 
 const _FALLBACK_TEXT := "AI 暂时不可用，请稍后再试。"
 const DEFAULT_OUTPUT_TOKENS := 1200
 const MAX_PREDICTION_REQUESTS := 3
+const MAX_MAIN_RETRIES := 3
+const MAX_WARMUP_RETRIES := 3
+const RETRY_BASE_DELAY := 1.5
 const MEMORY_FILE := "user://ai_rules.json"
 const VALID_CHARACTER_ACTIONS := ["bounce", "shake", "nod", "step_back", "shrug"]
 const ALLOWED_TEXT_BBCODE_TAGS := ["b", "i", "u", "color", "wave", "shake"]
@@ -82,6 +98,12 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 	if input_str == "__start__" and _try_use_warmup_start():
 		return
 
+	_clear_main_retry_timer()
+	_main_retry_count = 0
+	_active_input_str = input_str
+	_start_main_request(input_str)
+
+func _start_main_request(input_str: String) -> void:
 	_is_requesting = true
 	_show_ai_waiting()
 	_request_id += 1
@@ -108,6 +130,7 @@ func warmup_start_request() -> void:
 		return
 	if not GameManager or not GameManager.ai_enabled:
 		return
+	_clear_warmup_retry_timer()
 	_warmup_start_pending = true
 	_warmup_request = HTTPRequest.new()
 	_warmup_request.timeout = request_timeout
@@ -149,7 +172,70 @@ func _try_use_warmup_start() -> bool:
 func _process_warmup_start_response(response: Dictionary) -> void:
 	_is_requesting = false
 	_finish_requesting()
+	_warmup_retry_count = 0
 	process_ai_response(response)
+
+func _schedule_main_retry() -> bool:
+	if _active_input_str == "" or _main_retry_count >= MAX_MAIN_RETRIES:
+		return false
+	_main_retry_count += 1
+	var delay := _get_retry_delay(_main_retry_count)
+	print("[AIManager] 主请求 429，%.1f 秒后重试 (%d/%d)。" % [delay, _main_retry_count, MAX_MAIN_RETRIES])
+	_is_requesting = true
+	_show_ai_waiting()
+	_clear_main_retry_timer()
+	_main_retry_timer = Timer.new()
+	_main_retry_timer.one_shot = true
+	_main_retry_timer.wait_time = delay
+	add_child(_main_retry_timer)
+	_main_retry_timer.timeout.connect(_on_main_retry_timeout)
+	_main_retry_timer.start()
+	return true
+
+func _on_main_retry_timeout() -> void:
+	_clear_main_retry_timer()
+	if _active_input_str == "":
+		_is_requesting = false
+		_finish_requesting()
+		return
+	_start_main_request(_active_input_str)
+
+func _schedule_warmup_retry() -> bool:
+	if _warmup_retry_count >= MAX_WARMUP_RETRIES:
+		return false
+	_warmup_retry_count += 1
+	var delay := _get_retry_delay(_warmup_retry_count)
+	print("[AIManager] 开场预热 429，%.1f 秒后重试 (%d/%d)。" % [delay, _warmup_retry_count, MAX_WARMUP_RETRIES])
+	_warmup_start_pending = true
+	_clear_warmup_retry_timer()
+	_warmup_retry_timer = Timer.new()
+	_warmup_retry_timer.one_shot = true
+	_warmup_retry_timer.wait_time = delay
+	add_child(_warmup_retry_timer)
+	_warmup_retry_timer.timeout.connect(_on_warmup_retry_timeout)
+	_warmup_retry_timer.start()
+	return true
+
+func _on_warmup_retry_timeout() -> void:
+	_clear_warmup_retry_timer()
+	_warmup_start_pending = false
+	warmup_start_request()
+
+func _get_retry_delay(retry_count: int) -> float:
+	var jitter := randf_range(0.0, 0.4)
+	return RETRY_BASE_DELAY * pow(2.0, retry_count - 1) + jitter
+
+func _clear_main_retry_timer() -> void:
+	if _main_retry_timer and is_instance_valid(_main_retry_timer):
+		_main_retry_timer.stop()
+		_main_retry_timer.queue_free()
+	_main_retry_timer = null
+
+func _clear_warmup_retry_timer() -> void:
+	if _warmup_retry_timer and is_instance_valid(_warmup_retry_timer):
+		_warmup_retry_timer.stop()
+		_warmup_retry_timer.queue_free()
+	_warmup_retry_timer = null
 
 # ---------- 响应处理 ----------
 func process_ai_response(response: Dictionary) -> void:
@@ -167,31 +253,41 @@ func process_ai_response(response: Dictionary) -> void:
 		push_error("[AIManager] ScriptEngine 未找到。")
 		return
 	commands = _normalize_ai_commands(commands)
+	_prefetch_predictions_from_commands(commands)
 	ScriptEngine.execute_commands(commands)
 
 func _on_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	_is_requesting = false
-	_finish_requesting()
 	if _pending_request_id != _request_id:
 		print("[AIManager] 忽略过期请求 #%d" % _pending_request_id)
+		_finish_requesting()
 		return
 	if _is_canceling:
 		_is_canceling = false
+		_finish_requesting()
 		return
 
 	if result != HTTPRequest.RESULT_SUCCESS:
 		_last_error_code = result
 		_last_response_code = 0
 		push_error("[AIManager] 请求失败，结果码: %d" % result)
+		_finish_requesting()
 		_recover_with_dialogue("[AIManager] 请求未成功完成。")
 		return
 	var raw_text := body.get_string_from_utf8()
 	print("[AIManager] 原始响应前2000字符: ", raw_text.substr(0, 2000))
+	_last_error_code = 0
 	_last_response_code = response_code
+	if response_code == 429 and _schedule_main_retry():
+		return
 	var ai_response := _parse_ai_response(raw_text, response_code, "主请求")
 	if ai_response.is_empty():
+		_finish_requesting()
 		_recover_with_dialogue("[AIManager] AI 响应不可用。")
 		return
+	_finish_requesting()
+	_main_retry_count = 0
+	_active_input_str = ""
 	process_ai_response(ai_response)
 
 # ---------- 选项续写 ----------
@@ -209,18 +305,16 @@ func _on_choice_made(choice_id: int, choice_text: String = "") -> void:
 	if try_consume_choice_prediction(choice_id, _pending_choice_text):
 		return
 
-	if _is_requesting:
-		_is_canceling = true
-		_http_request.cancel_request()
-		_is_requesting = false
-		await get_tree().process_frame
-
-	send_message(_build_choice_event())
+	print("[AIManager] 选项 %d 没有可用预测分支，按钮点击不触发普通请求。" % choice_id)
 	_waiting_for_choice_continuation = false
+	_queue_prediction_fallback_dialogue("当前选项预测还没有准备好，请稍后再试。")
 
 func _on_script_execution_finished() -> void:
 	if _recovery_mode:
 		_recovery_mode = false
+		return
+	if _selected_prediction_key != "":
+		_try_execute_selected_prediction()
 		return
 	if _waiting_for_choice_continuation or _is_requesting:
 		return
@@ -754,22 +848,31 @@ func _build_choice_event() -> String:
 		return "__choice__:%d:%s" % [_pending_choice_id, _pending_choice_text]
 	return "__choice__:%d" % _pending_choice_id
 
-func prefetch_choice_predictions(choices: Array) -> void:
+func prefetch_choice_predictions(choices: Array, history_snapshot: Array = [], preserve_completed: bool = false) -> void:
 	if not ai_enabled or not GameManager or not GameManager.ai_enabled:
 		return
-	cancel_predictions()
 	if choices.is_empty():
 		return
-	var history_snapshot := GameManager.dialogue_history.duplicate(true)
+	if history_snapshot.is_empty():
+		history_snapshot = GameManager.dialogue_history.duplicate(true)
 	var choices_snapshot := choices.duplicate(true)
-	_active_prediction_context_key = _build_prediction_context_key(history_snapshot, choices_snapshot)
-	for i in range(min(choices.size(), _get_prediction_request_limit())):
+	var context_key := _build_prediction_context_key(history_snapshot, choices_snapshot)
+	var should_preserve := preserve_completed and _active_prediction_context_key == context_key
+	_cancel_prediction_requests()
+	if not should_preserve:
+		_prediction_cache.clear()
+	_active_prediction_context_key = context_key
+	_prediction_history_snapshot = history_snapshot.duplicate(true)
+	_prediction_choices_snapshot = choices_snapshot.duplicate(true)
+	for i in range(min(choices.size(), MAX_PREDICTION_REQUESTS)):
 		var choice = choices[i]
 		if not choice is Dictionary:
 			continue
 		var choice_id := int(choice.get("id", i + 1))
 		var choice_text := str(choice.get("text", ""))
 		var cache_key := _build_prediction_cache_key(_active_prediction_context_key, choice_id, choice_text)
+		if _prediction_cache.has(cache_key):
+			continue
 		var request := HTTPRequest.new()
 		request.timeout = request_timeout
 		add_child(request)
@@ -786,35 +889,117 @@ func prefetch_choice_predictions(choices: Array) -> void:
 			_prediction_requests.erase(cache_key)
 			_cleanup_request_node(request)
 
+func rebuild_predictions_for_current_state(preserve_completed: bool = true) -> void:
+	_cancel_prediction_requests()
+	if not ai_enabled or not GameManager or not GameManager.ai_enabled:
+		if not preserve_completed:
+			cancel_predictions()
+		return
+	var scene = DialogueManager.get_dialogue_scene() if has_node("/root/DialogueManager") else null
+	if scene:
+		var visible_choices = scene.get("current_choices")
+		var choice_panel = scene.get("choice_panel")
+		if visible_choices is Array and visible_choices.size() > 0 and choice_panel and choice_panel.visible:
+			prefetch_choice_predictions(visible_choices, GameManager.dialogue_history.duplicate(true), preserve_completed)
+			return
+	if has_node("/root/ScriptEngine") and ScriptEngine.has_method("get_pending_commands"):
+		var pending_commands: Array = ScriptEngine.get_pending_commands()
+		_prefetch_predictions_from_commands(pending_commands, preserve_completed)
+
+func get_prediction_state_for_save() -> Dictionary:
+	return {
+		"context_key": _active_prediction_context_key,
+		"history_snapshot": _prediction_history_snapshot.duplicate(true),
+		"choices_snapshot": _prediction_choices_snapshot.duplicate(true),
+		"cache": _prediction_cache.duplicate(true)
+	}
+
+func restore_prediction_state_from_save(state: Dictionary) -> void:
+	cancel_predictions()
+	if state.is_empty():
+		return
+	_active_prediction_context_key = str(state.get("context_key", ""))
+	var history = state.get("history_snapshot", [])
+	var choices = state.get("choices_snapshot", [])
+	var cache = state.get("cache", {})
+	_prediction_history_snapshot = history.duplicate(true) if history is Array else []
+	_prediction_choices_snapshot = choices.duplicate(true) if choices is Array else []
+	_prediction_cache = cache.duplicate(true) if cache is Dictionary else {}
+
 func try_consume_choice_prediction(choice_id: int, choice_text: String) -> bool:
 	if _active_prediction_context_key == "":
 		return false
 	var cache_key := _build_prediction_cache_key(_active_prediction_context_key, choice_id, choice_text)
-	if not _prediction_cache.has(cache_key):
+	if not _prediction_cache.has(cache_key) and not _prediction_requests.has(cache_key):
 		cancel_predictions()
 		return false
-	var commands: Array = _prediction_cache.get(cache_key, [])
-	cancel_predictions()
-	if commands.is_empty():
-		return false
-	print("[AIManager] 命中选项预测缓存: %d" % choice_id)
-	call_deferred("_execute_prediction_commands", commands)
+	_selected_prediction_key = cache_key
+	_selected_prediction_commands = _prediction_cache.get(cache_key, [])
+	_waiting_for_prediction_result = _selected_prediction_commands.is_empty()
+	_selected_prediction_execute_queued = false
+	_selected_prediction_choice_id = choice_id
+	_selected_prediction_is_fallback = false
+	_cancel_unselected_predictions(cache_key)
+	print("[AIManager] 锁定选项预测分支: %d" % choice_id)
+	_try_execute_selected_prediction()
 	return true
 
 func cancel_predictions() -> void:
-	for key in _prediction_requests.keys():
+	_cancel_prediction_requests()
+	_prediction_cache.clear()
+	_active_prediction_context_key = ""
+	_prediction_history_snapshot.clear()
+	_prediction_choices_snapshot.clear()
+	_selected_prediction_key = ""
+	_selected_prediction_commands.clear()
+	_waiting_for_prediction_result = false
+	_selected_prediction_execute_queued = false
+	_selected_prediction_choice_id = -1
+	_selected_prediction_is_fallback = false
+
+func _cancel_prediction_requests() -> void:
+	for key in _prediction_requests.keys().duplicate():
 		var request = _prediction_requests[key]
 		if request is HTTPRequest and is_instance_valid(request):
 			request.cancel_request()
 			_cleanup_request_node(request)
 	_prediction_requests.clear()
-	_prediction_cache.clear()
-	_active_prediction_context_key = ""
+
+func _cancel_unselected_predictions(selected_key: String) -> void:
+	for key in _prediction_requests.keys().duplicate():
+		if key == selected_key:
+			continue
+		var request = _prediction_requests[key]
+		if request is HTTPRequest and is_instance_valid(request):
+			request.cancel_request()
+			_cleanup_request_node(request)
+		_prediction_requests.erase(key)
+	for key in _prediction_cache.keys().duplicate():
+		if key != selected_key:
+			_prediction_cache.erase(key)
 
 func _execute_prediction_commands(commands: Array) -> void:
+	if _is_script_engine_running():
+		_selected_prediction_execute_queued = false
+		return
+	var is_fallback := _selected_prediction_is_fallback
 	_waiting_for_choice_continuation = false
+	_selected_prediction_key = ""
+	_selected_prediction_commands.clear()
+	_waiting_for_prediction_result = false
+	_selected_prediction_execute_queued = false
+	_selected_prediction_choice_id = -1
+	_selected_prediction_is_fallback = false
+	_prediction_cache.clear()
+	_active_prediction_context_key = ""
+	_prediction_history_snapshot.clear()
+	_prediction_choices_snapshot.clear()
 	if not has_node("/root/ScriptEngine"):
 		return
+	if is_fallback:
+		_recovery_mode = true
+	else:
+		_prefetch_predictions_from_commands(commands)
 	ScriptEngine.execute_commands(commands)
 
 func _on_prediction_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray, cache_key: String, request: HTTPRequest) -> void:
@@ -822,18 +1007,97 @@ func _on_prediction_request_completed(result: int, response_code: int, _headers:
 	_cleanup_request_node(request)
 	if result != HTTPRequest.RESULT_SUCCESS:
 		print("[AIManager] 预测请求失败: %s result=%d" % [cache_key, result])
+		if cache_key == _selected_prediction_key:
+			_fallback_selected_prediction()
 		return
 	var raw_text := body.get_string_from_utf8()
 	var ai_response := _parse_ai_response(raw_text, response_code, "预测请求")
 	if ai_response.is_empty() or not ai_response.has("commands"):
+		if cache_key == _selected_prediction_key:
+			_fallback_selected_prediction()
 		return
 	var commands = ai_response.get("commands", [])
 	if not commands is Array:
+		if cache_key == _selected_prediction_key:
+			_fallback_selected_prediction()
 		return
 	commands = _normalize_ai_commands(commands)
 	if not commands.is_empty():
 		_prediction_cache[cache_key] = commands
 		print("[AIManager] 预测缓存已写入: %s" % cache_key)
+		if cache_key == _selected_prediction_key:
+			_selected_prediction_commands = commands
+			_waiting_for_prediction_result = false
+			_try_execute_selected_prediction()
+	elif cache_key == _selected_prediction_key:
+		_fallback_selected_prediction()
+
+func _try_execute_selected_prediction() -> void:
+	if _selected_prediction_key == "":
+		return
+	if not _selected_prediction_commands.is_empty():
+		if _selected_prediction_execute_queued:
+			return
+		if _is_script_engine_running():
+			print("[AIManager] 选中分支预测已就绪，等待当前脚本结束后执行。")
+			return
+		_selected_prediction_execute_queued = true
+		_execute_prediction_commands(_selected_prediction_commands.duplicate(true))
+	elif _waiting_for_prediction_result:
+		_show_ai_waiting()
+		print("[AIManager] 等待选中分支预测完成。")
+
+func _fallback_selected_prediction() -> void:
+	cancel_predictions()
+	_waiting_for_choice_continuation = false
+	_queue_prediction_fallback_dialogue("选中分支预测失败，请稍后再试。")
+
+func _queue_prediction_fallback_dialogue(text: String) -> void:
+	_selected_prediction_commands = [{"type": "show_dialogue", "character": "", "text": text}]
+	_waiting_for_prediction_result = false
+	_selected_prediction_execute_queued = false
+	_selected_prediction_is_fallback = true
+	if _selected_prediction_key == "":
+		_selected_prediction_key = "local_fallback"
+	_try_execute_selected_prediction()
+
+func _is_script_engine_running() -> bool:
+	if not has_node("/root/ScriptEngine"):
+		return false
+	if ScriptEngine.has_method("is_running"):
+		return ScriptEngine.is_running()
+	return ScriptEngine.get("_is_running") == true
+
+func _prefetch_predictions_from_commands(commands: Array, preserve_completed: bool = false) -> void:
+	if commands.is_empty():
+		return
+	var history_snapshot := GameManager.dialogue_history.duplicate(true) if GameManager else []
+	for cmd in commands:
+		if not cmd is Dictionary:
+			continue
+		var type: String = cmd.get("type", "")
+		if type == "show_choices":
+			prefetch_choice_predictions(cmd.get("choices", []), history_snapshot, preserve_completed)
+			return
+		elif type == "show_dialogue":
+			history_snapshot.append({
+				"character": _format_history_character_name(str(cmd.get("character", ""))),
+				"text": str(cmd.get("text", "")),
+				"type": "dialogue",
+				"id": str(cmd.get("character", ""))
+			})
+		elif type == "long_dialogue":
+			history_snapshot.append({
+				"character": "",
+				"text": str(cmd.get("text", "")),
+				"type": "long_dialogue",
+				"id": ""
+			})
+
+func _format_history_character_name(character_id: String) -> String:
+	if character_id != "" and GameManager and GameManager.character_database.has(character_id):
+		return "[b]" + GameManager.character_database[character_id].display_name + "[/b]"
+	return character_id
 
 func _build_provider_request(input_str: String, history_snapshot: Array = [], choices_snapshot: Array = []) -> Dictionary:
 	var provider := _get_current_provider()
@@ -845,6 +1109,7 @@ func _build_provider_request(input_str: String, history_snapshot: Array = [], ch
 	var user_prompt := _build_user_prompt(input_str, history_snapshot, choices_snapshot)
 	var temperature := _get_request_temperature(provider, model_name)
 	var output_tokens := _get_output_token_limit(provider, model_name)
+	var chat_messages := _build_chat_messages(provider, model_name, system_prompt, user_prompt)
 
 	match api_format:
 		"ollama_chat":
@@ -854,10 +1119,8 @@ func _build_provider_request(input_str: String, history_snapshot: Array = [], ch
 				"headers": PackedStringArray(["Content-Type: application/json"]),
 				"payload": {
 					"model": model_name,
-					"messages": [
-						{"role": "system", "content": system_prompt},
-						{"role": "user", "content": user_prompt}
-					],
+					"messages": chat_messages,
+					"format": "json",
 					"stream": false,
 					"options": {
 						"temperature": temperature,
@@ -889,17 +1152,18 @@ func _build_provider_request(input_str: String, history_snapshot: Array = [], ch
 				"payload": {
 					"system_instruction": {"parts": [{"text": system_prompt}]},
 					"contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
-					"generationConfig": {"temperature": temperature, "maxOutputTokens": output_tokens}
+					"generationConfig": {
+						"temperature": temperature,
+						"maxOutputTokens": output_tokens,
+						"responseMimeType": "application/json"
+					}
 				}
 			}
 		_:
 			_is_ollama_request = false
 			var payload := {
 				"model": model_name,
-				"messages": [
-					{"role": "system", "content": system_prompt},
-					{"role": "user", "content": user_prompt}
-				]
+				"messages": chat_messages
 			}
 			if _should_send_temperature(provider, model_name):
 				payload["temperature"] = temperature
@@ -925,6 +1189,8 @@ func _on_warmup_start_completed(result: int, response_code: int, _headers: Packe
 			_handle_consumed_warmup_failure(0, "[AIManager] 开场预热请求失败。")
 		return
 	var raw_text := body.get_string_from_utf8()
+	if response_code == 429 and _schedule_warmup_retry():
+		return
 	var ai_response := _parse_ai_response(raw_text, response_code, "开场预热")
 	if ai_response.is_empty():
 		if _warmup_consume_pending:
@@ -934,6 +1200,7 @@ func _on_warmup_start_completed(result: int, response_code: int, _headers: Packe
 		_warmup_consume_pending = false
 		_process_warmup_start_response(ai_response)
 	else:
+		_warmup_retry_count = 0
 		_warmup_start_response = ai_response
 		print("[AIManager] 开场预热缓存已就绪。")
 
@@ -941,6 +1208,7 @@ func _handle_consumed_warmup_failure(response_code: int, reason: String) -> void
 	_warmup_consume_pending = false
 	_is_requesting = false
 	_finish_requesting()
+	_last_error_code = 0
 	_last_response_code = response_code
 	if response_code == 429:
 		_recover_with_dialogue(reason)
@@ -985,14 +1253,19 @@ func _cleanup_request_node(request: HTTPRequest) -> void:
 	if request and is_instance_valid(request):
 		request.queue_free()
 
-func _get_prediction_request_limit() -> int:
-	var provider := _get_current_provider()
+func _build_chat_messages(provider: Dictionary, model_name: String, system_prompt: String, user_prompt: String) -> Array:
+	var system_role := "system"
+	if _should_use_developer_message(provider, model_name):
+		system_role = "developer"
+	return [
+		{"role": system_role, "content": system_prompt},
+		{"role": "user", "content": user_prompt}
+	]
+
+func _should_use_developer_message(provider: Dictionary, model_name: String) -> bool:
 	var provider_id: String = provider.get("id", "")
-	if provider_id in ["kimi", "deepseek"]:
-		return 1
-	if provider_id == "ollama":
-		return MAX_PREDICTION_REQUESTS
-	return min(2, MAX_PREDICTION_REQUESTS)
+	var normalized_model := model_name.to_lower()
+	return provider_id == "openai" and (normalized_model.begins_with("gpt-5") or normalized_model.begins_with("o"))
 
 func _get_output_token_limit(_provider: Dictionary, _model_name: String) -> int:
 	return DEFAULT_OUTPUT_TOKENS
@@ -1010,6 +1283,8 @@ func _get_request_temperature(provider: Dictionary, model_name: String) -> float
 func _get_token_limit_field(provider: Dictionary, model_name: String) -> String:
 	var provider_id: String = provider.get("id", "")
 	var normalized_model := model_name.to_lower()
+	if provider_id == "kimi" or provider_id == "minimax":
+		return "max_completion_tokens"
 	if provider_id == "openai" and (normalized_model.begins_with("gpt-5") or normalized_model.begins_with("o")):
 		return "max_completion_tokens"
 	return "max_tokens"
@@ -1028,15 +1303,16 @@ func _should_disable_thinking(provider: Dictionary, model_name: String) -> bool:
 
 func _supports_json_response_format(provider: Dictionary) -> bool:
 	var provider_id: String = provider.get("id", "")
-	return provider_id in ["kimi", "openai", "deepseek", "qwen", "zhipu", "doubao", "xai", "mistral"]
+	return provider_id in ["kimi", "openai", "deepseek", "zhipu", "mistral"]
 
 func _build_headers(provider: Dictionary, api_key: String) -> PackedStringArray:
 	var headers := PackedStringArray(["Content-Type: application/json"])
 	var auth_type: String = provider.get("auth_type", "bearer")
 	if auth_type == "bearer" and api_key != "":
 		headers.append("Authorization: Bearer " + api_key)
-	elif auth_type == "x-api-key" and api_key != "":
-		headers.append("x-api-key: " + api_key)
+	elif auth_type == "x-api-key":
+		if api_key != "":
+			headers.append("x-api-key: " + api_key)
 		headers.append("anthropic-version: 2023-06-01")
 	return headers
 
@@ -1186,6 +1462,7 @@ func _detect_text_action(text: String) -> String:
 
 func _sanitize_rich_text(text: String) -> String:
 	var result := _normalize_bbcode_aliases(text)
+	result = result.replace("[]", "")
 	for tag in TEXT_ACTION_TAG_MAP.keys():
 		result = _strip_bbcode_tag(result, str(tag))
 	result = _strip_unsupported_bbcode_tags(result)

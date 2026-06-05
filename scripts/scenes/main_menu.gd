@@ -64,8 +64,6 @@ func _on_new_game() -> void:
 		get_tree().paused = false
 
 	GameManager.start_new_game()
-	if has_node("/root/AIManager") and GameManager.ai_enabled:
-		AIManager.warmup_start_request()
 
 	if has_node("/root/BackgroundManager"):
 		var bg_manager = get_node("/root/BackgroundManager")

@@ -70,6 +70,10 @@ func execute_commands(commands: Array) -> void:
 	_execute_next()
 
 
+func is_running() -> bool:
+	return _is_running
+
+
 func _execute_next() -> void:
 	if _command_pending:
 		return

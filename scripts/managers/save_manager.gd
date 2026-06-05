@@ -105,6 +105,8 @@ func save_game(slot: int) -> void:
 	data.pending_commands = []
 	if has_node("/root/ScriptEngine"):
 		data.pending_commands = get_node("/root/ScriptEngine").get_pending_commands()
+	if has_node("/root/AIManager") and get_node("/root/AIManager").has_method("get_prediction_state_for_save"):
+		data.ai_prediction_state = get_node("/root/AIManager").get_prediction_state_for_save()
 
 	# 序列化并写入
 	var json_str := JSON.stringify(data.to_dict(), "\t")
@@ -297,6 +299,11 @@ func _apply_save_data(dict: Dictionary) -> void:
 			print("[SaveManager] 存档后没有新的剧情指令，场景已恢复为静态。")
 	else:
 		push_error("[SaveManager] ScriptEngine 未找到，无法恢复剧情。")
+
+	if has_node("/root/AIManager") and get_node("/root/AIManager").has_method("restore_prediction_state_from_save"):
+		get_node("/root/AIManager").restore_prediction_state_from_save(dict.get("ai_prediction_state", {}))
+	if has_node("/root/AIManager") and get_node("/root/AIManager").has_method("rebuild_predictions_for_current_state"):
+		get_node("/root/AIManager").call_deferred("rebuild_predictions_for_current_state", true)
 
 	# 重置 CG 状态
 	if has_node("/root/CGManager"):

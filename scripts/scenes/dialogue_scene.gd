@@ -57,6 +57,8 @@ var auto_mode_paused_by_choice: bool = false
 var skip_mode_paused_by_choice: bool = false
 var _current_line_recorded: bool = false
 var _has_shown_initial_wait_text: bool = false
+var _ai_settings_signature_on_panel_open: String = ""
+var _game_state_signature_on_panel_open: String = ""
 
 const ALLOWED_TEXT_BBCODE_TAGS := ["b", "i", "u", "color", "wave", "shake"]
 const INITIAL_WAIT_TEXT := "[wave amp=50.0 freq=5.0]请稍等，正在初始化游戏……[/wave]"
@@ -361,10 +363,6 @@ func display_choices(choices: Array) -> void:
 		var t = create_tween()
 		t.tween_property(btn, "scale", Vector2(1.05, 1.05), 0.1)
 		t.tween_property(btn, "scale", Vector2.ONE, 0.15).set_ease(Tween.EASE_OUT)
-
-	if has_node("/root/AIManager"):
-		AIManager.prefetch_choice_predictions(choices)
-
 
 func _pause_auto_for_choices() -> void:
 	if not GameManager.is_auto_mode:
@@ -797,11 +795,53 @@ func _open_about_from_menu() -> void:
 
 
 # ================= 面板回调 =================
-func _on_panel_opened(_panel_name: String) -> void:
-	if has_node("/root/AIManager"):
-		AIManager.cancel_predictions()
+func _on_panel_opened(panel_name: String) -> void:
+	if panel_name == "SettingsUI":
+		_ai_settings_signature_on_panel_open = _build_ai_settings_signature()
+	elif panel_name == "LoadUI":
+		_game_state_signature_on_panel_open = _build_game_prediction_signature()
 
-func _on_panel_closed(_panel_name: String) -> void: pass
+func _on_panel_closed(panel_name: String) -> void:
+	if panel_name == "SettingsUI":
+		var settings_changed := _ai_settings_signature_on_panel_open != _build_ai_settings_signature()
+		_ai_settings_signature_on_panel_open = ""
+		if settings_changed:
+			_rebuild_ai_predictions_after_state_change()
+	elif panel_name == "LoadUI":
+		var load_changed := _game_state_signature_on_panel_open != _build_game_prediction_signature()
+		_game_state_signature_on_panel_open = ""
+		if load_changed:
+			_rebuild_ai_predictions_after_state_change()
+
+func _rebuild_ai_predictions_after_state_change() -> void:
+	if has_node("/root/AIManager") and AIManager.has_method("rebuild_predictions_for_current_state"):
+		call_deferred("_deferred_rebuild_ai_predictions")
+
+func _deferred_rebuild_ai_predictions() -> void:
+	if has_node("/root/AIManager") and AIManager.has_method("rebuild_predictions_for_current_state"):
+		AIManager.rebuild_predictions_for_current_state()
+
+func _build_ai_settings_signature() -> String:
+	if not GameManager:
+		return ""
+	var settings := GameManager.ai_settings.duplicate(true)
+	return JSON.stringify({
+		"enabled": GameManager.ai_enabled,
+		"settings": settings
+	})
+
+func _build_game_prediction_signature() -> String:
+	if not GameManager:
+		return ""
+	return JSON.stringify({
+		"scene": GameManager.current_scene,
+		"variables": GameManager.variables,
+		"history_size": GameManager.dialogue_history.size(),
+		"history_hash": JSON.stringify(GameManager.dialogue_history).hash(),
+		"pending_choices": GameManager.pending_choices,
+		"dialogue_state": get_dialogue_state(),
+		"background": BackgroundManager.current_background_id if BackgroundManager else ""
+	})
 
 
 # ================= 对话状态存取（存档用） =================
@@ -916,6 +956,7 @@ func hide_ai_waiting() -> void:
 
 func _sanitize_display_text(text: String) -> String:
 	var result := str(text)
+	result = result.replace("[]", "")
 	result = result.replace("[italic]", "[i]")
 	result = result.replace("[/italic]", "[/i]")
 	result = result.replace("[italics]", "[i]")
