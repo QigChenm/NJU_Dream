@@ -367,14 +367,23 @@ func _pause_auto_for_choices() -> void:
 
 # ================= 选项点击 =================
 func _on_choice_pressed(choice_id: int) -> void:
-	_record_choice(choice_id)
+	var resolved_choice_id := _resolve_choice_id_from_button(choice_id)
+	_record_choice(resolved_choice_id)
 	choice_panel.hide()
 	if skip_mode_paused_by_choice:
 		skip_mode_paused_by_choice = false
 		GameManager.is_skip_mode = true
 		GameManager.skip_mode_changed.emit(true)
-	choice_selected.emit(choice_id)
+	choice_selected.emit(resolved_choice_id)
 	_restore_auto_after_choice()
+
+func _resolve_choice_id_from_button(button_index: int) -> int:
+	var choice_index := button_index - 1
+	if choice_index >= 0 and choice_index < current_choices.size():
+		var choice = current_choices[choice_index]
+		if choice is Dictionary:
+			return int(choice.get("id", button_index))
+	return button_index
 
 
 func _on_choice_mouse_entered(btn: TextureButton) -> void:
@@ -875,6 +884,14 @@ func hide_long_dialogue() -> void:
 		long_skip_timer.stop()
 		long_skip_timer.queue_free()
 		long_skip_timer = null
+
+func show_ai_waiting() -> void:
+	if wait:
+		wait.visible = true
+
+func hide_ai_waiting() -> void:
+	if wait:
+		wait.visible = false
 
 
 # ================= UI 截图与清理 =================

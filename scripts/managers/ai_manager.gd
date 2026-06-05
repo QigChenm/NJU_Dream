@@ -74,6 +74,7 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 		return
 
 	_is_requesting = true
+	_show_ai_waiting()
 	_request_id += 1
 	var current_id = _request_id
 	print("[AIManager] 发送请求 #%d" % current_id)
@@ -481,7 +482,7 @@ func _get_user_rules_section() -> PackedStringArray:
 func _build_user_prompt(input_str: String) -> String:
 	var chapter := _determine_current_chapter()
 	var chapter_info = MAIN_STORY_LINE.get(chapter, {})
-	var history_block := _get_recent_dialogue_history(25)
+	var history_block := _get_recent_dialogue_history(16)
 	var state_block := _get_current_game_state()
 	var event_desc := ""
 	if input_str == "__start__":
@@ -700,6 +701,14 @@ func _strip_env_quotes(value: String) -> String:
 func _finish_requesting() -> void:
 	if has_node("/root/DialogueManager"):
 		DialogueManager.is_requesting = false
+	var scene = DialogueManager.get_dialogue_scene() if has_node("/root/DialogueManager") else null
+	if scene and scene.has_method("hide_ai_waiting"):
+		scene.hide_ai_waiting()
+
+func _show_ai_waiting() -> void:
+	var scene = DialogueManager.get_dialogue_scene() if has_node("/root/DialogueManager") else null
+	if scene and scene.has_method("show_ai_waiting"):
+		scene.show_ai_waiting()
 
 func _resolve_choice_text(choice_id: int) -> String:
 	var scene = DialogueManager.get_dialogue_scene()
@@ -822,6 +831,9 @@ func _normalize_ai_commands(commands: Array) -> Array:
 		var type: String = cmd.get("type", "")
 		if type == "show_dialogue":
 			var character: String = cmd.get("character", "")
+			if character != "" and not _character_exists(character):
+				character = ""
+				cmd["character"] = ""
 			var text: String = cmd.get("text", "")
 			var action := _detect_text_action(text)
 			cmd["text"] = _sanitize_rich_text(text)
@@ -831,9 +843,85 @@ func _normalize_ai_commands(commands: Array) -> Array:
 		elif type == "long_dialogue":
 			cmd["text"] = _sanitize_rich_text(str(cmd.get("text", "")))
 			normalized.append(cmd)
+		elif type == "show_choices":
+			cmd["choices"] = _normalize_choices(cmd.get("choices", []))
+			if not cmd["choices"].is_empty():
+				normalized.append(cmd)
 		else:
-			normalized.append(cmd)
+			if _is_valid_command(cmd):
+				normalized.append(cmd)
 	return normalized
+
+func _normalize_choices(raw_choices) -> Array:
+	var choices: Array = []
+	if not raw_choices is Array:
+		return choices
+	for i in range(min(raw_choices.size(), 3)):
+		var choice = raw_choices[i]
+		if not choice is Dictionary:
+			continue
+		var text := str(choice.get("text", "")).strip_edges()
+		if text == "":
+			continue
+		choices.append({"id": int(choice.get("id", i + 1)), "text": _sanitize_rich_text(text)})
+	return choices
+
+func _is_valid_command(cmd: Dictionary) -> bool:
+	var type: String = cmd.get("type", "")
+	match type:
+		"change_background":
+			return _id_exists(BackgroundManager.background_database, cmd.get("background", ""))
+		"set_characters":
+			return _is_valid_stage_role(cmd.get("left", null)) or _is_valid_stage_role(cmd.get("right", null))
+		"set_expression":
+			return _is_valid_character_expression(cmd.get("character", ""), cmd.get("expression", "default"))
+		"character_action":
+			return str(cmd.get("action", "")) in VALID_CHARACTER_ACTIONS and _character_exists(cmd.get("character", ""))
+		"play_audio", "stop_audio":
+			return _id_exists(AudioManager.audio_database, cmd.get("audio_id", ""))
+		"particle_play", "particle_stop":
+			if not cmd.has("effect_id") and type == "particle_stop":
+				return true
+			return _id_exists(ParticleManager.particle_database, cmd.get("effect_id", ""))
+		"unlock_cg", "cg_play", "cg_hide":
+			if type == "cg_hide":
+				return true
+			return _id_exists(CGManager.cg_database, cmd.get("cg_id", ""))
+		"unlock_bgm":
+			return _id_exists(AudioManager.audio_database, cmd.get("bgm_id", ""))
+		"add_affection":
+			return _character_exists(cmd.get("character", ""))
+		"set_flag", "set_variable", "set_ui_state", "wait", "jump", "end_scene", "reset_unlocks":
+			return true
+		_:
+			push_warning("[AIManager] 跳过未知或非法指令: %s" % type)
+			return false
+
+func _is_valid_stage_role(value) -> bool:
+	if value == null:
+		return false
+	if value is Dictionary:
+		var character_id: String = value.get("id", "")
+		if character_id == "":
+			return false
+		return _is_valid_character_expression(character_id, value.get("expression", "default"))
+	if value is String:
+		return _character_exists(value)
+	return false
+
+func _is_valid_character_expression(character_id, expression_id) -> bool:
+	if not _character_exists(character_id):
+		return false
+	var char_data = GameManager.character_database[str(character_id)]
+	if not char_data or not (char_data.expressions is Dictionary):
+		return true
+	return str(expression_id) in char_data.expressions
+
+func _character_exists(character_id) -> bool:
+	return GameManager and GameManager.character_database.has(str(character_id))
+
+func _id_exists(database: Dictionary, id_value) -> bool:
+	return database.has(str(id_value))
 
 func _detect_text_action(text: String) -> String:
 	for tag in TEXT_ACTION_TAG_MAP.keys():
