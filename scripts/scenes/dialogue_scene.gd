@@ -228,8 +228,11 @@ func _start_game_flow() -> void:
 		GameManager.open_about_on_load = false
 		call_deferred("_open_about_from_menu")
 	else:
+		var should_warmup_start := GameManager.current_scene == ""
 		if GameManager.current_scene == "":
 			GameManager.start_new_game()
+		if should_warmup_start and has_node("/root/AIManager") and GameManager.ai_enabled:
+			AIManager.warmup_start_request()
 		DialogueManager.start_dialogue()
 
 
@@ -358,6 +361,9 @@ func display_choices(choices: Array) -> void:
 		var t = create_tween()
 		t.tween_property(btn, "scale", Vector2(1.05, 1.05), 0.1)
 		t.tween_property(btn, "scale", Vector2.ONE, 0.15).set_ease(Tween.EASE_OUT)
+
+	if has_node("/root/AIManager"):
+		AIManager.prefetch_choice_predictions(choices)
 
 
 func _pause_auto_for_choices() -> void:
@@ -747,6 +753,8 @@ func _on_long_close_pressed() -> void:
 
 
 func _return_to_main_menu() -> void:
+	if has_node("/root/AIManager"):
+		AIManager.cancel_predictions()
 	if AudioManager:
 		AudioManager.stop_all()
 	if ScriptEngine:
@@ -789,7 +797,10 @@ func _open_about_from_menu() -> void:
 
 
 # ================= 面板回调 =================
-func _on_panel_opened(_panel_name: String) -> void: pass
+func _on_panel_opened(_panel_name: String) -> void:
+	if has_node("/root/AIManager"):
+		AIManager.cancel_predictions()
+
 func _on_panel_closed(_panel_name: String) -> void: pass
 
 
