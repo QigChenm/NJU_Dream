@@ -16,6 +16,7 @@ var _pending_choice_id: int = -1
 var _pending_request_id: int = 0
 var _request_id: int = 0
 var _last_error_code: int = 0
+var _last_response_code: int = 0
 var _pending_choice_text: String = ""
 var _waiting_for_choice_continuation: bool = false
 var _prediction_cache: Dictionary = {}
@@ -180,11 +181,13 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 
 	if result != HTTPRequest.RESULT_SUCCESS:
 		_last_error_code = result
+		_last_response_code = 0
 		push_error("[AIManager] 请求失败，结果码: %d" % result)
 		_recover_with_dialogue("[AIManager] 请求未成功完成。")
 		return
 	var raw_text := body.get_string_from_utf8()
 	print("[AIManager] 原始响应前2000字符: ", raw_text.substr(0, 2000))
+	_last_response_code = response_code
 	var ai_response := _parse_ai_response(raw_text, response_code, "主请求")
 	if ai_response.is_empty():
 		_recover_with_dialogue("[AIManager] AI 响应不可用。")
@@ -760,7 +763,7 @@ func prefetch_choice_predictions(choices: Array) -> void:
 	var history_snapshot := GameManager.dialogue_history.duplicate(true)
 	var choices_snapshot := choices.duplicate(true)
 	_active_prediction_context_key = _build_prediction_context_key(history_snapshot, choices_snapshot)
-	for i in range(min(choices.size(), MAX_PREDICTION_REQUESTS)):
+	for i in range(min(choices.size(), _get_prediction_request_limit())):
 		var choice = choices[i]
 		if not choice is Dictionary:
 			continue
@@ -919,19 +922,13 @@ func _on_warmup_start_completed(result: int, response_code: int, _headers: Packe
 	if result != HTTPRequest.RESULT_SUCCESS:
 		print("[AIManager] 开场预热失败: %d" % result)
 		if _warmup_consume_pending:
-			_warmup_consume_pending = false
-			_is_requesting = false
-			_finish_requesting()
-			send_message("__start__")
+			_handle_consumed_warmup_failure(0, "[AIManager] 开场预热请求失败。")
 		return
 	var raw_text := body.get_string_from_utf8()
 	var ai_response := _parse_ai_response(raw_text, response_code, "开场预热")
 	if ai_response.is_empty():
 		if _warmup_consume_pending:
-			_warmup_consume_pending = false
-			_is_requesting = false
-			_finish_requesting()
-			send_message("__start__")
+			_handle_consumed_warmup_failure(response_code, "[AIManager] 开场预热响应不可用。")
 		return
 	if _warmup_consume_pending:
 		_warmup_consume_pending = false
@@ -939,6 +936,16 @@ func _on_warmup_start_completed(result: int, response_code: int, _headers: Packe
 	else:
 		_warmup_start_response = ai_response
 		print("[AIManager] 开场预热缓存已就绪。")
+
+func _handle_consumed_warmup_failure(response_code: int, reason: String) -> void:
+	_warmup_consume_pending = false
+	_is_requesting = false
+	_finish_requesting()
+	_last_response_code = response_code
+	if response_code == 429:
+		_recover_with_dialogue(reason)
+	else:
+		call_deferred("send_message", "__start__")
 
 func _parse_ai_response(raw_text: String, response_code: int, context: String) -> Dictionary:
 	if response_code < 200 or response_code >= 300:
@@ -977,6 +984,15 @@ func _build_prediction_cache_key(context_key: String, choice_id: int, choice_tex
 func _cleanup_request_node(request: HTTPRequest) -> void:
 	if request and is_instance_valid(request):
 		request.queue_free()
+
+func _get_prediction_request_limit() -> int:
+	var provider := _get_current_provider()
+	var provider_id: String = provider.get("id", "")
+	if provider_id in ["kimi", "deepseek"]:
+		return 1
+	if provider_id == "ollama":
+		return MAX_PREDICTION_REQUESTS
+	return min(2, MAX_PREDICTION_REQUESTS)
 
 func _get_output_token_limit(_provider: Dictionary, _model_name: String) -> int:
 	return DEFAULT_OUTPUT_TOKENS
@@ -1285,6 +1301,8 @@ func _recover_with_dialogue(reason: String) -> void:
 		help_text = "无法连接到AI服务。\n\n可能的原因：\n1. 如果您是本地运行，请确保Ollama已启动。\n2. 如果您使用云端API，请检查网络和API设置。\n\n您可以在“设置”中调整AI连接方式。"
 	elif _last_error_code == 4: # TIMEOUT
 		help_text = "AI服务响应超时，请稍后重试。"
+	elif _last_response_code == 429:
+		help_text = "AI服务现在有点忙，请稍后再试。\n\n如果频繁出现，可以先切换到本地 Ollama，或换一个当前更空闲的模型。"
 	else:
 		help_text = "AI正在全力思考中，稍等哦~"
 
