@@ -6,14 +6,12 @@ extends Node
 @export var base_url: String = "http://localhost:11434/v1"
 @export var model: String = "qwen2.5:7b-instruct"
 @export var request_timeout: float = 30.0
-@export var env_file_path: String = "res://.env"
 
 var _http_request: HTTPRequest = null
 var _is_requesting: bool = false
 var _is_ollama_request: bool = false
 var _is_canceling: bool = false
 var _recovery_mode: bool = false
-var _env_values: Dictionary = {}
 var _pending_choice_id: int = -1
 var _pending_request_id: int = 0
 var _request_id: int = 0
@@ -22,8 +20,6 @@ var _pending_choice_text: String = ""
 var _waiting_for_choice_continuation: bool = false
 
 const _FALLBACK_TEXT := "AI 暂时不可用，请稍后再试。"
-# .env文件已废弃，现可直接从设置中读取
-const _FALLBACK_ENV_FILE_PATH := "res://env"
 const MEMORY_FILE := "user://ai_rules.json"
 const VALID_CHARACTER_ACTIONS := ["bounce", "shake", "nod", "step_back", "shrug"]
 const TEXT_ACTION_TAG_MAP := {
@@ -46,7 +42,6 @@ const TEXT_ACTION_TAG_MAP := {
 
 # ---------- 初始化 ----------
 func _ready() -> void:
-	_load_env_file()
 	_http_request = HTTPRequest.new()
 	_http_request.timeout = request_timeout
 	_http_request.request_completed.connect(_on_request_completed)
@@ -644,10 +639,8 @@ func _get_model() -> String:
 
 func _get_api_key() -> String:
 	if GameManager:
-		var api_key = GameManager.get_ai_setting("api_key")
-		if api_key != "":
-			return api_key
-	return _get_env_value("MOONSHOT_API_KEY")
+		return GameManager.get_ai_setting("api_key")
+	return ""
 
 func _get_current_provider() -> Dictionary:
 	if GameManager and GameManager.has_method("get_current_ai_provider"):
@@ -661,42 +654,6 @@ func _get_current_provider() -> Dictionary:
 		"auth_type": "none",
 		"default_model": model
 	}
-
-func _get_env_value(key: String) -> String:
-	var system_value := OS.get_environment(key)
-	return system_value if system_value != "" else str(_env_values.get(key, ""))
-
-func _load_env_file() -> void:
-	_env_values.clear()
-	var path := env_file_path
-	if not FileAccess.file_exists(path) and FileAccess.file_exists(_FALLBACK_ENV_FILE_PATH):
-		path = _FALLBACK_ENV_FILE_PATH
-	if not FileAccess.file_exists(path):
-		return
-	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		return
-	while not file.eof_reached():
-		var line := file.get_line().strip_edges()
-		if line == "" or line.begins_with("#"):
-			continue
-		if line.begins_with("export "):
-			line = line.trim_prefix("export ").strip_edges()
-		var separator_index := line.find("=")
-		if separator_index <= 0:
-			continue
-		var key := line.substr(0, separator_index).strip_edges()
-		var value := line.substr(separator_index + 1).strip_edges()
-		value = _strip_env_quotes(value)
-		if key != "":
-			_env_values[key] = value
-
-func _strip_env_quotes(value: String) -> String:
-	if value.length() < 2:
-		return value
-	if (value.begins_with("'") and value.ends_with("'")) or (value.begins_with("\"") and value.ends_with("\"")):
-		return value.substr(1, value.length() - 2)
-	return value
 
 func _finish_requesting() -> void:
 	if has_node("/root/DialogueManager"):
