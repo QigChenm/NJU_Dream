@@ -925,13 +925,21 @@ func _strip_bbcode_tag(text: String, tag: String) -> String:
 
 func _strip_unsupported_bbcode_tags(text: String) -> String:
 	var regex := RegEx.new()
-	regex.compile("\\[/?([A-Za-z_][A-Za-z0-9_]*)([^\\]]*)\\]")
+	regex.compile("\\[([^\\]]+)\\]")
 	var result := text
 	for match_result in regex.search_all(text):
-		var tag_name := match_result.get_string(1).to_lower()
-		if tag_name not in ALLOWED_TEXT_BBCODE_TAGS:
+		var raw_tag := match_result.get_string(1).strip_edges()
+		var tag_name := raw_tag.trim_prefix("/").split(" ")[0].split("=")[0].to_lower()
+		if not _is_allowed_text_bbcode(raw_tag, tag_name):
 			result = result.replace(match_result.get_string(0), "")
 	return result
+
+func _is_allowed_text_bbcode(raw_tag: String, tag_name: String) -> bool:
+	if tag_name not in ALLOWED_TEXT_BBCODE_TAGS:
+		return false
+	if tag_name == "color":
+		return raw_tag.begins_with("/") or raw_tag.begins_with("color=")
+	return raw_tag == tag_name or raw_tag == "/" + tag_name
 
 func _normalize_json_content(content: String) -> String:
 	var result := content.strip_edges()
