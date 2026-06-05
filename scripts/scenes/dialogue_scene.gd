@@ -56,8 +56,10 @@ var auto_advance_timer: Timer = null
 var auto_mode_paused_by_choice: bool = false
 var skip_mode_paused_by_choice: bool = false
 var _current_line_recorded: bool = false
+var _has_shown_initial_wait_text: bool = false
 
 const ALLOWED_TEXT_BBCODE_TAGS := ["b", "i", "u", "color", "wave", "shake"]
+const INITIAL_WAIT_TEXT := "[wave amp=50.0 freq=5.0]请稍等，正在初始化游戏……[/wave]"
 
 
 # ================= 初始化 =================
@@ -890,6 +892,11 @@ func hide_long_dialogue() -> void:
 
 func show_ai_waiting() -> void:
 	if wait:
+		if _has_shown_initial_wait_text:
+			wait.text = ""
+		else:
+			wait.text = INITIAL_WAIT_TEXT
+			_has_shown_initial_wait_text = true
 		wait.visible = true
 
 func hide_ai_waiting() -> void:

@@ -228,8 +228,8 @@ func _get_character_profile() -> PackedStringArray:
 	arr.append("- 开心 → happy，很高兴 → very_happy，动作：bounce")
 	arr.append("- 悲伤/委屈 → sad，动作：step_back")
 	arr.append("- 愤怒/不满 → angry，动作：shake")
-	arr.append("- 害羞/尴尬 → 表情 blush，动作：step_back")
-	arr.append("- 感动/惊讶 → 表情 wide_eyes，动作：shake 或 nod")
+	arr.append("- 害羞/尴尬 → confused，动作：step_back")
+	arr.append("- 感动/惊讶 → surprised，动作：shake 或 nod")
 	arr.append("## 关系动态")
 	arr.append("- 好感度 0-20：礼貌陪伴，保持距离，会主动帮忙但不多言。")
 	arr.append("- 好感度 20-40：开始开玩笑，分享零食，偶尔吐槽。")
@@ -240,29 +240,32 @@ func _get_character_profile() -> PackedStringArray:
 	arr.append("- 不会说出“你真没用”之类打击自信的话。")
 	arr.append("- 不会无视你的烦恼。")
 	arr.append("")
-	arr.append("# 角色档案：宋青 (id:song)")
-	arr.append("## 核心身份")
-	arr.append("南大校徽上的青松化身，沉稳可靠的学长，是你的心灵树洞和理性支持者。外表清冷如松，内心温热如春。")
-	arr.append("## 内在动机与价值观")
-	arr.append("希望引导你找到内心的平静与韧性，像松树一样抗压。相信“沉默的陪伴有时胜过千言万语”。")
-	arr.append("## 语言风格")
-	arr.append("简洁、温和，很少用感叹号。喜欢用“嗯”“或许”“我懂”开头。说话时会停顿，给人思考空间。偶尔引用诗句或哲言。")
-	arr.append("## 情绪－表情－动作映射")
-	arr.append("- 开心 → slight_smile，动作：nod")
-	arr.append("- 悲伤/委屈 → eyes_down，动作：step_back")
-	arr.append("- 愤怒/不满 → frown，动作：shake")
-	arr.append("- 害羞/尴尬 → default，动作：shrug")
-	arr.append("- 感动/惊讶 → eyes_widen，动作：nod")
-	arr.append("## 关系动态")
-	arr.append("- 好感度 0-20：礼貌疏离，只回答必要问题。")
-	arr.append("- 好感度 20-40：开始主动询问你的感受，分享自己的小习惯。")
-	arr.append("- 好感度 40-60：展露温柔，会为你准备热茶或建议，倾听时间变长。")
-	arr.append("- 好感度 60+：愿意坦露自己的脆弱，会轻轻拍拍你的肩，说出“我在”。")
-	arr.append("## 禁忌")
-	arr.append("- 绝不会冷暴力或消失。")
-	arr.append("- 不会否定你的情绪（不会说“你想多了”）。")
-	arr.append("- 不会强迫你做任何事。")
-	arr.append("")
+
+	# TODO: 宋青角色资源补全后再启用。当前仓库没有 song_data.tres 和对应表情贴图，
+	# 因此这些资料必须保持注释，避免 AI 选择不存在的角色或表情。
+	# arr.append("# 角色档案：宋青 (id:song)")
+	# arr.append("## 核心身份")
+	# arr.append("南大校徽上的青松化身，沉稳可靠的学长，是你的心灵树洞和理性支持者。外表清冷如松，内心温热如春。")
+	# arr.append("## 内在动机与价值观")
+	# arr.append("希望引导你找到内心的平静与韧性，像松树一样抗压。相信“沉默的陪伴有时胜过千言万语”。")
+	# arr.append("## 语言风格")
+	# arr.append("简洁、温和，很少用感叹号。喜欢用“嗯”“或许”“我懂”开头。说话时会停顿，给人思考空间。偶尔引用诗句或哲言。")
+	# arr.append("## 情绪－表情－动作映射")
+	# arr.append("- 开心 → slight_smile，动作：nod")
+	# arr.append("- 悲伤/委屈 → eyes_down，动作：step_back")
+	# arr.append("- 愤怒/不满 → frown，动作：shake")
+	# arr.append("- 害羞/尴尬 → default，动作：shrug")
+	# arr.append("- 感动/惊讶 → eyes_widen，动作：nod")
+	# arr.append("## 关系动态")
+	# arr.append("- 好感度 0-20：礼貌疏离，只回答必要问题。")
+	# arr.append("- 好感度 20-40：开始主动询问你的感受，分享自己的小习惯。")
+	# arr.append("- 好感度 40-60：展露温柔，会为你准备热茶或建议，倾听时间变长。")
+	# arr.append("- 好感度 60+：愿意坦露自己的脆弱，会轻轻拍拍你的肩，说出“我在”。")
+	# arr.append("## 禁忌")
+	# arr.append("- 绝不会冷暴力或消失。")
+	# arr.append("- 不会否定你的情绪（不会说“你想多了”）。")
+	# arr.append("- 不会强迫你做任何事。")
+	# arr.append("")
 	return arr
 
 func _get_narrative_rules() -> PackedStringArray:
@@ -273,12 +276,14 @@ func _get_narrative_rules() -> PackedStringArray:
 	arr.append("1. 每次生成 2-4 条指令，形成一小段自然推进的剧情。第一条指令通常为 show_dialogue。")
 	arr.append("2. 根据当前好感度和章节阶段，选择合适的情绪基调和对话内容。")
 	arr.append("3. 当剧情需要玩家决策时（角色提问、征求意见、面临选择），必须使用 show_choices，且将其作为本轮最后一条指令。")
+	arr.append("3.1 【强制】show_choices 后严禁继续输出任何指令；好感度、变量变化必须等玩家选择后的下一轮再处理。")
 	arr.append("4. 玩家做出选择后，你的第一个指令应展示角色对该选择的即时反应（惊讶、高兴、犹豫等），然后继续剧情。")
 	arr.append("5. 只有在剧情自然结束时才使用 end_scene，一般对话中严禁提前结束。")
 	arr.append("6. 【强制】开场或章节开始时，必须包含 play_audio 指令播放合适的背景音乐。且不要频繁使用play_audio，只在开场或需要切换音乐时才用")
 	arr.append("7. 对话中只允许使用这些 BBCode 标签： [b]、[i]、[u]、[color]、[wave]、[shake]。严禁使用 [italic]、[happy]、[sad]、[angry] 等非 Godot 标签或表情标签。")
 	arr.append("8. 角色动作必须使用独立的 character_action 指令，不要在 show_dialogue 的 text 中直接写入 [bounce] 等动作标签。")
 	arr.append("9. 所有背景、角色、表情、动作、音频、粒子、CG 都必须从下方【可用资源 JSON】中选择，不要发明不存在的 id。")
+	arr.append("9.1 对话文本中的地点必须贴合当前或即将切换的背景；严禁把不存在贴图的地点（如小吃街、鸭血粉丝汤店、古典园林、樱花林）写成正在前往或已经到达的真实场景。")
 	arr.append("10. 每轮剧情尽量至少包含一个非对白表现指令（set_expression、character_action、change_background、particle_play 之一），但不要频繁切换音乐。")
 	arr.append("")
 	return arr
@@ -327,13 +332,24 @@ func _get_resource_constraints_section() -> PackedStringArray:
 
 func _build_resource_constraints() -> Dictionary:
 	return {
-		"backgrounds": _collect_background_ids(),
+		"backgrounds": _collect_background_constraints(),
 		"characters": _collect_character_constraints(),
 		"actions": ["bounce", "shake", "nod", "step_back", "shrug"],
 		"audio_bgm": _collect_audio_ids(),
 		"particles": _collect_particle_ids(),
 		"cg": _collect_cg_ids()
 	}
+
+func _collect_background_constraints() -> Dictionary:
+	var result := {}
+	if BackgroundManager:
+		for id in BackgroundManager.background_database.keys():
+			var bg_data = BackgroundManager.background_database[id]
+			result[str(id)] = {
+				"display_name": str(bg_data.display_name) if bg_data else str(id),
+				"location_name": str(bg_data.location_name) if bg_data else str(id)
+			}
+	return result
 
 func _collect_background_ids() -> Array:
 	var result := []
@@ -831,6 +847,7 @@ func _normalize_ai_commands(commands: Array) -> Array:
 			cmd["choices"] = _normalize_choices(cmd.get("choices", []))
 			if not cmd["choices"].is_empty():
 				normalized.append(cmd)
+				break
 		else:
 			if _is_valid_command(cmd):
 				normalized.append(cmd)
