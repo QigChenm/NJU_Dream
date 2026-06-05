@@ -24,7 +24,25 @@ var _waiting_for_choice_continuation: bool = false
 const _FALLBACK_TEXT := "AI 暂时不可用，请稍后再试。"
 # .env文件已废弃，现可直接从设置中读取
 const _FALLBACK_ENV_FILE_PATH := "res://env"
-const MEMORY_FILE := "res://config/ai_rules.json"
+const MEMORY_FILE := "user://ai_rules.json"
+const VALID_CHARACTER_ACTIONS := ["bounce", "shake", "nod", "step_back", "shrug"]
+const TEXT_ACTION_TAG_MAP := {
+	"bounce": "bounce",
+	"jump_up": "bounce",
+	"jump": "bounce",
+	"nod": "nod",
+	"nod_slowly": "nod",
+	"step_back": "step_back",
+	"ears_down": "step_back",
+	"scratch_head": "step_back",
+	"shrug": "shrug",
+	"stomp": "shake",
+	"hold_heart": "shake",
+	"hand_on_heart": "shake",
+	"cross_arms": "shrug",
+	"stand_still": "step_back",
+	"touch_ear": "shrug"
+}
 
 # ---------- 初始化 ----------
 func _ready() -> void:
@@ -90,6 +108,7 @@ func process_ai_response(response: Dictionary) -> void:
 	if not has_node("/root/ScriptEngine"):
 		push_error("[AIManager] ScriptEngine 未找到。")
 		return
+	commands = _normalize_ai_commands(commands)
 	ScriptEngine.execute_commands(commands)
 
 func _on_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
@@ -793,6 +812,53 @@ func _extract_response_content(raw_response: Dictionary) -> String:
 			if not message is Dictionary:
 				return ""
 			return str(message.get("content", ""))
+
+func _normalize_ai_commands(commands: Array) -> Array:
+	var normalized: Array = []
+	for item in commands:
+		if not item is Dictionary:
+			continue
+		var cmd: Dictionary = item.duplicate(true)
+		var type: String = cmd.get("type", "")
+		if type == "show_dialogue":
+			var character: String = cmd.get("character", "")
+			var text: String = cmd.get("text", "")
+			var action := _detect_text_action(text)
+			cmd["text"] = _sanitize_rich_text(text)
+			normalized.append(cmd)
+			if action != "" and character != "":
+				normalized.append({"type": "character_action", "character": character, "action": action})
+		elif type == "long_dialogue":
+			cmd["text"] = _sanitize_rich_text(str(cmd.get("text", "")))
+			normalized.append(cmd)
+		else:
+			normalized.append(cmd)
+	return normalized
+
+func _detect_text_action(text: String) -> String:
+	for tag in TEXT_ACTION_TAG_MAP.keys():
+		var regex := RegEx.new()
+		regex.compile("\\[/?%s[^\\]]*\\]" % str(tag))
+		if regex.search(text):
+			return TEXT_ACTION_TAG_MAP[tag]
+	return ""
+
+func _sanitize_rich_text(text: String) -> String:
+	var result := text
+	for tag in TEXT_ACTION_TAG_MAP.keys():
+		result = _strip_bbcode_tag(result, str(tag))
+	if not result.contains("[color"):
+		result = result.replace("[/color]", "")
+	if not result.contains("[wave"):
+		result = result.replace("[/wave]", "")
+	if not result.contains("[shake"):
+		result = result.replace("[/shake]", "")
+	return result.strip_edges()
+
+func _strip_bbcode_tag(text: String, tag: String) -> String:
+	var regex := RegEx.new()
+	regex.compile("\\[/?%s[^\\]]*\\]" % tag)
+	return regex.sub(text, "", true)
 
 func _normalize_json_content(content: String) -> String:
 	var result := content.strip_edges()
