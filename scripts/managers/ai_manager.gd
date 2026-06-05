@@ -711,6 +711,7 @@ func _build_provider_request(input_str: String) -> Dictionary:
 	var api_key := _get_api_key()
 	var system_prompt := _build_system_prompt()
 	var user_prompt := _build_user_prompt(input_str)
+	var temperature := _get_request_temperature(provider, model_name)
 
 	match api_format:
 		"ollama_chat":
@@ -726,7 +727,7 @@ func _build_provider_request(input_str: String) -> Dictionary:
 					],
 					"stream": false,
 					"options": {
-						"temperature": 0.8,
+						"temperature": temperature,
 						"num_predict": 1200
 					}
 				}
@@ -740,7 +741,7 @@ func _build_provider_request(input_str: String) -> Dictionary:
 					"model": model_name,
 					"system": system_prompt,
 					"messages": [{"role": "user", "content": user_prompt}],
-					"temperature": 0.8,
+					"temperature": temperature,
 					"max_tokens": 600
 				}
 			}
@@ -755,7 +756,7 @@ func _build_provider_request(input_str: String) -> Dictionary:
 				"payload": {
 					"system_instruction": {"parts": [{"text": system_prompt}]},
 					"contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
-					"generationConfig": {"temperature": 0.8, "maxOutputTokens": 600}
+					"generationConfig": {"temperature": temperature, "maxOutputTokens": 600}
 				}
 			}
 		_:
@@ -766,7 +767,7 @@ func _build_provider_request(input_str: String) -> Dictionary:
 					{"role": "system", "content": system_prompt},
 					{"role": "user", "content": user_prompt}
 				],
-				"temperature": 0.8,
+				"temperature": temperature,
 				"max_tokens": 600
 			}
 			var provider_id: String = provider.get("id", "")
@@ -777,6 +778,13 @@ func _build_provider_request(input_str: String) -> Dictionary:
 				"headers": _build_headers(provider, api_key),
 				"payload": payload
 			}
+
+func _get_request_temperature(provider: Dictionary, _model_name: String) -> float:
+	var provider_id: String = provider.get("id", "")
+	var provider_url: String = str(provider.get("base_url", ""))
+	if provider_id == "kimi" or provider_url.begins_with("https://api.moonshot.cn"):
+		return 1.0
+	return 0.8
 
 func _build_headers(provider: Dictionary, api_key: String) -> PackedStringArray:
 	var headers := PackedStringArray(["Content-Type: application/json"])
