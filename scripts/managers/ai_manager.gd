@@ -60,51 +60,10 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 	var current_id = _request_id
 	print("[AIManager] 发送请求 #%d" % current_id)
 
-	var is_ollama = _get_base_url().begins_with("http://127.0.0.1:11434") or _get_base_url().begins_with("http://localhost:11434")
-	_is_ollama_request = is_ollama
-
-	var endpoint := ""
-	var headers := PackedStringArray(["Content-Type: application/json"])
-	var payload: Dictionary
-
-	if is_ollama:
-		endpoint = "http://127.0.0.1:11434/api/chat"
-		payload = {
-			"model": _get_model(),
-			"messages": [
-				{"role": "system", "content": _build_system_prompt()},
-				{"role": "user", "content": _build_user_prompt(input_str)}
-			],
-			"stream": false,
-			"options": {
-				"temperature": 0.8,
-				"num_predict": 1200
-			}
-		}
-	else:
-		endpoint = _get_base_url().rstrip("/") + "/chat/completions"
-		var api_key = ""
-		if GameManager:
-			api_key = GameManager.get_ai_setting("api_key")
-		if api_key == "":
-			api_key = _get_env_value("MOONSHOT_API_KEY")
-		if api_key != "":
-			headers.append("Authorization: Bearer " + api_key)
-
-		payload = {
-			"model": _get_model(),
-			"messages": [
-				{"role": "system", "content": _build_system_prompt()},
-				{"role": "user", "content": _build_user_prompt(input_str)}
-			],
-			"temperature": 0.8,
-			"max_tokens": 1000,
-		}
-		var user_base_url = _get_base_url()
-		if user_base_url.begins_with("https://api.deepseek.com") or user_base_url.begins_with("https://api.moonshot.cn"):
-			payload["extra_body"] = {"thinking": {"type": "disabled"}}
-		if user_base_url.begins_with("https://api.moonshot.cn") or user_base_url.begins_with("https://api.openai.com"):
-			payload["response_format"] = {"type": "json_object"}
+	var request_data := _build_provider_request(input_str)
+	var endpoint: String = request_data.get("endpoint", "")
+	var headers: PackedStringArray = request_data.get("headers", PackedStringArray())
+	var payload: Dictionary = request_data.get("payload", {})
 
 	print("[AIManager] 实际请求 URL: %s" % endpoint)
 	var error = _http_request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
@@ -143,38 +102,23 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 		_is_canceling = false
 		return
 
-	if result != HTTPRequest.RESULT_SUCCESS or response_code < 200 or response_code >= 300:
+	if result != HTTPRequest.RESULT_SUCCESS:
 		_last_error_code = result
 		push_error("[AIManager] 请求失败，结果码: %d" % result)
 		_recover_with_dialogue("[AIManager] 请求未成功完成。")
 		return
-
 	var raw_text := body.get_string_from_utf8()
 	print("[AIManager] 原始响应前2000字符: ", raw_text.substr(0, 2000))
-
+	if response_code < 200 or response_code >= 300:
+		push_error("[AIManager] AI 返回 HTTP %d: %s" % [response_code, raw_text])
+		_recover_with_dialogue("[AIManager] AI HTTP 响应异常。")
+		return
 	var raw_response = JSON.parse_string(raw_text)
 	if not raw_response is Dictionary:
 		push_error("[AIManager] 顶级响应不是 JSON 对象。原始文本: ", raw_text)
 		_recover_with_dialogue("[AIManager] AI 响应格式错误（非JSON对象）。")
 		return
-
-	var message: Dictionary
-	if _is_ollama_request:
-		message = raw_response.get("message", {})
-	else:
-		var choices: Array = raw_response.get("choices", [])
-		if choices.is_empty():
-			push_error("[AIManager] 响应中缺少 choices。原始文本: ", raw_text)
-			_recover_with_dialogue("[AIManager] AI 响应中无 choices。")
-			return
-		message = choices[0].get("message", {})
-
-	if not message is Dictionary:
-		push_error("[AIManager] message 格式异常。原始文本: ", raw_text)
-		_recover_with_dialogue("[AIManager] AI message 格式异常。")
-		return
-
-	var content: String = message.get("content", "")
+	var content := _extract_response_content(raw_response)
 	if content.strip_edges() == "":
 		push_error("[AIManager] AI 返回的 content 为空！完整响应: %s" % raw_text)
 		_recover_with_dialogue("[AIManager] AI 正在思考中~")
@@ -597,6 +541,10 @@ func add_user_rule(rule_text: String) -> void:
 # ---------- 工具函数 ----------
 func _get_base_url() -> String:
 	if GameManager:
+		var provider := _get_current_provider()
+		var provider_url: String = provider.get("base_url", "")
+		if provider_url != "":
+			return provider_url
 		var user_url = GameManager.get_ai_setting("base_url")
 		if user_url != "http://localhost:11434/v1":
 			return user_url
@@ -604,10 +552,35 @@ func _get_base_url() -> String:
 
 func _get_model() -> String:
 	if GameManager:
+		var provider_id := GameManager.get_ai_setting("provider")
+		if provider_id == "ollama":
+			var ollama_model = GameManager.get_ai_setting("ollama_model")
+			if ollama_model != "":
+				return ollama_model
 		var user_model = GameManager.get_ai_setting("model")
 		if user_model != "":
 			return user_model
 	return model
+
+func _get_api_key() -> String:
+	if GameManager:
+		var api_key = GameManager.get_ai_setting("api_key")
+		if api_key != "":
+			return api_key
+	return _get_env_value("MOONSHOT_API_KEY")
+
+func _get_current_provider() -> Dictionary:
+	if GameManager and GameManager.has_method("get_current_ai_provider"):
+		return GameManager.get_current_ai_provider()
+	return {
+		"id": "ollama",
+		"name": "Ollama 本地",
+		"region": "本地",
+		"base_url": base_url,
+		"api_format": "openai_chat",
+		"auth_type": "none",
+		"default_model": model
+	}
 
 func _get_env_value(key: String) -> String:
 	var system_value := OS.get_environment(key)
@@ -667,6 +640,99 @@ func _build_choice_event() -> String:
 	if _pending_choice_text != "":
 		return "__choice__:%d:%s" % [_pending_choice_id, _pending_choice_text]
 	return "__choice__:%d" % _pending_choice_id
+
+func _build_provider_request(input_str: String) -> Dictionary:
+	var provider := _get_current_provider()
+	var api_format: String = provider.get("api_format", "openai_chat")
+	var base := _get_base_url().rstrip("/")
+	var model_name := _get_model()
+	var api_key := _get_api_key()
+	var system_prompt := _build_system_prompt()
+	var user_prompt := _build_user_prompt(input_str)
+
+	match api_format:
+		"anthropic_messages":
+			return {
+				"endpoint": base + "/messages",
+				"headers": _build_headers(provider, api_key),
+				"payload": {
+					"model": model_name,
+					"system": system_prompt,
+					"messages": [{"role": "user", "content": user_prompt}],
+					"temperature": 0.8,
+					"max_tokens": 600
+				}
+			}
+		"gemini_generate_content":
+			var endpoint := "%s/models/%s:generateContent" % [base, model_name]
+			if api_key != "":
+				endpoint += "?key=" + api_key.uri_encode()
+			return {
+				"endpoint": endpoint,
+				"headers": PackedStringArray(["Content-Type: application/json"]),
+				"payload": {
+					"system_instruction": {"parts": [{"text": system_prompt}]},
+					"contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+					"generationConfig": {"temperature": 0.8, "maxOutputTokens": 600}
+				}
+			}
+		_:
+			var payload := {
+				"model": model_name,
+				"messages": [
+					{"role": "system", "content": system_prompt},
+					{"role": "user", "content": user_prompt}
+				],
+				"temperature": 0.8,
+				"max_tokens": 600
+			}
+			var provider_id: String = provider.get("id", "")
+			if provider_id in ["kimi", "openai", "deepseek", "qwen", "zhipu", "doubao", "xai", "mistral"]:
+				payload["response_format"] = {"type": "json_object"}
+			return {
+				"endpoint": base + "/chat/completions",
+				"headers": _build_headers(provider, api_key),
+				"payload": payload
+			}
+
+func _build_headers(provider: Dictionary, api_key: String) -> PackedStringArray:
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var auth_type: String = provider.get("auth_type", "bearer")
+	if auth_type == "bearer" and api_key != "":
+		headers.append("Authorization: Bearer " + api_key)
+	elif auth_type == "x-api-key" and api_key != "":
+		headers.append("x-api-key: " + api_key)
+		headers.append("anthropic-version: 2023-06-01")
+	return headers
+
+func _extract_response_content(raw_response: Dictionary) -> String:
+	var provider := _get_current_provider()
+	var api_format: String = provider.get("api_format", "openai_chat")
+	match api_format:
+		"anthropic_messages":
+			var content: Array = raw_response.get("content", [])
+			for part in content:
+				if part is Dictionary and str(part.get("type", "")) == "text":
+					return str(part.get("text", ""))
+			return ""
+		"gemini_generate_content":
+			var candidates: Array = raw_response.get("candidates", [])
+			if candidates.is_empty() or not candidates[0] is Dictionary:
+				return ""
+			var content_dict: Dictionary = candidates[0].get("content", {})
+			var parts: Array = content_dict.get("parts", [])
+			for part in parts:
+				if part is Dictionary and part.has("text"):
+					return str(part.get("text", ""))
+			return ""
+		_:
+			var choices: Array = raw_response.get("choices", [])
+			if choices.is_empty() or not choices[0] is Dictionary:
+				return ""
+			var message = choices[0].get("message", {})
+			if not message is Dictionary:
+				return ""
+			return str(message.get("content", ""))
 
 func _normalize_json_content(content: String) -> String:
 	var result := content.strip_edges()
