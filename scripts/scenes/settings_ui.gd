@@ -15,7 +15,7 @@ extends CanvasLayer
 @onready var ai_key_edit = $VBoxContainerR/AIURLContainer/APIKey/LineEdit
 @onready var ai_provider_option: OptionButton = $VBoxContainerR/AIURLContainer/AIBaseURL/ProviderOption
 @onready var ai_model_option: OptionButton = $VBoxContainerR/AIURLContainer/AIModel/ModelOption
-@onready var ai_refresh_btn: Button = $VBoxContainerR/AIURLContainer/AIModel/RefreshModels
+@onready var ai_refresh_btn: BaseButton = $VBoxContainerR/AIURLContainer/AIModel/RefreshModels
 @onready var ollama_model_container: HBoxContainer = $VBoxContainerR/AIURLContainer/OllamaModel
 @onready var ollama_model_edit: LineEdit = $VBoxContainerR/AIURLContainer/OllamaModel/LineEdit
 @onready var deploy_btn = $VBoxContainerR/AIURLContainer/DeployAI/DeployAIBtn
@@ -26,6 +26,10 @@ var _model_items: Array[String] = []
 var _is_loading_ai_controls := false
 var _model_refresh_request: HTTPRequest = null
 var _can_toggle_ai: bool = false
+
+const AI_FIELD_COLOR := Color(0.36078432, 0.75686276, 0.8980392, 1)
+const AI_POPUP_BG_COLOR := Color(0.82, 0.96, 0.99, 0.98)
+const AI_POPUP_HOVER_COLOR := Color(0.36, 0.76, 0.90, 1.0)
 
 # ================= 初始化 =================
 func _ready() -> void:
@@ -47,6 +51,8 @@ func _connect_signals() -> void:
 	fullscreen_check.toggled.connect(_on_fullscreen_toggled)
 	
 	_setup_ai_controls()
+	_style_ai_dropdown(ai_provider_option)
+	_style_ai_dropdown(ai_model_option)
 	ai_key_edit.text_changed.connect(_on_ai_key_changed)
 	ollama_model_edit.text_changed.connect(_on_ollama_model_changed)
 	ai_provider_option.item_selected.connect(_on_ai_provider_selected)
@@ -241,6 +247,7 @@ func _populate_provider_options() -> void:
 			selected_index = _provider_items.size() - 1
 	if not _provider_items.is_empty():
 		ai_provider_option.select(selected_index)
+	_style_ai_dropdown(ai_provider_option)
 
 func _populate_model_options(provider_id: String) -> void:
 	_model_items.clear()
@@ -262,6 +269,50 @@ func _populate_model_options(provider_id: String) -> void:
 		ai_model_option.add_item(current_model)
 	if not _model_items.is_empty():
 		ai_model_option.select(selected_index)
+	_style_ai_dropdown(ai_model_option)
+
+func _style_ai_dropdown(option: OptionButton) -> void:
+	if not option:
+		return
+	option.add_theme_color_override("font_color", Color.WHITE)
+	option.add_theme_color_override("font_hover_color", Color.WHITE)
+	option.add_theme_color_override("font_focus_color", Color.WHITE)
+	option.add_theme_color_override("font_pressed_color", Color.WHITE)
+	var popup := option.get_popup()
+	if not popup:
+		return
+	var font = option.get_theme_font("font")
+	if font:
+		popup.add_theme_font_override("font", font)
+	popup.add_theme_font_size_override("font_size", 28)
+	popup.add_theme_color_override("font_color", AI_FIELD_COLOR)
+	popup.add_theme_color_override("font_hover_color", Color.WHITE)
+	popup.add_theme_color_override("font_focus_color", Color.WHITE)
+	popup.add_theme_color_override("font_pressed_color", Color.WHITE)
+	popup.add_theme_constant_override("v_separation", 8)
+	var normal_style := StyleBoxFlat.new()
+	normal_style.bg_color = AI_POPUP_BG_COLOR
+	normal_style.border_color = AI_FIELD_COLOR
+	normal_style.border_width_left = 3
+	normal_style.border_width_top = 3
+	normal_style.border_width_right = 3
+	normal_style.border_width_bottom = 3
+	normal_style.corner_radius_top_left = 6
+	normal_style.corner_radius_top_right = 6
+	normal_style.corner_radius_bottom_left = 6
+	normal_style.corner_radius_bottom_right = 6
+	normal_style.content_margin_left = 12
+	normal_style.content_margin_right = 12
+	normal_style.content_margin_top = 8
+	normal_style.content_margin_bottom = 8
+	var hover_style := StyleBoxFlat.new()
+	hover_style.bg_color = AI_POPUP_HOVER_COLOR
+	hover_style.corner_radius_top_left = 4
+	hover_style.corner_radius_top_right = 4
+	hover_style.corner_radius_bottom_left = 4
+	hover_style.corner_radius_bottom_right = 4
+	popup.add_theme_stylebox_override("panel", normal_style)
+	popup.add_theme_stylebox_override("hover", hover_style)
 
 func _on_refresh_models_pressed() -> void:
 	var provider := GameManager.get_current_ai_provider()
