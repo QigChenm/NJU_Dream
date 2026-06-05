@@ -173,6 +173,7 @@ func _build_system_prompt() -> String:
 	lines.append_array(_get_character_profile())
 	lines.append_array(_get_narrative_rules())
 	lines.append_array(_get_command_reference())
+	lines.append_array(_get_resource_constraints_section())
 	lines.append_array(_get_dialogue_examples())
 	lines.append_array(_get_user_rules_section())
 	return "\n".join(lines)
@@ -208,11 +209,11 @@ func _get_character_profile() -> PackedStringArray:
 	arr.append("## 语言风格")
 	arr.append("语速较快，常用“哇”“呀”“嘿嘿”等词，喜欢用比喻和夸张。偶尔冒出南京方言词（如“啊要辣油啊”）。称呼你为“你”或昵称，不会叫“主人”。")
 	arr.append("## 情绪－表情－动作映射")
-	arr.append("- 开心 → happy，很高兴 → very_happy，动作：jump_up")
-	arr.append("- 悲伤/委屈 → sad，极度悲伤 → cry，动作：ears_down（耳朵耷拉）")
-	arr.append("- 愤怒/不满 → angry，动作：stomp（跺脚）")
-	arr.append("- 害羞/尴尬 → 表情 blush，动作：scratch_head（挠头）")
-	arr.append("- 感动/惊讶 → 表情 wide_eyes，动作：hold_heart（捂心口）")
+	arr.append("- 开心 → happy，很高兴 → very_happy，动作：bounce")
+	arr.append("- 悲伤/委屈 → sad，动作：step_back")
+	arr.append("- 愤怒/不满 → angry，动作：shake")
+	arr.append("- 害羞/尴尬 → 表情 blush，动作：step_back")
+	arr.append("- 感动/惊讶 → 表情 wide_eyes，动作：shake 或 nod")
 	arr.append("## 关系动态")
 	arr.append("- 好感度 0-20：礼貌陪伴，保持距离，会主动帮忙但不多言。")
 	arr.append("- 好感度 20-40：开始开玩笑，分享零食，偶尔吐槽。")
@@ -231,11 +232,11 @@ func _get_character_profile() -> PackedStringArray:
 	arr.append("## 语言风格")
 	arr.append("简洁、温和，很少用感叹号。喜欢用“嗯”“或许”“我懂”开头。说话时会停顿，给人思考空间。偶尔引用诗句或哲言。")
 	arr.append("## 情绪－表情－动作映射")
-	arr.append("- 开心 → 微笑（slight_smile），很高兴 → 动作：nod_slowly（缓缓点头）")
-	arr.append("- 悲伤/委屈 → 垂眼（eyes_down），极度悲伤 → 动作：stand_still（静立不动）")
-	arr.append("- 愤怒/不满 → 眉头微皱（frown），动作：cross_arms（抱臂）")
-	arr.append("- 害羞/尴尬 → 表情 default，动作：touch_ear（摸耳垂）")
-	arr.append("- 感动/惊讶 → 表情 eyes_widen，动作：hand_on_heart（手按胸口）")
+	arr.append("- 开心 → slight_smile，动作：nod")
+	arr.append("- 悲伤/委屈 → eyes_down，动作：step_back")
+	arr.append("- 愤怒/不满 → frown，动作：shake")
+	arr.append("- 害羞/尴尬 → default，动作：shrug")
+	arr.append("- 感动/惊讶 → eyes_widen，动作：nod")
 	arr.append("## 关系动态")
 	arr.append("- 好感度 0-20：礼貌疏离，只回答必要问题。")
 	arr.append("- 好感度 20-40：开始主动询问你的感受，分享自己的小习惯。")
@@ -261,6 +262,8 @@ func _get_narrative_rules() -> PackedStringArray:
 	arr.append("6. 【强制】开场或章节开始时，必须包含 play_audio 指令播放合适的背景音乐。且不要频繁使用play_audio，只在开场或需要切换音乐时才用")
 	arr.append("7. 对话中可以适当使用 BBCode 增强表现力（如 [color]、[shake]、[wave]），严禁使用任何与 BBCode 无关的符号")
 	arr.append("8. 角色动作必须使用独立的 character_action 指令，不要在 show_dialogue 的 text 中直接写入 [bounce] 等动作标签。")
+	arr.append("9. 所有背景、角色、表情、动作、音频、粒子、CG 都必须从下方【可用资源 JSON】中选择，不要发明不存在的 id。")
+	arr.append("10. 每轮剧情尽量至少包含一个非对白表现指令（set_expression、character_action、change_background、particle_play 之一），但不要频繁切换音乐。")
 	arr.append("")
 	return arr
 
@@ -298,6 +301,63 @@ func _get_command_reference() -> PackedStringArray:
 	arr.append("（注意：breathe 是自动循环的呼吸动画，不要在 character_action 中调用）")
 	arr.append("")
 	return arr
+
+func _get_resource_constraints_section() -> PackedStringArray:
+	var arr := PackedStringArray()
+	arr.append("# 可用资源 JSON（必须从这里选择 id）")
+	arr.append(JSON.stringify(_build_resource_constraints(), "\t"))
+	arr.append("")
+	return arr
+
+func _build_resource_constraints() -> Dictionary:
+	return {
+		"backgrounds": _collect_background_ids(),
+		"characters": _collect_character_constraints(),
+		"actions": ["bounce", "shake", "nod", "step_back", "shrug"],
+		"audio_bgm": _collect_audio_ids(),
+		"particles": _collect_particle_ids(),
+		"cg": _collect_cg_ids()
+	}
+
+func _collect_background_ids() -> Array:
+	var result := []
+	if BackgroundManager:
+		for id in BackgroundManager.background_database.keys():
+			result.append(str(id))
+	return result
+
+func _collect_character_constraints() -> Dictionary:
+	var result := {}
+	if GameManager:
+		for id in GameManager.character_database.keys():
+			var char_data = GameManager.character_database[id]
+			var expressions := []
+			if char_data and char_data.expressions is Dictionary:
+				for expr in char_data.expressions.keys():
+					expressions.append(str(expr))
+			result[str(id)] = {"expressions": expressions}
+	return result
+
+func _collect_audio_ids() -> Array:
+	var result := []
+	if AudioManager:
+		for id in AudioManager.audio_database.keys():
+			result.append(str(id))
+	return result
+
+func _collect_particle_ids() -> Array:
+	var result := []
+	if ParticleManager:
+		for id in ParticleManager.particle_database.keys():
+			result.append(str(id))
+	return result
+
+func _collect_cg_ids() -> Array:
+	var result := []
+	if CGManager:
+		for id in CGManager.cg_database.keys():
+			result.append(str(id))
+	return result
 
 func _get_dialogue_examples() -> PackedStringArray:
 	var arr := PackedStringArray()
