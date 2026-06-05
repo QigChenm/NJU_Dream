@@ -531,16 +531,23 @@ size_flags_stretch_ratio = 0.5
 theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 36
-text = "Base URL"
+text = "服务商"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="LineEdit" type="LineEdit" parent="VBoxContainerR/AIURLContainer/AIBaseURL" unique_id=1576883770]
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 32
 placeholder_text = "请填写调用的API地址"
+
+[node name="ProviderOption" type="OptionButton" parent="VBoxContainerR/AIURLContainer/AIBaseURL"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 28
 
 [node name="AIModel" type="HBoxContainer" parent="VBoxContainerR/AIURLContainer" unique_id=765834878]
 layout_mode = 2
@@ -554,16 +561,30 @@ size_flags_stretch_ratio = 0.5
 theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 36
-text = "Model"
+text = "AI Model"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="LineEdit" type="LineEdit" parent="VBoxContainerR/AIURLContainer/AIModel" unique_id=267379277]
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 32
 placeholder_text = "请填写调用的AI模型"
+
+[node name="ModelOption" type="OptionButton" parent="VBoxContainerR/AIURLContainer/AIModel"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 28
+
+[node name="RefreshModels" type="Button" parent="VBoxContainerR/AIURLContainer/AIModel"]
+custom_minimum_size = Vector2(100, 48)
+layout_mode = 2
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 24
+text = "刷新"
 
 [node name="APIKey" type="HBoxContainer" parent="VBoxContainerR/AIURLContainer" unique_id=1596938885]
 layout_mode = 2
@@ -589,6 +610,29 @@ theme_override_font_sizes/font_size = 32
 placeholder_text = "如果使用本地模型，此处请留空"
 secret = true
 secret_character = "*"
+
+[node name="OllamaModel" type="HBoxContainer" parent="VBoxContainerR/AIURLContainer"]
+layout_mode = 2
+theme_override_constants/separation = 50
+
+[node name="Label" type="Label" parent="VBoxContainerR/AIURLContainer/OllamaModel"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+size_flags_stretch_ratio = 0.5
+theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 36
+text = "本地模型"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="LineEdit" type="LineEdit" parent="VBoxContainerR/AIURLContainer/OllamaModel"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 32
+placeholder_text = "例如 qwen2.5:7b-instruct"
 
 [node name="DeployAI" type="HBoxContainer" parent="VBoxContainerR/AIURLContainer" unique_id=1111627825]
 custom_minimum_size = Vector2(0, 60)
