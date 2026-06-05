@@ -57,6 +57,8 @@ var auto_mode_paused_by_choice: bool = false
 var skip_mode_paused_by_choice: bool = false
 var _current_line_recorded: bool = false
 
+const ALLOWED_TEXT_BBCODE_TAGS := ["b", "i", "u", "color", "wave", "shake"]
+
 
 # ================= 初始化 =================
 func _ready() -> void:
@@ -253,7 +255,7 @@ func display_dialogue(data: Dictionary) -> void:
 			portrait.texture = GameManager.character_database[character].portrait
 			portrait.show()
 
-	_full_text = data.get("text", "")
+	_full_text = _sanitize_display_text(data.get("text", ""))
 	text_label.text = _full_text
 	text_label.visible_characters = 0
 
@@ -334,7 +336,7 @@ func display_choices(choices: Array) -> void:
 			var btn = choice_buttons[i]
 			var label = choice_labels[i]
 			if label:
-				label.text = choices[i].get("text", "")
+				label.text = _sanitize_plain_text(choices[i].get("text", ""))
 				label.add_theme_color_override("font_color", Color("#34859B"))
 			choice_buttons[i].disabled = false
 			choice_buttons[i].mouse_filter = Control.MOUSE_FILTER_STOP
@@ -406,7 +408,7 @@ func _record_choice(choice_id: int) -> void:
 	var choice_text = ""
 	for c in current_choices:
 		if str(c.get("id", "")) == str(choice_id):
-			choice_text = c.get("text", "")
+			choice_text = _sanitize_plain_text(c.get("text", ""))
 			break
 	if choice_text != "":
 		GameManager.dialogue_history.append({
@@ -800,7 +802,7 @@ func get_dialogue_state() -> Dictionary:
 
 func restore_dialogue_state(data: Dictionary) -> void:
 	var character: String = data.get("character", "")
-	var text: String = data.get("text", "")
+	var text: String = _sanitize_display_text(data.get("text", ""))
 	var choices: Array = data.get("choices", [])
 
 	_full_text = text
@@ -831,6 +833,7 @@ func restore_dialogue_state(data: Dictionary) -> void:
 
 # ================= 长对话 =================
 func show_long_dialogue(text: String) -> void:
+	text = _sanitize_display_text(text)
 	fullscreen_text.text = text
 	long_dialogue_container.visible = true
 	long_close_btn.visible = true
@@ -892,6 +895,45 @@ func show_ai_waiting() -> void:
 func hide_ai_waiting() -> void:
 	if wait:
 		wait.visible = false
+
+func _sanitize_display_text(text: String) -> String:
+	var result := str(text)
+	result = result.replace("[italic]", "[i]")
+	result = result.replace("[/italic]", "[/i]")
+	result = result.replace("[italics]", "[i]")
+	result = result.replace("[/italics]", "[/i]")
+	result = result.replace("[bold]", "[b]")
+	result = result.replace("[/bold]", "[/b]")
+	result = _strip_unsupported_bbcode_tags(result)
+	if not result.contains("[color"):
+		result = result.replace("[/color]", "")
+	if not result.contains("[wave"):
+		result = result.replace("[/wave]", "")
+	if not result.contains("[shake"):
+		result = result.replace("[/shake]", "")
+	if not result.contains("[b"):
+		result = result.replace("[/b]", "")
+	if not result.contains("[i"):
+		result = result.replace("[/i]", "")
+	if not result.contains("[u"):
+		result = result.replace("[/u]", "")
+	return result.strip_edges()
+
+func _sanitize_plain_text(text: String) -> String:
+	var result := _sanitize_display_text(text)
+	var regex := RegEx.new()
+	regex.compile("\\[/?[A-Za-z_][A-Za-z0-9_]*[^\\]]*\\]")
+	return regex.sub(result, "", true).strip_edges()
+
+func _strip_unsupported_bbcode_tags(text: String) -> String:
+	var regex := RegEx.new()
+	regex.compile("\\[/?([A-Za-z_][A-Za-z0-9_]*)([^\\]]*)\\]")
+	var result := text
+	for match_result in regex.search_all(text):
+		var tag_name := match_result.get_string(1).to_lower()
+		if tag_name not in ALLOWED_TEXT_BBCODE_TAGS:
+			result = result.replace(match_result.get_string(0), "")
+	return result
 
 
 # ================= UI 截图与清理 =================

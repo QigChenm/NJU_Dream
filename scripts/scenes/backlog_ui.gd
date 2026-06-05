@@ -7,6 +7,7 @@ extends CanvasLayer
 
 const PORTRAIT_WIDTH = 64
 const PORTRAIT_HEIGHT = 64
+const ALLOWED_TEXT_BBCODE_TAGS := ["b", "i", "u", "color", "wave", "shake"]
 
 func _ready() -> void:
 	visible = false
@@ -50,6 +51,7 @@ func refresh_history() -> void:
 		scroll.value = scroll.max_value
 
 func _append_entry(type: String, character: String, text: String, char_id: String = "") -> void:
+	text = _sanitize_history_text(text)
 	if type == "choice":
 		history_text.append_text("[color=#34859B][b]→ 玩家:[/b] %s[/color]\n" % text)
 		return
@@ -87,3 +89,36 @@ func _find_character_id(display_name: String) -> String:
 		if GameManager.character_database[char_id].display_name == display_name:
 			return char_id
 	return ""
+
+func _sanitize_history_text(text: String) -> String:
+	var result := text
+	result = result.replace("[italic]", "[i]")
+	result = result.replace("[/italic]", "[/i]")
+	result = result.replace("[italics]", "[i]")
+	result = result.replace("[/italics]", "[/i]")
+	result = result.replace("[bold]", "[b]")
+	result = result.replace("[/bold]", "[/b]")
+	result = _strip_unsupported_bbcode_tags(result)
+	if not result.contains("[color"):
+		result = result.replace("[/color]", "")
+	if not result.contains("[wave"):
+		result = result.replace("[/wave]", "")
+	if not result.contains("[shake"):
+		result = result.replace("[/shake]", "")
+	if not result.contains("[b"):
+		result = result.replace("[/b]", "")
+	if not result.contains("[i"):
+		result = result.replace("[/i]", "")
+	if not result.contains("[u"):
+		result = result.replace("[/u]", "")
+	return result.strip_edges()
+
+func _strip_unsupported_bbcode_tags(text: String) -> String:
+	var regex := RegEx.new()
+	regex.compile("\\[/?([A-Za-z_][A-Za-z0-9_]*)([^\\]]*)\\]")
+	var result := text
+	for match_result in regex.search_all(text):
+		var tag_name := match_result.get_string(1).to_lower()
+		if tag_name not in ALLOWED_TEXT_BBCODE_TAGS:
+			result = result.replace(match_result.get_string(0), "")
+	return result

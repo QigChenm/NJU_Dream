@@ -22,6 +22,7 @@ var _waiting_for_choice_continuation: bool = false
 const _FALLBACK_TEXT := "AI 暂时不可用，请稍后再试。"
 const MEMORY_FILE := "user://ai_rules.json"
 const VALID_CHARACTER_ACTIONS := ["bounce", "shake", "nod", "step_back", "shrug"]
+const ALLOWED_TEXT_BBCODE_TAGS := ["b", "i", "u", "color", "wave", "shake"]
 const TEXT_ACTION_TAG_MAP := {
 	"bounce": "bounce",
 	"jump_up": "bounce",
@@ -275,7 +276,7 @@ func _get_narrative_rules() -> PackedStringArray:
 	arr.append("4. 玩家做出选择后，你的第一个指令应展示角色对该选择的即时反应（惊讶、高兴、犹豫等），然后继续剧情。")
 	arr.append("5. 只有在剧情自然结束时才使用 end_scene，一般对话中严禁提前结束。")
 	arr.append("6. 【强制】开场或章节开始时，必须包含 play_audio 指令播放合适的背景音乐。且不要频繁使用play_audio，只在开场或需要切换音乐时才用")
-	arr.append("7. 对话中可以适当使用 BBCode 增强表现力（如 [color]、[shake]、[wave]），严禁使用任何与 BBCode 无关的符号")
+	arr.append("7. 对话中只允许使用这些 BBCode 标签： [b]、[i]、[u]、[color]、[wave]、[shake]。严禁使用 [italic]、[happy]、[sad]、[angry] 等非 Godot 标签或表情标签。")
 	arr.append("8. 角色动作必须使用独立的 character_action 指令，不要在 show_dialogue 的 text 中直接写入 [bounce] 等动作标签。")
 	arr.append("9. 所有背景、角色、表情、动作、音频、粒子、CG 都必须从下方【可用资源 JSON】中选择，不要发明不存在的 id。")
 	arr.append("10. 每轮剧情尽量至少包含一个非对白表现指令（set_expression、character_action、change_background、particle_play 之一），但不要频繁切换音乐。")
@@ -889,21 +890,48 @@ func _detect_text_action(text: String) -> String:
 	return ""
 
 func _sanitize_rich_text(text: String) -> String:
-	var result := text
+	var result := _normalize_bbcode_aliases(text)
 	for tag in TEXT_ACTION_TAG_MAP.keys():
 		result = _strip_bbcode_tag(result, str(tag))
+	result = _strip_unsupported_bbcode_tags(result)
 	if not result.contains("[color"):
 		result = result.replace("[/color]", "")
 	if not result.contains("[wave"):
 		result = result.replace("[/wave]", "")
 	if not result.contains("[shake"):
 		result = result.replace("[/shake]", "")
+	if not result.contains("[b"):
+		result = result.replace("[/b]", "")
+	if not result.contains("[i"):
+		result = result.replace("[/i]", "")
+	if not result.contains("[u"):
+		result = result.replace("[/u]", "")
 	return result.strip_edges()
+
+func _normalize_bbcode_aliases(text: String) -> String:
+	var result := text
+	result = result.replace("[italic]", "[i]")
+	result = result.replace("[/italic]", "[/i]")
+	result = result.replace("[italics]", "[i]")
+	result = result.replace("[/italics]", "[/i]")
+	result = result.replace("[bold]", "[b]")
+	result = result.replace("[/bold]", "[/b]")
+	return result
 
 func _strip_bbcode_tag(text: String, tag: String) -> String:
 	var regex := RegEx.new()
 	regex.compile("\\[/?%s[^\\]]*\\]" % tag)
 	return regex.sub(text, "", true)
+
+func _strip_unsupported_bbcode_tags(text: String) -> String:
+	var regex := RegEx.new()
+	regex.compile("\\[/?([A-Za-z_][A-Za-z0-9_]*)([^\\]]*)\\]")
+	var result := text
+	for match_result in regex.search_all(text):
+		var tag_name := match_result.get_string(1).to_lower()
+		if tag_name not in ALLOWED_TEXT_BBCODE_TAGS:
+			result = result.replace(match_result.get_string(0), "")
+	return result
 
 func _normalize_json_content(content: String) -> String:
 	var result := content.strip_edges()
