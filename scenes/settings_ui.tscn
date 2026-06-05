@@ -18,6 +18,9 @@
 [ext_resource type="Texture2D" uid="uid://cg4c6fi3fklqh" path="res://assets/ui/settings/switch_on_dis.png" id="16_g3nmg"]
 [ext_resource type="Texture2D" uid="uid://crlytbu5f2p73" path="res://assets/ui/settings/设置_速度与透明度测试框_llf.png" id="16_knh0g"]
 [ext_resource type="Texture2D" uid="uid://3lfu5h20badf" path="res://assets/ui/settings/switch_off_dis.png" id="17_irt36"]
+[ext_resource type="Texture2D" uid="uid://bjmnel7obk2bf" path="res://assets/ui/settings/refreshbtn.png" id="18_8jjo8"]
+[ext_resource type="Texture2D" uid="uid://jg7wa6cyagam" path="res://assets/ui/settings/clicked.png" id="19_jhstw"]
+[ext_resource type="Texture2D" uid="uid://du7bkdm6trrgg" path="res://assets/ui/settings/refreshbtn_hover.png" id="20_57f2y"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_npu2v"]
 texture = ExtResource("7_inf46")
@@ -563,19 +566,19 @@ theme_override_styles/normal = SubResource("StyleBoxTexture_ai_field")
 theme_override_styles/focus = SubResource("StyleBoxTexture_ai_field_focus")
 placeholder_text = "请填写调用的API地址"
 
-[node name="ProviderOption" type="OptionButton" parent="VBoxContainerR/AIURLContainer/AIBaseURL"]
+[node name="ProviderOption" type="OptionButton" parent="VBoxContainerR/AIURLContainer/AIBaseURL" unique_id=1393114921]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_colors/font_focus_color = Color(1, 1, 1, 1)
 theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 30
 theme_override_styles/normal = SubResource("StyleBoxTexture_ai_field")
-theme_override_styles/hover = SubResource("StyleBoxTexture_ai_field_focus")
 theme_override_styles/pressed = SubResource("StyleBoxTexture_ai_field_focus")
+theme_override_styles/hover = SubResource("StyleBoxTexture_ai_field_focus")
 theme_override_styles/focus = SubResource("StyleBoxTexture_ai_field_focus")
 
 [node name="AIModel" type="HBoxContainer" parent="VBoxContainerR/AIURLContainer" unique_id=765834878]
@@ -587,7 +590,7 @@ theme_override_constants/separation = 50
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 1
-size_flags_stretch_ratio = 0.5
+size_flags_stretch_ratio = 0.65
 theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 36
@@ -608,41 +611,27 @@ theme_override_styles/normal = SubResource("StyleBoxTexture_ai_field")
 theme_override_styles/focus = SubResource("StyleBoxTexture_ai_field_focus")
 placeholder_text = "请填写调用的AI模型"
 
-[node name="ModelOption" type="OptionButton" parent="VBoxContainerR/AIURLContainer/AIModel"]
+[node name="ModelOption" type="OptionButton" parent="VBoxContainerR/AIURLContainer/AIModel" unique_id=1512806026]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_colors/font_focus_color = Color(1, 1, 1, 1)
 theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 30
 theme_override_styles/normal = SubResource("StyleBoxTexture_ai_field")
-theme_override_styles/hover = SubResource("StyleBoxTexture_ai_field_focus")
 theme_override_styles/pressed = SubResource("StyleBoxTexture_ai_field_focus")
+theme_override_styles/hover = SubResource("StyleBoxTexture_ai_field_focus")
 theme_override_styles/focus = SubResource("StyleBoxTexture_ai_field_focus")
 
-[node name="RefreshModels" type="TextureButton" parent="VBoxContainerR/AIURLContainer/AIModel"]
-custom_minimum_size = Vector2(120, 0)
+[node name="RefreshModels" type="TextureButton" parent="VBoxContainerR/AIURLContainer/AIModel" unique_id=1881968680]
 layout_mode = 2
-size_flags_horizontal = 2
-texture_normal = ExtResource("11_tfy2e")
-texture_pressed = ExtResource("12_knh0g")
-texture_hover = ExtResource("12_knh0g")
-
-[node name="Label" type="Label" parent="VBoxContainerR/AIURLContainer/AIModel/RefreshModels"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_fonts/font = ExtResource("4_inf46")
-theme_override_font_sizes/font_size = 28
-text = "刷新"
-horizontal_alignment = 1
-vertical_alignment = 1
+size_flags_horizontal = 8
+texture_normal = ExtResource("18_8jjo8")
+texture_pressed = ExtResource("19_jhstw")
+texture_hover = ExtResource("20_57f2y")
 
 [node name="APIKey" type="HBoxContainer" parent="VBoxContainerR/AIURLContainer" unique_id=1596938885]
 custom_minimum_size = Vector2(0, 60)
@@ -677,12 +666,12 @@ placeholder_text = "如果使用本地模型，此处请留空"
 secret = true
 secret_character = "*"
 
-[node name="OllamaModel" type="HBoxContainer" parent="VBoxContainerR/AIURLContainer"]
+[node name="OllamaModel" type="HBoxContainer" parent="VBoxContainerR/AIURLContainer" unique_id=828154098]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 theme_override_constants/separation = 50
 
-[node name="Label" type="Label" parent="VBoxContainerR/AIURLContainer/OllamaModel"]
+[node name="Label" type="Label" parent="VBoxContainerR/AIURLContainer/OllamaModel" unique_id=791905505]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 1
@@ -694,12 +683,13 @@ text = "本地模型"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="LineEdit" type="LineEdit" parent="VBoxContainerR/AIURLContainer/OllamaModel"]
+[node name="LineEdit" type="LineEdit" parent="VBoxContainerR/AIURLContainer/OllamaModel" unique_id=2078856955]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
-theme_override_colors/caret_color = Color(0.36078432, 0.75686276, 0.8980392, 1)
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_placeholder_color = Color(1, 1, 1, 0.65)
+theme_override_colors/caret_color = Color(1, 1, 1, 1)
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 32
 theme_override_styles/normal = SubResource("StyleBoxTexture_ai_field")
@@ -745,9 +735,9 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="TipRect" type="TextureRect" parent="." unique_id=1123207025]
-offset_left = 1023.0
+offset_left = 1018.0
 offset_top = 680.0
-offset_right = 1769.0
+offset_right = 1764.0
 offset_bottom = 956.0
 size_flags_horizontal = 0
 texture = ExtResource("16_knh0g")

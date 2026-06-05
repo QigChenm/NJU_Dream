@@ -20,6 +20,7 @@ var _pending_choice_text: String = ""
 var _waiting_for_choice_continuation: bool = false
 
 const _FALLBACK_TEXT := "AI 暂时不可用，请稍后再试。"
+const DEFAULT_OUTPUT_TOKENS := 1200
 const MEMORY_FILE := "user://ai_rules.json"
 const VALID_CHARACTER_ACTIONS := ["bounce", "shake", "nod", "step_back", "shrug"]
 const ALLOWED_TEXT_BBCODE_TAGS := ["b", "i", "u", "color", "wave", "shake"]
@@ -712,6 +713,7 @@ func _build_provider_request(input_str: String) -> Dictionary:
 	var system_prompt := _build_system_prompt()
 	var user_prompt := _build_user_prompt(input_str)
 	var temperature := _get_request_temperature(provider, model_name)
+	var output_tokens := _get_output_token_limit(provider, model_name)
 
 	match api_format:
 		"ollama_chat":
@@ -728,7 +730,7 @@ func _build_provider_request(input_str: String) -> Dictionary:
 					"stream": false,
 					"options": {
 						"temperature": temperature,
-						"num_predict": 1200
+						"num_predict": output_tokens
 					}
 				}
 			}
@@ -742,7 +744,7 @@ func _build_provider_request(input_str: String) -> Dictionary:
 					"system": system_prompt,
 					"messages": [{"role": "user", "content": user_prompt}],
 					"temperature": temperature,
-					"max_tokens": 600
+					"max_tokens": output_tokens
 				}
 			}
 		"gemini_generate_content":
@@ -756,7 +758,7 @@ func _build_provider_request(input_str: String) -> Dictionary:
 				"payload": {
 					"system_instruction": {"parts": [{"text": system_prompt}]},
 					"contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
-					"generationConfig": {"temperature": temperature, "maxOutputTokens": 600}
+					"generationConfig": {"temperature": temperature, "maxOutputTokens": output_tokens}
 				}
 			}
 		_:
@@ -766,12 +768,14 @@ func _build_provider_request(input_str: String) -> Dictionary:
 				"messages": [
 					{"role": "system", "content": system_prompt},
 					{"role": "user", "content": user_prompt}
-				],
-				"temperature": temperature,
-				"max_tokens": 600
+				]
 			}
-			var provider_id: String = provider.get("id", "")
-			if provider_id in ["kimi", "openai", "deepseek", "qwen", "zhipu", "doubao", "xai", "mistral"]:
+			if _should_send_temperature(provider, model_name):
+				payload["temperature"] = temperature
+			payload[_get_token_limit_field(provider, model_name)] = output_tokens
+			if _should_disable_thinking(provider, model_name):
+				payload["thinking"] = {"type": "disabled"}
+			if _supports_json_response_format(provider):
 				payload["response_format"] = {"type": "json_object"}
 			return {
 				"endpoint": base + "/chat/completions",
@@ -779,12 +783,41 @@ func _build_provider_request(input_str: String) -> Dictionary:
 				"payload": payload
 			}
 
-func _get_request_temperature(provider: Dictionary, _model_name: String) -> float:
+func _get_output_token_limit(_provider: Dictionary, _model_name: String) -> int:
+	return DEFAULT_OUTPUT_TOKENS
+
+func _get_request_temperature(provider: Dictionary, model_name: String) -> float:
 	var provider_id: String = provider.get("id", "")
 	var provider_url: String = str(provider.get("base_url", ""))
 	if provider_id == "kimi" or provider_url.begins_with("https://api.moonshot.cn"):
 		return 1.0
+	var normalized_model := model_name.to_lower()
+	if provider_id == "openai" and (normalized_model.begins_with("gpt-5") or normalized_model.begins_with("o")):
+		return 1.0
 	return 0.8
+
+func _get_token_limit_field(provider: Dictionary, model_name: String) -> String:
+	var provider_id: String = provider.get("id", "")
+	var normalized_model := model_name.to_lower()
+	if provider_id == "openai" and (normalized_model.begins_with("gpt-5") or normalized_model.begins_with("o")):
+		return "max_completion_tokens"
+	return "max_tokens"
+
+func _should_send_temperature(provider: Dictionary, model_name: String) -> bool:
+	return not _should_disable_thinking(provider, model_name)
+
+func _should_disable_thinking(provider: Dictionary, model_name: String) -> bool:
+	var provider_id: String = provider.get("id", "")
+	var normalized_model := model_name.to_lower()
+	if provider_id == "kimi":
+		return normalized_model.begins_with("kimi-k2.6") or normalized_model.begins_with("kimi-k2.5") or normalized_model.find("thinking") >= 0
+	if provider_id == "deepseek":
+		return normalized_model.begins_with("deepseek-v4") or normalized_model.find("reasoner") >= 0
+	return false
+
+func _supports_json_response_format(provider: Dictionary) -> bool:
+	var provider_id: String = provider.get("id", "")
+	return provider_id in ["kimi", "openai", "deepseek", "qwen", "zhipu", "doubao", "xai", "mistral"]
 
 func _build_headers(provider: Dictionary, api_key: String) -> PackedStringArray:
 	var headers := PackedStringArray(["Content-Type: application/json"])
