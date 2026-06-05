@@ -3,7 +3,7 @@ extends Node
 
 ## AI 功能总开关
 @export var ai_enabled: bool = true
-@export var base_url: String = "http://localhost:11434/v1"
+@export var base_url: String = "http://localhost:11434"
 @export var model: String = "qwen2.5:7b-instruct"
 @export var request_timeout: float = 30.0
 
@@ -622,7 +622,7 @@ func _get_base_url() -> String:
 		if provider_url != "":
 			return provider_url
 		var user_url = GameManager.get_ai_setting("base_url")
-		if user_url != "http://localhost:11434/v1":
+		if user_url != "" and user_url not in ["http://localhost:11434", "http://localhost:11434/v1"]:
 			return user_url
 	return base_url.replace("localhost", "127.0.0.1")
 
@@ -651,7 +651,7 @@ func _get_current_provider() -> Dictionary:
 		"name": "Ollama 本地",
 		"region": "本地",
 		"base_url": base_url,
-		"api_format": "openai_chat",
+		"api_format": "ollama_chat",
 		"auth_type": "none",
 		"default_model": model
 	}
@@ -697,7 +697,26 @@ func _build_provider_request(input_str: String) -> Dictionary:
 	var user_prompt := _build_user_prompt(input_str)
 
 	match api_format:
+		"ollama_chat":
+			_is_ollama_request = true
+			return {
+				"endpoint": base + "/api/chat",
+				"headers": PackedStringArray(["Content-Type: application/json"]),
+				"payload": {
+					"model": model_name,
+					"messages": [
+						{"role": "system", "content": system_prompt},
+						{"role": "user", "content": user_prompt}
+					],
+					"stream": false,
+					"options": {
+						"temperature": 0.8,
+						"num_predict": 1200
+					}
+				}
+			}
 		"anthropic_messages":
+			_is_ollama_request = false
 			return {
 				"endpoint": base + "/messages",
 				"headers": _build_headers(provider, api_key),
@@ -710,6 +729,7 @@ func _build_provider_request(input_str: String) -> Dictionary:
 				}
 			}
 		"gemini_generate_content":
+			_is_ollama_request = false
 			var endpoint := "%s/models/%s:generateContent" % [base, model_name]
 			if api_key != "":
 				endpoint += "?key=" + api_key.uri_encode()
@@ -723,6 +743,7 @@ func _build_provider_request(input_str: String) -> Dictionary:
 				}
 			}
 		_:
+			_is_ollama_request = false
 			var payload := {
 				"model": model_name,
 				"messages": [
@@ -755,6 +776,11 @@ func _extract_response_content(raw_response: Dictionary) -> String:
 	var provider := _get_current_provider()
 	var api_format: String = provider.get("api_format", "openai_chat")
 	match api_format:
+		"ollama_chat":
+			var message = raw_response.get("message", {})
+			if message is Dictionary:
+				return str(message.get("content", ""))
+			return ""
 		"anthropic_messages":
 			var content: Array = raw_response.get("content", [])
 			for part in content:

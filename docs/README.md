@@ -37,14 +37,14 @@
 
 游戏目录下提供了 `deploy_ollama.bat` 脚本，可以自动帮你安装 Ollama 并下载推荐模型（千问 7B）。
 你也可以在游戏内的**「游戏设置」**界面点击 **「Ollama一键部署」** 按钮来启动该脚本。
-部署完成后，将 AI 地址设置为 `http://localhost:11434/v1`，模型选择 `qwen2.5:7b-instruct` 即可。
+部署完成后，在设置页选择 `Ollama 本地`，模型选择 `qwen2.5:7b-instruct` 即可。
 
 #### 🖥️ 选项二：手动配置本地 Ollama
 
 1. 安装 [Ollama](https://ollama.com/)。
 2. 打开终端，下载模型：`ollama pull qwen2.5:7b-instruct`。
 3. 启动 Ollama 服务：`ollama serve`。
-4. 在游戏设置中确认 AI 地址为 `http://localhost:11434/v1`，模型为 `qwen2.5:7b-instruct`。
+4. 在游戏设置中选择 `Ollama 本地`，模型为 `qwen2.5:7b-instruct`。
 
 #### ☁️ 选项三：使用云端 API
 

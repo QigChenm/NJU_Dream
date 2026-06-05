@@ -17,7 +17,7 @@
 1. 使用 Godot 4.6.2 打开项目。
 2. 在设置页选择一个 provider 和模型。
 3. 启动新游戏，确认第一次 AI 响应会通过 `commands` 驱动背景、角色、对白等场景元素。
-4. 切换到 Ollama，确认本地模型使用 `http://localhost:11434/v1/chat/completions`。
+4. 切换到 Ollama，确认本地模型使用 `http://localhost:11434/api/chat`。
 5. 点击选项后，确认对话历史中出现“玩家”选择，并且下一轮 AI 能承接该选项。
 6. 模拟包含 `[jump_up]`、`[bounce]` 或孤立 `[/color]` 的 AI 返回，确认 UI 不显示异常标签。
 
