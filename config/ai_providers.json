@@ -1,0 +1,148 @@
+{
+	"version": 1,
+	"providers": [
+		{
+			"id": "kimi",
+			"name": "Kimi / Moonshot",
+			"region": "国内",
+			"base_url": "https://api.moonshot.cn/v1",
+			"api_format": "openai_chat",
+			"auth_type": "bearer",
+			"supports_model_refresh": true,
+			"default_model": "kimi-k2.6",
+			"models": ["kimi-k2.6", "kimi-k2.5", "moonshot-v1-auto", "moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"]
+		},
+		{
+			"id": "deepseek",
+			"name": "DeepSeek",
+			"region": "国内",
+			"base_url": "https://api.deepseek.com/v1",
+			"api_format": "openai_chat",
+			"auth_type": "bearer",
+			"supports_model_refresh": true,
+			"default_model": "deepseek-v4-flash",
+			"models": ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"]
+		},
+		{
+			"id": "qwen",
+			"name": "阿里百炼 Qwen",
+			"region": "国内",
+			"base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+			"api_format": "openai_chat",
+			"auth_type": "bearer",
+			"supports_model_refresh": true,
+			"default_model": "qwen-plus",
+			"models": ["qwen-max", "qwen-plus", "qwen-turbo", "qwen-long", "qwen3-max", "qwen3-plus", "qwen3-turbo"]
+		},
+		{
+			"id": "zhipu",
+			"name": "智谱 GLM",
+			"region": "国内",
+			"base_url": "https://open.bigmodel.cn/api/paas/v4",
+			"api_format": "openai_chat",
+			"auth_type": "bearer",
+			"supports_model_refresh": true,
+			"default_model": "glm-4.6",
+			"models": ["glm-4.6", "glm-4-plus", "glm-4-air", "glm-4-flash", "glm-z1-air"]
+		},
+		{
+			"id": "baidu",
+			"name": "百度千帆 ERNIE",
+			"region": "国内",
+			"base_url": "https://qianfan.baidubce.com/v2",
+			"api_format": "openai_chat",
+			"auth_type": "bearer",
+			"supports_model_refresh": true,
+			"default_model": "ernie-4.5-turbo-128k",
+			"models": ["ernie-4.5-turbo-128k", "ernie-4.5-8k", "ernie-x1-turbo-32k"]
+		},
+		{
+			"id": "doubao",
+			"name": "火山方舟 Doubao",
+			"region": "国内",
+			"base_url": "https://ark.cn-beijing.volces.com/api/v3",
+			"api_format": "openai_chat",
+			"auth_type": "bearer",
+			"supports_model_refresh": true,
+			"default_model": "doubao-seed-1-6",
+			"models": ["doubao-seed-1-6", "doubao-seed-1-6-thinking", "doubao-1-5-pro-32k", "doubao-1-5-lite-32k"]
+		},
+		{
+			"id": "minimax",
+			"name": "MiniMax",
+			"region": "国内",
+			"base_url": "https://api.minimax.chat/v1",
+			"api_format": "openai_chat",
+			"auth_type": "bearer",
+			"supports_model_refresh": true,
+			"default_model": "MiniMax-M2",
+			"models": ["MiniMax-M2", "MiniMax-Text-01", "abab6.5s-chat"]
+		},
+		{
+			"id": "openai",
+			"name": "OpenAI",
+			"region": "国外",
+			"base_url": "https://api.openai.com/v1",
+			"api_format": "openai_chat",
+			"auth_type": "bearer",
+			"supports_model_refresh": true,
+			"default_model": "gpt-5.5",
+			"models": ["gpt-5.5", "gpt-5.4", "gpt-5.2", "gpt-5.2-chat-latest", "gpt-5.2-pro", "gpt-5.2-mini"]
+		},
+		{
+			"id": "anthropic",
+			"name": "Anthropic Claude",
+			"region": "国外",
+			"base_url": "https://api.anthropic.com/v1",
+			"api_format": "anthropic_messages",
+			"auth_type": "x-api-key",
+			"supports_model_refresh": false,
+			"default_model": "claude-sonnet-4-5",
+			"models": ["claude-sonnet-4-5", "claude-opus-4-1", "claude-haiku-4-5"]
+		},
+		{
+			"id": "gemini",
+			"name": "Google Gemini",
+			"region": "国外",
+			"base_url": "https://generativelanguage.googleapis.com/v1beta",
+			"api_format": "gemini_generate_content",
+			"auth_type": "api_key_query",
+			"supports_model_refresh": true,
+			"default_model": "gemini-3-pro",
+			"models": ["gemini-3-pro", "gemini-3-flash", "gemini-2.5-pro", "gemini-2.5-flash"]
+		},
+		{
+			"id": "xai",
+			"name": "xAI Grok",
+			"region": "国外",
+			"base_url": "https://api.x.ai/v1",
+			"api_format": "openai_chat",
+			"auth_type": "bearer",
+			"supports_model_refresh": true,
+			"default_model": "grok-4",
+			"models": ["grok-4", "grok-4-fast", "grok-3"]
+		},
+		{
+			"id": "mistral",
+			"name": "Mistral",
+			"region": "国外",
+			"base_url": "https://api.mistral.ai/v1",
+			"api_format": "openai_chat",
+			"auth_type": "bearer",
+			"supports_model_refresh": true,
+			"default_model": "mistral-large-latest",
+			"models": ["mistral-large-latest", "ministral-8b-latest", "ministral-3b-latest", "codestral-latest"]
+		},
+		{
+			"id": "ollama",
+			"name": "Ollama 本地",
+			"region": "本地",
+			"base_url": "http://localhost:11434/v1",
+			"api_format": "openai_chat",
+			"auth_type": "none",
+			"supports_model_refresh": true,
+			"default_model": "qwen2.5:7b-instruct",
+			"models": ["qwen2.5:7b-instruct", "qwen3:8b", "llama3.1:8b", "deepseek-r1:7b"]
+		}
+	]
+}
