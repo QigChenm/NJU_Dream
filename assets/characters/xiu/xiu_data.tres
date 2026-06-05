@@ -13,6 +13,7 @@
 script = ExtResource("1_11t4j")
 character_id = "xiu"
 display_name = "小貅"
+default_affection = 50
 expressions = {
 "angry": ExtResource("7_ugevj"),
 "confused": ExtResource("6_ww7cj"),

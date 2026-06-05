@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BackgroundData" format=3 uid="uid://biwkdtkn1bjg8"]
+
+[ext_resource type="FontFile" uid="uid://cv4m0rys7x10i" path="res://assets/fonts/ChillRoundGothic_Bold.ttf" id="1_nlk7p"]
+[ext_resource type="Script" uid="uid://bn1rl1bkkavgq" path="res://scripts/datatypes/background_data.gd" id="2_l6eu2"]
+[ext_resource type="Texture2D" uid="uid://c00e1ey5rla1k" path="res://assets/backgrounds/xingzheng.png" id="3_nlk7p"]
+
+[resource]
+script = ExtResource("2_l6eu2")
+background_id = "xingzheng"
+display_name = "行政楼南楼"
+location_name = "行政楼南楼"
+location_font = ExtResource("1_nlk7p")
+location_font_size = 40
+texture = ExtResource("3_nlk7p")
+metadata/_custom_type_script = "uid://bn1rl1bkkavgq"

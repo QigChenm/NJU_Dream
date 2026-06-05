@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BackgroundData" format=3 uid="uid://300vi0qlc6b6"]
+
+[ext_resource type="FontFile" uid="uid://cv4m0rys7x10i" path="res://assets/fonts/ChillRoundGothic_Bold.ttf" id="1_yjtx8"]
+[ext_resource type="Script" uid="uid://bn1rl1bkkavgq" path="res://scripts/datatypes/background_data.gd" id="2_02842"]
+[ext_resource type="Texture2D" uid="uid://iikrp0phepb1" path="res://assets/backgrounds/duxia_front.png" id="3_yjtx8"]
+
+[resource]
+script = ExtResource("2_02842")
+background_id = "duxia_front"
+display_name = "杜厦图书馆正门"
+location_name = "杜厦图书馆正门"
+location_font = ExtResource("1_yjtx8")
+location_font_size = 40
+texture = ExtResource("3_yjtx8")
+metadata/_custom_type_script = "uid://bn1rl1bkkavgq"

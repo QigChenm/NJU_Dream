@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BackgroundData" format=3 uid="uid://cm065dtvsr1oj"]
+
+[ext_resource type="FontFile" uid="uid://cv4m0rys7x10i" path="res://assets/fonts/ChillRoundGothic_Bold.ttf" id="1_ne2ue"]
+[ext_resource type="Script" uid="uid://bn1rl1bkkavgq" path="res://scripts/datatypes/background_data.gd" id="2_ophhg"]
+[ext_resource type="Texture2D" uid="uid://dk4hjxoug1tud" path="res://assets/backgrounds/path.png" id="3_ne2ue"]
+
+[resource]
+script = ExtResource("2_ophhg")
+background_id = "path"
+display_name = "鼓楼小径"
+location_name = "鼓楼小径"
+location_font = ExtResource("1_ne2ue")
+location_font_size = 40
+texture = ExtResource("3_ne2ue")
+metadata/_custom_type_script = "uid://bn1rl1bkkavgq"

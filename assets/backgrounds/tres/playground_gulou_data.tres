@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BackgroundData" format=3 uid="uid://bsqkpmdna2kri"]
+
+[ext_resource type="FontFile" uid="uid://cv4m0rys7x10i" path="res://assets/fonts/ChillRoundGothic_Bold.ttf" id="1_2ui2j"]
+[ext_resource type="Script" uid="uid://bn1rl1bkkavgq" path="res://scripts/datatypes/background_data.gd" id="2_bkp5n"]
+[ext_resource type="Texture2D" uid="uid://dpulo2gdpdlok" path="res://assets/backgrounds/playground_gulou.png" id="3_2ui2j"]
+
+[resource]
+script = ExtResource("2_bkp5n")
+background_id = "playground_gulou"
+display_name = "苏浙运动场"
+location_name = "苏浙运动场"
+location_font = ExtResource("1_2ui2j")
+location_font_size = 40
+texture = ExtResource("3_2ui2j")
+metadata/_custom_type_script = "uid://bn1rl1bkkavgq"

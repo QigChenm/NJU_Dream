@@ -26,7 +26,12 @@ var bg_texture_map: Dictionary = {
 	"bg_main_1": "res://assets/backgrounds/beidalou.jpg",
 	"bg_main_2": "res://assets/backgrounds/duxia.jpg",
 	"bg_main_3": "res://assets/backgrounds/litang.jpg",
-	"bg_main_4": "res://assets/backgrounds/nansu.jpg"
+	"bg_main_4": "res://assets/backgrounds/nansu.jpg",
+	"bg_main_5": "res://assets/backgrounds/classroom.png",
+	"bg_main_6": "res://assets/backgrounds/gate.png",
+	"bg_main_7": "res://assets/backgrounds/path.png",
+	"bg_main_8": "res://assets/backgrounds/playground_xianlin.png",
+	"bg_main_9": "res://assets/backgrounds/xiangxuehai.png"
 }
 
 # ================= 初始化 =================
