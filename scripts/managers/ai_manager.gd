@@ -3,17 +3,15 @@ extends Node
 
 ## AI 功能总开关
 @export var ai_enabled: bool = true
-@export var base_url: String = "http://localhost:11434/v1"
+@export var base_url: String = "http://localhost:11434"
 @export var model: String = "qwen2.5:7b-instruct"
 @export var request_timeout: float = 30.0
-@export var env_file_path: String = "res://.env"
 
 var _http_request: HTTPRequest = null
 var _is_requesting: bool = false
 var _is_ollama_request: bool = false
 var _is_canceling: bool = false
 var _recovery_mode: bool = false
-var _env_values: Dictionary = {}
 var _pending_choice_id: int = -1
 var _pending_request_id: int = 0
 var _request_id: int = 0
@@ -22,13 +20,29 @@ var _pending_choice_text: String = ""
 var _waiting_for_choice_continuation: bool = false
 
 const _FALLBACK_TEXT := "AI 暂时不可用，请稍后再试。"
-# .env文件已废弃，现可直接从设置中读取
-const _FALLBACK_ENV_FILE_PATH := "res://env"
-const MEMORY_FILE := "res://config/ai_rules.json"
+const MEMORY_FILE := "user://ai_rules.json"
+const VALID_CHARACTER_ACTIONS := ["bounce", "shake", "nod", "step_back", "shrug"]
+const ALLOWED_TEXT_BBCODE_TAGS := ["b", "i", "u", "color", "wave", "shake"]
+const TEXT_ACTION_TAG_MAP := {
+	"bounce": "bounce",
+	"jump_up": "bounce",
+	"jump": "bounce",
+	"nod": "nod",
+	"nod_slowly": "nod",
+	"step_back": "step_back",
+	"ears_down": "step_back",
+	"scratch_head": "step_back",
+	"shrug": "shrug",
+	"stomp": "shake",
+	"hold_heart": "shake",
+	"hand_on_heart": "shake",
+	"cross_arms": "shrug",
+	"stand_still": "step_back",
+	"touch_ear": "shrug"
+}
 
 # ---------- 初始化 ----------
 func _ready() -> void:
-	_load_env_file()
 	_http_request = HTTPRequest.new()
 	_http_request.timeout = request_timeout
 	_http_request.request_completed.connect(_on_request_completed)
@@ -56,55 +70,15 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 		return
 
 	_is_requesting = true
+	_show_ai_waiting()
 	_request_id += 1
 	var current_id = _request_id
 	print("[AIManager] 发送请求 #%d" % current_id)
 
-	var is_ollama = _get_base_url().begins_with("http://127.0.0.1:11434") or _get_base_url().begins_with("http://localhost:11434")
-	_is_ollama_request = is_ollama
-
-	var endpoint := ""
-	var headers := PackedStringArray(["Content-Type: application/json"])
-	var payload: Dictionary
-
-	if is_ollama:
-		endpoint = "http://127.0.0.1:11434/api/chat"
-		payload = {
-			"model": _get_model(),
-			"messages": [
-				{"role": "system", "content": _build_system_prompt()},
-				{"role": "user", "content": _build_user_prompt(input_str)}
-			],
-			"stream": false,
-			"options": {
-				"temperature": 0.8,
-				"num_predict": 1200
-			}
-		}
-	else:
-		endpoint = _get_base_url().rstrip("/") + "/chat/completions"
-		var api_key = ""
-		if GameManager:
-			api_key = GameManager.get_ai_setting("api_key")
-		if api_key == "":
-			api_key = _get_env_value("MOONSHOT_API_KEY")
-		if api_key != "":
-			headers.append("Authorization: Bearer " + api_key)
-
-		payload = {
-			"model": _get_model(),
-			"messages": [
-				{"role": "system", "content": _build_system_prompt()},
-				{"role": "user", "content": _build_user_prompt(input_str)}
-			],
-			"temperature": 0.8,
-			"max_tokens": 1000,
-		}
-		var user_base_url = _get_base_url()
-		if user_base_url.begins_with("https://api.deepseek.com") or user_base_url.begins_with("https://api.moonshot.cn"):
-			payload["extra_body"] = {"thinking": {"type": "disabled"}}
-		if user_base_url.begins_with("https://api.moonshot.cn") or user_base_url.begins_with("https://api.openai.com"):
-			payload["response_format"] = {"type": "json_object"}
+	var request_data := _build_provider_request(input_str)
+	var endpoint: String = request_data.get("endpoint", "")
+	var headers: PackedStringArray = request_data.get("headers", PackedStringArray())
+	var payload: Dictionary = request_data.get("payload", {})
 
 	print("[AIManager] 实际请求 URL: %s" % endpoint)
 	var error = _http_request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
@@ -131,6 +105,7 @@ func process_ai_response(response: Dictionary) -> void:
 	if not has_node("/root/ScriptEngine"):
 		push_error("[AIManager] ScriptEngine 未找到。")
 		return
+	commands = _normalize_ai_commands(commands)
 	ScriptEngine.execute_commands(commands)
 
 func _on_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
@@ -143,38 +118,23 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 		_is_canceling = false
 		return
 
-	if result != HTTPRequest.RESULT_SUCCESS or response_code < 200 or response_code >= 300:
+	if result != HTTPRequest.RESULT_SUCCESS:
 		_last_error_code = result
 		push_error("[AIManager] 请求失败，结果码: %d" % result)
 		_recover_with_dialogue("[AIManager] 请求未成功完成。")
 		return
-
 	var raw_text := body.get_string_from_utf8()
 	print("[AIManager] 原始响应前2000字符: ", raw_text.substr(0, 2000))
-
+	if response_code < 200 or response_code >= 300:
+		push_error("[AIManager] AI 返回 HTTP %d: %s" % [response_code, raw_text])
+		_recover_with_dialogue("[AIManager] AI HTTP 响应异常。")
+		return
 	var raw_response = JSON.parse_string(raw_text)
 	if not raw_response is Dictionary:
 		push_error("[AIManager] 顶级响应不是 JSON 对象。原始文本: ", raw_text)
 		_recover_with_dialogue("[AIManager] AI 响应格式错误（非JSON对象）。")
 		return
-
-	var message: Dictionary
-	if _is_ollama_request:
-		message = raw_response.get("message", {})
-	else:
-		var choices: Array = raw_response.get("choices", [])
-		if choices.is_empty():
-			push_error("[AIManager] 响应中缺少 choices。原始文本: ", raw_text)
-			_recover_with_dialogue("[AIManager] AI 响应中无 choices。")
-			return
-		message = choices[0].get("message", {})
-
-	if not message is Dictionary:
-		push_error("[AIManager] message 格式异常。原始文本: ", raw_text)
-		_recover_with_dialogue("[AIManager] AI message 格式异常。")
-		return
-
-	var content: String = message.get("content", "")
+	var content := _extract_response_content(raw_response)
 	if content.strip_edges() == "":
 		push_error("[AIManager] AI 返回的 content 为空！完整响应: %s" % raw_text)
 		_recover_with_dialogue("[AIManager] AI 正在思考中~")
@@ -229,6 +189,7 @@ func _build_system_prompt() -> String:
 	lines.append_array(_get_character_profile())
 	lines.append_array(_get_narrative_rules())
 	lines.append_array(_get_command_reference())
+	lines.append_array(_get_resource_constraints_section())
 	lines.append_array(_get_dialogue_examples())
 	lines.append_array(_get_user_rules_section())
 	return "\n".join(lines)
@@ -264,11 +225,11 @@ func _get_character_profile() -> PackedStringArray:
 	arr.append("## 语言风格")
 	arr.append("语速较快，常用“哇”“呀”“嘿嘿”等词，喜欢用比喻和夸张。偶尔冒出南京方言词（如“啊要辣油啊”）。称呼你为“你”或昵称，不会叫“主人”。")
 	arr.append("## 情绪－表情－动作映射")
-	arr.append("- 开心 → happy，很高兴 → very_happy，动作：jump_up")
-	arr.append("- 悲伤/委屈 → sad，极度悲伤 → cry，动作：ears_down（耳朵耷拉）")
-	arr.append("- 愤怒/不满 → angry，动作：stomp（跺脚）")
-	arr.append("- 害羞/尴尬 → 表情 blush，动作：scratch_head（挠头）")
-	arr.append("- 感动/惊讶 → 表情 wide_eyes，动作：hold_heart（捂心口）")
+	arr.append("- 开心 → happy，很高兴 → very_happy，动作：bounce")
+	arr.append("- 悲伤/委屈 → sad，动作：step_back")
+	arr.append("- 愤怒/不满 → angry，动作：shake")
+	arr.append("- 害羞/尴尬 → confused，动作：step_back")
+	arr.append("- 感动/惊讶 → surprised，动作：shake 或 nod")
 	arr.append("## 关系动态")
 	arr.append("- 好感度 0-20：礼貌陪伴，保持距离，会主动帮忙但不多言。")
 	arr.append("- 好感度 20-40：开始开玩笑，分享零食，偶尔吐槽。")
@@ -279,29 +240,32 @@ func _get_character_profile() -> PackedStringArray:
 	arr.append("- 不会说出“你真没用”之类打击自信的话。")
 	arr.append("- 不会无视你的烦恼。")
 	arr.append("")
-	arr.append("# 角色档案：宋青 (id:song)")
-	arr.append("## 核心身份")
-	arr.append("南大校徽上的青松化身，沉稳可靠的学长，是你的心灵树洞和理性支持者。外表清冷如松，内心温热如春。")
-	arr.append("## 内在动机与价值观")
-	arr.append("希望引导你找到内心的平静与韧性，像松树一样抗压。相信“沉默的陪伴有时胜过千言万语”。")
-	arr.append("## 语言风格")
-	arr.append("简洁、温和，很少用感叹号。喜欢用“嗯”“或许”“我懂”开头。说话时会停顿，给人思考空间。偶尔引用诗句或哲言。")
-	arr.append("## 情绪－表情－动作映射")
-	arr.append("- 开心 → 微笑（slight_smile），很高兴 → 动作：nod_slowly（缓缓点头）")
-	arr.append("- 悲伤/委屈 → 垂眼（eyes_down），极度悲伤 → 动作：stand_still（静立不动）")
-	arr.append("- 愤怒/不满 → 眉头微皱（frown），动作：cross_arms（抱臂）")
-	arr.append("- 害羞/尴尬 → 表情 default，动作：touch_ear（摸耳垂）")
-	arr.append("- 感动/惊讶 → 表情 eyes_widen，动作：hand_on_heart（手按胸口）")
-	arr.append("## 关系动态")
-	arr.append("- 好感度 0-20：礼貌疏离，只回答必要问题。")
-	arr.append("- 好感度 20-40：开始主动询问你的感受，分享自己的小习惯。")
-	arr.append("- 好感度 40-60：展露温柔，会为你准备热茶或建议，倾听时间变长。")
-	arr.append("- 好感度 60+：愿意坦露自己的脆弱，会轻轻拍拍你的肩，说出“我在”。")
-	arr.append("## 禁忌")
-	arr.append("- 绝不会冷暴力或消失。")
-	arr.append("- 不会否定你的情绪（不会说“你想多了”）。")
-	arr.append("- 不会强迫你做任何事。")
-	arr.append("")
+
+	# TODO: 宋青角色资源补全后再启用。当前仓库没有 song_data.tres 和对应表情贴图，
+	# 因此这些资料必须保持注释，避免 AI 选择不存在的角色或表情。
+	# arr.append("# 角色档案：宋青 (id:song)")
+	# arr.append("## 核心身份")
+	# arr.append("南大校徽上的青松化身，沉稳可靠的学长，是你的心灵树洞和理性支持者。外表清冷如松，内心温热如春。")
+	# arr.append("## 内在动机与价值观")
+	# arr.append("希望引导你找到内心的平静与韧性，像松树一样抗压。相信“沉默的陪伴有时胜过千言万语”。")
+	# arr.append("## 语言风格")
+	# arr.append("简洁、温和，很少用感叹号。喜欢用“嗯”“或许”“我懂”开头。说话时会停顿，给人思考空间。偶尔引用诗句或哲言。")
+	# arr.append("## 情绪－表情－动作映射")
+	# arr.append("- 开心 → slight_smile，动作：nod")
+	# arr.append("- 悲伤/委屈 → eyes_down，动作：step_back")
+	# arr.append("- 愤怒/不满 → frown，动作：shake")
+	# arr.append("- 害羞/尴尬 → default，动作：shrug")
+	# arr.append("- 感动/惊讶 → eyes_widen，动作：nod")
+	# arr.append("## 关系动态")
+	# arr.append("- 好感度 0-20：礼貌疏离，只回答必要问题。")
+	# arr.append("- 好感度 20-40：开始主动询问你的感受，分享自己的小习惯。")
+	# arr.append("- 好感度 40-60：展露温柔，会为你准备热茶或建议，倾听时间变长。")
+	# arr.append("- 好感度 60+：愿意坦露自己的脆弱，会轻轻拍拍你的肩，说出“我在”。")
+	# arr.append("## 禁忌")
+	# arr.append("- 绝不会冷暴力或消失。")
+	# arr.append("- 不会否定你的情绪（不会说“你想多了”）。")
+	# arr.append("- 不会强迫你做任何事。")
+	# arr.append("")
 	return arr
 
 func _get_narrative_rules() -> PackedStringArray:
@@ -312,11 +276,15 @@ func _get_narrative_rules() -> PackedStringArray:
 	arr.append("1. 每次生成 2-4 条指令，形成一小段自然推进的剧情。第一条指令通常为 show_dialogue。")
 	arr.append("2. 根据当前好感度和章节阶段，选择合适的情绪基调和对话内容。")
 	arr.append("3. 当剧情需要玩家决策时（角色提问、征求意见、面临选择），必须使用 show_choices，且将其作为本轮最后一条指令。")
+	arr.append("3.1 【强制】show_choices 后严禁继续输出任何指令；好感度、变量变化必须等玩家选择后的下一轮再处理。")
 	arr.append("4. 玩家做出选择后，你的第一个指令应展示角色对该选择的即时反应（惊讶、高兴、犹豫等），然后继续剧情。")
 	arr.append("5. 只有在剧情自然结束时才使用 end_scene，一般对话中严禁提前结束。")
 	arr.append("6. 【强制】开场或章节开始时，必须包含 play_audio 指令播放合适的背景音乐。且不要频繁使用play_audio，只在开场或需要切换音乐时才用")
-	arr.append("7. 对话中可以适当使用 BBCode 增强表现力（如 [color]、[shake]、[wave]），严禁使用任何与 BBCode 无关的符号")
+	arr.append("7. 对话中只允许使用这些 BBCode 标签： [b]、[i]、[u]、[color]、[wave]、[shake]。严禁使用 [italic]、[happy]、[sad]、[angry] 等非 Godot 标签或表情标签。")
 	arr.append("8. 角色动作必须使用独立的 character_action 指令，不要在 show_dialogue 的 text 中直接写入 [bounce] 等动作标签。")
+	arr.append("9. 所有背景、角色、表情、动作、音频、粒子、CG 都必须从下方【可用资源 JSON】中选择，不要发明不存在的 id。")
+	arr.append("9.1 对话文本中的地点必须贴合当前或即将切换的背景；严禁把不存在贴图的地点（如小吃街、鸭血粉丝汤店、古典园林、樱花林）写成正在前往或已经到达的真实场景。")
+	arr.append("10. 每轮剧情尽量至少包含一个非对白表现指令（set_expression、character_action、change_background、particle_play 之一），但不要频繁切换音乐。")
 	arr.append("")
 	return arr
 
@@ -354,6 +322,74 @@ func _get_command_reference() -> PackedStringArray:
 	arr.append("（注意：breathe 是自动循环的呼吸动画，不要在 character_action 中调用）")
 	arr.append("")
 	return arr
+
+func _get_resource_constraints_section() -> PackedStringArray:
+	var arr := PackedStringArray()
+	arr.append("# 可用资源 JSON（必须从这里选择 id）")
+	arr.append(JSON.stringify(_build_resource_constraints(), "\t"))
+	arr.append("")
+	return arr
+
+func _build_resource_constraints() -> Dictionary:
+	return {
+		"backgrounds": _collect_background_constraints(),
+		"characters": _collect_character_constraints(),
+		"actions": ["bounce", "shake", "nod", "step_back", "shrug"],
+		"audio_bgm": _collect_audio_ids(),
+		"particles": _collect_particle_ids(),
+		"cg": _collect_cg_ids()
+	}
+
+func _collect_background_constraints() -> Dictionary:
+	var result := {}
+	if BackgroundManager:
+		for id in BackgroundManager.background_database.keys():
+			var bg_data = BackgroundManager.background_database[id]
+			result[str(id)] = {
+				"display_name": str(bg_data.display_name) if bg_data else str(id),
+				"location_name": str(bg_data.location_name) if bg_data else str(id)
+			}
+	return result
+
+func _collect_background_ids() -> Array:
+	var result := []
+	if BackgroundManager:
+		for id in BackgroundManager.background_database.keys():
+			result.append(str(id))
+	return result
+
+func _collect_character_constraints() -> Dictionary:
+	var result := {}
+	if GameManager:
+		for id in GameManager.character_database.keys():
+			var char_data = GameManager.character_database[id]
+			var expressions := []
+			if char_data and char_data.expressions is Dictionary:
+				for expr in char_data.expressions.keys():
+					expressions.append(str(expr))
+			result[str(id)] = {"expressions": expressions}
+	return result
+
+func _collect_audio_ids() -> Array:
+	var result := []
+	if AudioManager:
+		for id in AudioManager.audio_database.keys():
+			result.append(str(id))
+	return result
+
+func _collect_particle_ids() -> Array:
+	var result := []
+	if ParticleManager:
+		for id in ParticleManager.particle_database.keys():
+			result.append(str(id))
+	return result
+
+func _collect_cg_ids() -> Array:
+	var result := []
+	if CGManager:
+		for id in CGManager.cg_database.keys():
+			result.append(str(id))
+	return result
 
 func _get_dialogue_examples() -> PackedStringArray:
 	var arr := PackedStringArray()
@@ -458,7 +494,7 @@ func _get_user_rules_section() -> PackedStringArray:
 func _build_user_prompt(input_str: String) -> String:
 	var chapter := _determine_current_chapter()
 	var chapter_info = MAIN_STORY_LINE.get(chapter, {})
-	var history_block := _get_recent_dialogue_history(25)
+	var history_block := _get_recent_dialogue_history(16)
 	var state_block := _get_current_game_state()
 	var event_desc := ""
 	if input_str == "__start__":
@@ -597,57 +633,56 @@ func add_user_rule(rule_text: String) -> void:
 # ---------- 工具函数 ----------
 func _get_base_url() -> String:
 	if GameManager:
+		var provider := _get_current_provider()
+		var provider_url: String = provider.get("base_url", "")
+		if provider_url != "":
+			return provider_url
 		var user_url = GameManager.get_ai_setting("base_url")
-		if user_url != "http://localhost:11434/v1":
+		if user_url != "" and user_url not in ["http://localhost:11434", "http://localhost:11434/v1"]:
 			return user_url
 	return base_url.replace("localhost", "127.0.0.1")
 
 func _get_model() -> String:
 	if GameManager:
+		var provider_id := GameManager.get_ai_setting("provider")
+		if provider_id == "ollama":
+			var ollama_model = GameManager.get_ai_setting("ollama_model")
+			if ollama_model != "":
+				return ollama_model
 		var user_model = GameManager.get_ai_setting("model")
 		if user_model != "":
 			return user_model
 	return model
 
-func _get_env_value(key: String) -> String:
-	var system_value := OS.get_environment(key)
-	return system_value if system_value != "" else str(_env_values.get(key, ""))
+func _get_api_key() -> String:
+	if GameManager:
+		return GameManager.get_ai_setting("api_key")
+	return ""
 
-func _load_env_file() -> void:
-	_env_values.clear()
-	var path := env_file_path
-	if not FileAccess.file_exists(path) and FileAccess.file_exists(_FALLBACK_ENV_FILE_PATH):
-		path = _FALLBACK_ENV_FILE_PATH
-	if not FileAccess.file_exists(path):
-		return
-	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		return
-	while not file.eof_reached():
-		var line := file.get_line().strip_edges()
-		if line == "" or line.begins_with("#"):
-			continue
-		if line.begins_with("export "):
-			line = line.trim_prefix("export ").strip_edges()
-		var separator_index := line.find("=")
-		if separator_index <= 0:
-			continue
-		var key := line.substr(0, separator_index).strip_edges()
-		var value := line.substr(separator_index + 1).strip_edges()
-		value = _strip_env_quotes(value)
-		if key != "":
-			_env_values[key] = value
-
-func _strip_env_quotes(value: String) -> String:
-	if value.length() < 2:
-		return value
-	if (value.begins_with("'") and value.ends_with("'")) or (value.begins_with("\"") and value.ends_with("\"")):
-		return value.substr(1, value.length() - 2)
-	return value
+func _get_current_provider() -> Dictionary:
+	if GameManager and GameManager.has_method("get_current_ai_provider"):
+		return GameManager.get_current_ai_provider()
+	return {
+		"id": "ollama",
+		"name": "Ollama 本地",
+		"region": "本地",
+		"base_url": base_url,
+		"api_format": "ollama_chat",
+		"auth_type": "none",
+		"default_model": model
+	}
 
 func _finish_requesting() -> void:
 	if has_node("/root/DialogueManager"):
 		DialogueManager.is_requesting = false
+	var scene = DialogueManager.get_dialogue_scene() if has_node("/root/DialogueManager") else null
+	if scene and scene.has_method("hide_ai_waiting"):
+		scene.hide_ai_waiting()
+
+func _show_ai_waiting() -> void:
+	var scene = DialogueManager.get_dialogue_scene() if has_node("/root/DialogueManager") else null
+	if scene and scene.has_method("show_ai_waiting"):
+		scene.show_ai_waiting()
 
 func _resolve_choice_text(choice_id: int) -> String:
 	var scene = DialogueManager.get_dialogue_scene()
@@ -667,6 +702,287 @@ func _build_choice_event() -> String:
 	if _pending_choice_text != "":
 		return "__choice__:%d:%s" % [_pending_choice_id, _pending_choice_text]
 	return "__choice__:%d" % _pending_choice_id
+
+func _build_provider_request(input_str: String) -> Dictionary:
+	var provider := _get_current_provider()
+	var api_format: String = provider.get("api_format", "openai_chat")
+	var base := _get_base_url().rstrip("/")
+	var model_name := _get_model()
+	var api_key := _get_api_key()
+	var system_prompt := _build_system_prompt()
+	var user_prompt := _build_user_prompt(input_str)
+
+	match api_format:
+		"ollama_chat":
+			_is_ollama_request = true
+			return {
+				"endpoint": base + "/api/chat",
+				"headers": PackedStringArray(["Content-Type: application/json"]),
+				"payload": {
+					"model": model_name,
+					"messages": [
+						{"role": "system", "content": system_prompt},
+						{"role": "user", "content": user_prompt}
+					],
+					"stream": false,
+					"options": {
+						"temperature": 0.8,
+						"num_predict": 1200
+					}
+				}
+			}
+		"anthropic_messages":
+			_is_ollama_request = false
+			return {
+				"endpoint": base + "/messages",
+				"headers": _build_headers(provider, api_key),
+				"payload": {
+					"model": model_name,
+					"system": system_prompt,
+					"messages": [{"role": "user", "content": user_prompt}],
+					"temperature": 0.8,
+					"max_tokens": 600
+				}
+			}
+		"gemini_generate_content":
+			_is_ollama_request = false
+			var endpoint := "%s/models/%s:generateContent" % [base, model_name]
+			if api_key != "":
+				endpoint += "?key=" + api_key.uri_encode()
+			return {
+				"endpoint": endpoint,
+				"headers": PackedStringArray(["Content-Type: application/json"]),
+				"payload": {
+					"system_instruction": {"parts": [{"text": system_prompt}]},
+					"contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+					"generationConfig": {"temperature": 0.8, "maxOutputTokens": 600}
+				}
+			}
+		_:
+			_is_ollama_request = false
+			var payload := {
+				"model": model_name,
+				"messages": [
+					{"role": "system", "content": system_prompt},
+					{"role": "user", "content": user_prompt}
+				],
+				"temperature": 0.8,
+				"max_tokens": 600
+			}
+			var provider_id: String = provider.get("id", "")
+			if provider_id in ["kimi", "openai", "deepseek", "qwen", "zhipu", "doubao", "xai", "mistral"]:
+				payload["response_format"] = {"type": "json_object"}
+			return {
+				"endpoint": base + "/chat/completions",
+				"headers": _build_headers(provider, api_key),
+				"payload": payload
+			}
+
+func _build_headers(provider: Dictionary, api_key: String) -> PackedStringArray:
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var auth_type: String = provider.get("auth_type", "bearer")
+	if auth_type == "bearer" and api_key != "":
+		headers.append("Authorization: Bearer " + api_key)
+	elif auth_type == "x-api-key" and api_key != "":
+		headers.append("x-api-key: " + api_key)
+		headers.append("anthropic-version: 2023-06-01")
+	return headers
+
+func _extract_response_content(raw_response: Dictionary) -> String:
+	var provider := _get_current_provider()
+	var api_format: String = provider.get("api_format", "openai_chat")
+	match api_format:
+		"ollama_chat":
+			var message = raw_response.get("message", {})
+			if message is Dictionary:
+				return str(message.get("content", ""))
+			return ""
+		"anthropic_messages":
+			var content: Array = raw_response.get("content", [])
+			for part in content:
+				if part is Dictionary and str(part.get("type", "")) == "text":
+					return str(part.get("text", ""))
+			return ""
+		"gemini_generate_content":
+			var candidates: Array = raw_response.get("candidates", [])
+			if candidates.is_empty() or not candidates[0] is Dictionary:
+				return ""
+			var content_dict: Dictionary = candidates[0].get("content", {})
+			var parts: Array = content_dict.get("parts", [])
+			for part in parts:
+				if part is Dictionary and part.has("text"):
+					return str(part.get("text", ""))
+			return ""
+		_:
+			var choices: Array = raw_response.get("choices", [])
+			if choices.is_empty() or not choices[0] is Dictionary:
+				return ""
+			var message = choices[0].get("message", {})
+			if not message is Dictionary:
+				return ""
+			return str(message.get("content", ""))
+
+func _normalize_ai_commands(commands: Array) -> Array:
+	var normalized: Array = []
+	for item in commands:
+		if not item is Dictionary:
+			continue
+		var cmd: Dictionary = item.duplicate(true)
+		var type: String = cmd.get("type", "")
+		if type == "show_dialogue":
+			var character: String = cmd.get("character", "")
+			if character != "" and not _character_exists(character):
+				character = ""
+				cmd["character"] = ""
+			var text: String = cmd.get("text", "")
+			var action := _detect_text_action(text)
+			cmd["text"] = _sanitize_rich_text(text)
+			normalized.append(cmd)
+			if action != "" and character != "":
+				normalized.append({"type": "character_action", "character": character, "action": action})
+		elif type == "long_dialogue":
+			cmd["text"] = _sanitize_rich_text(str(cmd.get("text", "")))
+			normalized.append(cmd)
+		elif type == "show_choices":
+			cmd["choices"] = _normalize_choices(cmd.get("choices", []))
+			if not cmd["choices"].is_empty():
+				normalized.append(cmd)
+				break
+		else:
+			if _is_valid_command(cmd):
+				normalized.append(cmd)
+	return normalized
+
+func _normalize_choices(raw_choices) -> Array:
+	var choices: Array = []
+	if not raw_choices is Array:
+		return choices
+	for i in range(min(raw_choices.size(), 3)):
+		var choice = raw_choices[i]
+		if not choice is Dictionary:
+			continue
+		var text := str(choice.get("text", "")).strip_edges()
+		if text == "":
+			continue
+		choices.append({"id": int(choice.get("id", i + 1)), "text": _sanitize_rich_text(text)})
+	return choices
+
+func _is_valid_command(cmd: Dictionary) -> bool:
+	var type: String = cmd.get("type", "")
+	match type:
+		"change_background":
+			return _id_exists(BackgroundManager.background_database, cmd.get("background", ""))
+		"set_characters":
+			return _is_valid_stage_role(cmd.get("left", null)) or _is_valid_stage_role(cmd.get("right", null))
+		"set_expression":
+			return _is_valid_character_expression(cmd.get("character", ""), cmd.get("expression", "default"))
+		"character_action":
+			return str(cmd.get("action", "")) in VALID_CHARACTER_ACTIONS and _character_exists(cmd.get("character", ""))
+		"play_audio", "stop_audio":
+			return _id_exists(AudioManager.audio_database, cmd.get("audio_id", ""))
+		"particle_play", "particle_stop":
+			if not cmd.has("effect_id") and type == "particle_stop":
+				return true
+			return _id_exists(ParticleManager.particle_database, cmd.get("effect_id", ""))
+		"unlock_cg", "cg_play", "cg_hide":
+			if type == "cg_hide":
+				return true
+			return _id_exists(CGManager.cg_database, cmd.get("cg_id", ""))
+		"unlock_bgm":
+			return _id_exists(AudioManager.audio_database, cmd.get("bgm_id", ""))
+		"add_affection":
+			return _character_exists(cmd.get("character", ""))
+		"set_flag", "set_variable", "set_ui_state", "wait", "jump", "end_scene", "reset_unlocks":
+			return true
+		_:
+			push_warning("[AIManager] 跳过未知或非法指令: %s" % type)
+			return false
+
+func _is_valid_stage_role(value) -> bool:
+	if value == null:
+		return false
+	if value is Dictionary:
+		var character_id: String = value.get("id", "")
+		if character_id == "":
+			return false
+		return _is_valid_character_expression(character_id, value.get("expression", "default"))
+	if value is String:
+		return _character_exists(value)
+	return false
+
+func _is_valid_character_expression(character_id, expression_id) -> bool:
+	if not _character_exists(character_id):
+		return false
+	var char_data = GameManager.character_database[str(character_id)]
+	if not char_data or not (char_data.expressions is Dictionary):
+		return true
+	return str(expression_id) in char_data.expressions
+
+func _character_exists(character_id) -> bool:
+	return GameManager and GameManager.character_database.has(str(character_id))
+
+func _id_exists(database: Dictionary, id_value) -> bool:
+	return database.has(str(id_value))
+
+func _detect_text_action(text: String) -> String:
+	for tag in TEXT_ACTION_TAG_MAP.keys():
+		var regex := RegEx.new()
+		regex.compile("\\[/?%s[^\\]]*\\]" % str(tag))
+		if regex.search(text):
+			return TEXT_ACTION_TAG_MAP[tag]
+	return ""
+
+func _sanitize_rich_text(text: String) -> String:
+	var result := _normalize_bbcode_aliases(text)
+	for tag in TEXT_ACTION_TAG_MAP.keys():
+		result = _strip_bbcode_tag(result, str(tag))
+	result = _strip_unsupported_bbcode_tags(result)
+	if not result.contains("[color"):
+		result = result.replace("[/color]", "")
+	if not result.contains("[wave"):
+		result = result.replace("[/wave]", "")
+	if not result.contains("[shake"):
+		result = result.replace("[/shake]", "")
+	if not result.contains("[b"):
+		result = result.replace("[/b]", "")
+	if not result.contains("[i"):
+		result = result.replace("[/i]", "")
+	if not result.contains("[u"):
+		result = result.replace("[/u]", "")
+	return result.strip_edges()
+
+func _normalize_bbcode_aliases(text: String) -> String:
+	var result := text
+	result = result.replace("[italic]", "[i]")
+	result = result.replace("[/italic]", "[/i]")
+	result = result.replace("[italics]", "[i]")
+	result = result.replace("[/italics]", "[/i]")
+	result = result.replace("[bold]", "[b]")
+	result = result.replace("[/bold]", "[/b]")
+	return result
+
+func _strip_bbcode_tag(text: String, tag: String) -> String:
+	var regex := RegEx.new()
+	regex.compile("\\[/?%s[^\\]]*\\]" % tag)
+	return regex.sub(text, "", true)
+
+func _strip_unsupported_bbcode_tags(text: String) -> String:
+	var regex := RegEx.new()
+	regex.compile("\\[([^\\]]+)\\]")
+	var result := text
+	for match_result in regex.search_all(text):
+		var raw_tag := match_result.get_string(1).strip_edges()
+		var tag_name := raw_tag.trim_prefix("/").split(" ")[0].split("=")[0].to_lower()
+		if not _is_allowed_text_bbcode(raw_tag, tag_name):
+			result = result.replace(match_result.get_string(0), "")
+	return result
+
+func _is_allowed_text_bbcode(raw_tag: String, tag_name: String) -> bool:
+	if tag_name not in ALLOWED_TEXT_BBCODE_TAGS:
+		return false
+	if tag_name == "color":
+		return raw_tag.begins_with("/") or raw_tag.begins_with("color=")
+	return raw_tag == tag_name or raw_tag == "/" + tag_name
 
 func _normalize_json_content(content: String) -> String:
 	var result := content.strip_edges()

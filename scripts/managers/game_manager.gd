@@ -10,10 +10,12 @@ signal skip_mode_changed(enabled: bool)
 
 # ================= 常量 =================
 const UNLOCK_FILE := "user://unlocks.cfg"
+const AI_PROVIDERS_FILE := "res://config/ai_providers.json"
 
 # ================= 属性 =================
 var variables: Dictionary = {}
 var ai_settings: Dictionary = {}
+var ai_provider_registry: Dictionary = {}
 var flags: Dictionary = {}
 var dialogue_history: Array = []
 var pending_choices: Array = []
@@ -45,6 +47,7 @@ func _ready() -> void:
 	_load_config()
 	_load_all_resources_from_index()
 	_create_affection_ui()
+	_load_ai_provider_registry()
 	_load_ai_settings()
 
 func check_ollama_status() -> bool:
@@ -251,22 +254,38 @@ func _load_config() -> void:
 
 func _load_ai_settings() -> void:
 	var config = ConfigFile.new()
+	var default_provider := _get_default_ai_provider()
+	var default_provider_id: String = default_provider.get("id", "ollama")
+	var default_model: String = default_provider.get("default_model", "qwen2.5:7b-instruct")
+	var default_base_url: String = default_provider.get("base_url", "http://localhost:11434/v1")
 	if config.load("user://ai_settings.cfg") == OK:
-		ai_settings["base_url"] = config.get_value("ai", "base_url", "http://localhost:11434/v1")
-		ai_settings["model"] = config.get_value("ai", "model", "qwen2.5:7b-instruct")
+		ai_settings["provider"] = config.get_value("ai", "provider", default_provider_id)
+		ai_settings["model"] = config.get_value("ai", "model", default_model)
 		ai_settings["api_key"] = config.get_value("ai", "api_key", "")
+		ai_settings["base_url"] = config.get_value("ai", "base_url", _get_provider_base_url(ai_settings["provider"], default_base_url))
+		ai_settings["ollama_model"] = config.get_value("ai", "ollama_model", "qwen2.5:7b-instruct")
+		_load_provider_api_keys(config)
 	else:
 		# 默认值
-		ai_settings["base_url"] = "http://localhost:11434/v1"
-		ai_settings["model"] = "qwen2.5:7b-instruct"
+		ai_settings["provider"] = default_provider_id
+		ai_settings["base_url"] = default_base_url
+		ai_settings["model"] = default_model
 		ai_settings["api_key"] = ""
+		ai_settings["ollama_model"] = "qwen2.5:7b-instruct"
+		ai_settings["api_keys"] = {}
 		_save_ai_settings()
 
 func _save_ai_settings() -> void:
 	var config = ConfigFile.new()
-	config.set_value("ai", "base_url", ai_settings["base_url"])
-	config.set_value("ai", "model", ai_settings["model"])
-	config.set_value("ai", "api_key", ai_settings["api_key"])
+	var provider_id: String = ai_settings.get("provider", "ollama")
+	config.set_value("ai", "provider", provider_id)
+	config.set_value("ai", "base_url", get_current_ai_provider().get("base_url", ai_settings.get("base_url", "")))
+	config.set_value("ai", "model", ai_settings.get("model", ""))
+	config.set_value("ai", "api_key", ai_settings.get("api_key", ""))
+	config.set_value("ai", "ollama_model", ai_settings.get("ollama_model", ""))
+	var api_keys: Dictionary = ai_settings.get("api_keys", {})
+	for key_provider in api_keys:
+		config.set_value("api_keys", str(key_provider), api_keys[key_provider])
 	config.save("user://ai_settings.cfg")
 
 func get_ai_setting(key: String) -> String:
@@ -274,7 +293,100 @@ func get_ai_setting(key: String) -> String:
 
 func set_ai_setting(key: String, value: String) -> void:
 	ai_settings[key] = value
+	if key == "provider":
+		var provider := get_ai_provider(value)
+		ai_settings["base_url"] = provider.get("base_url", "")
+		var provider_model = provider.get("default_model", "")
+		if provider_model != "":
+			ai_settings["model"] = provider_model
+		var api_keys: Dictionary = ai_settings.get("api_keys", {})
+		ai_settings["api_key"] = api_keys.get(value, "")
+	elif key == "api_key":
+		var provider_id: String = ai_settings.get("provider", "ollama")
+		var api_keys: Dictionary = ai_settings.get("api_keys", {})
+		api_keys[provider_id] = value
+		ai_settings["api_keys"] = api_keys
+	elif key == "ollama_model":
+		ai_settings["model"] = value
 	_save_ai_settings()
+
+func _load_ai_provider_registry() -> void:
+	ai_provider_registry.clear()
+	var file = FileAccess.open(AI_PROVIDERS_FILE, FileAccess.READ)
+	if file == null:
+		push_warning("[GameManager] 无法打开 ai_providers.json，使用 Ollama 默认配置。")
+		ai_provider_registry = {"providers": [_fallback_ollama_provider()]}
+		return
+	var json_string = file.get_as_text()
+	file.close()
+	var json = JSON.new()
+	if json.parse(json_string) != OK:
+		push_warning("[GameManager] ai_providers.json 解析失败，使用 Ollama 默认配置。")
+		ai_provider_registry = {"providers": [_fallback_ollama_provider()]}
+		return
+	var data = json.data
+	if data is Dictionary and data.has("providers") and data["providers"] is Array:
+		ai_provider_registry = data
+	else:
+		ai_provider_registry = {"providers": [_fallback_ollama_provider()]}
+
+func get_ai_providers() -> Array:
+	return ai_provider_registry.get("providers", [])
+
+func get_ai_provider(provider_id: String) -> Dictionary:
+	for provider in get_ai_providers():
+		if provider is Dictionary and provider.get("id", "") == provider_id:
+			return provider
+	return _get_default_ai_provider()
+
+func get_current_ai_provider() -> Dictionary:
+	return get_ai_provider(ai_settings.get("provider", "ollama"))
+
+func get_provider_models(provider_id: String) -> Array:
+	var provider := get_ai_provider(provider_id)
+	return provider.get("models", [])
+
+func _get_default_ai_provider() -> Dictionary:
+	var providers := get_ai_providers()
+	for provider in providers:
+		if provider is Dictionary and provider.get("id", "") == "ollama":
+			return provider
+	if not providers.is_empty() and providers[0] is Dictionary:
+		return providers[0]
+	return _fallback_ollama_provider()
+
+func _get_provider_base_url(provider_id: String, fallback: String = "") -> String:
+	var provider := get_ai_provider(provider_id)
+	return provider.get("base_url", fallback)
+
+func _load_provider_api_keys(config: ConfigFile) -> void:
+	var api_keys := {}
+	for provider in get_ai_providers():
+		if not provider is Dictionary:
+			continue
+		var provider_id: String = provider.get("id", "")
+		if provider_id == "":
+			continue
+		api_keys[provider_id] = config.get_value("api_keys", provider_id, "")
+	if api_keys.is_empty():
+		api_keys[ai_settings.get("provider", "ollama")] = ai_settings.get("api_key", "")
+	ai_settings["api_keys"] = api_keys
+	var current_provider: String = ai_settings.get("provider", "ollama")
+	if ai_settings.get("api_key", "") == "":
+		ai_settings["api_key"] = api_keys.get(current_provider, "")
+
+func _fallback_ollama_provider() -> Dictionary:
+	return {
+		"id": "ollama",
+		"name": "Ollama 本地",
+		"region": "本地",
+		"base_url": "http://localhost:11434/v1",
+		"api_format": "openai_chat",
+		"auth_type": "none",
+		"supports_model_refresh": true,
+		"default_model": "qwen2.5:7b-instruct",
+		"models": ["qwen2.5:7b-instruct"]
+	}
 
 func _load_all_resources_from_index() -> void:
 	var file = FileAccess.open("res://config/resource_index.json", FileAccess.READ)

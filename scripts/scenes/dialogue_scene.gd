@@ -56,6 +56,10 @@ var auto_advance_timer: Timer = null
 var auto_mode_paused_by_choice: bool = false
 var skip_mode_paused_by_choice: bool = false
 var _current_line_recorded: bool = false
+var _has_shown_initial_wait_text: bool = false
+
+const ALLOWED_TEXT_BBCODE_TAGS := ["b", "i", "u", "color", "wave", "shake"]
+const INITIAL_WAIT_TEXT := "[wave amp=50.0 freq=5.0]请稍等，正在初始化游戏……[/wave]"
 
 
 # ================= 初始化 =================
@@ -253,7 +257,7 @@ func display_dialogue(data: Dictionary) -> void:
 			portrait.texture = GameManager.character_database[character].portrait
 			portrait.show()
 
-	_full_text = data.get("text", "")
+	_full_text = _sanitize_display_text(data.get("text", ""))
 	text_label.text = _full_text
 	text_label.visible_characters = 0
 
@@ -334,7 +338,7 @@ func display_choices(choices: Array) -> void:
 			var btn = choice_buttons[i]
 			var label = choice_labels[i]
 			if label:
-				label.text = choices[i].get("text", "")
+				label.text = _sanitize_plain_text(choices[i].get("text", ""))
 				label.add_theme_color_override("font_color", Color("#34859B"))
 			choice_buttons[i].disabled = false
 			choice_buttons[i].mouse_filter = Control.MOUSE_FILTER_STOP
@@ -367,14 +371,23 @@ func _pause_auto_for_choices() -> void:
 
 # ================= 选项点击 =================
 func _on_choice_pressed(choice_id: int) -> void:
-	_record_choice(choice_id)
+	var resolved_choice_id := _resolve_choice_id_from_button(choice_id)
+	_record_choice(resolved_choice_id)
 	choice_panel.hide()
 	if skip_mode_paused_by_choice:
 		skip_mode_paused_by_choice = false
 		GameManager.is_skip_mode = true
 		GameManager.skip_mode_changed.emit(true)
-	choice_selected.emit(choice_id)
+	choice_selected.emit(resolved_choice_id)
 	_restore_auto_after_choice()
+
+func _resolve_choice_id_from_button(button_index: int) -> int:
+	var choice_index := button_index - 1
+	if choice_index >= 0 and choice_index < current_choices.size():
+		var choice = current_choices[choice_index]
+		if choice is Dictionary:
+			return int(choice.get("id", button_index))
+	return button_index
 
 
 func _on_choice_mouse_entered(btn: TextureButton) -> void:
@@ -397,7 +410,7 @@ func _record_choice(choice_id: int) -> void:
 	var choice_text = ""
 	for c in current_choices:
 		if str(c.get("id", "")) == str(choice_id):
-			choice_text = c.get("text", "")
+			choice_text = _sanitize_plain_text(c.get("text", ""))
 			break
 	if choice_text != "":
 		GameManager.dialogue_history.append({
@@ -791,7 +804,7 @@ func get_dialogue_state() -> Dictionary:
 
 func restore_dialogue_state(data: Dictionary) -> void:
 	var character: String = data.get("character", "")
-	var text: String = data.get("text", "")
+	var text: String = _sanitize_display_text(data.get("text", ""))
 	var choices: Array = data.get("choices", [])
 
 	_full_text = text
@@ -822,6 +835,7 @@ func restore_dialogue_state(data: Dictionary) -> void:
 
 # ================= 长对话 =================
 func show_long_dialogue(text: String) -> void:
+	text = _sanitize_display_text(text)
 	fullscreen_text.text = text
 	long_dialogue_container.visible = true
 	long_close_btn.visible = true
@@ -875,6 +889,66 @@ func hide_long_dialogue() -> void:
 		long_skip_timer.stop()
 		long_skip_timer.queue_free()
 		long_skip_timer = null
+
+func show_ai_waiting() -> void:
+	if wait:
+		if _has_shown_initial_wait_text:
+			wait.text = ""
+		else:
+			wait.text = INITIAL_WAIT_TEXT
+			_has_shown_initial_wait_text = true
+		wait.visible = true
+
+func hide_ai_waiting() -> void:
+	if wait:
+		wait.visible = false
+
+func _sanitize_display_text(text: String) -> String:
+	var result := str(text)
+	result = result.replace("[italic]", "[i]")
+	result = result.replace("[/italic]", "[/i]")
+	result = result.replace("[italics]", "[i]")
+	result = result.replace("[/italics]", "[/i]")
+	result = result.replace("[bold]", "[b]")
+	result = result.replace("[/bold]", "[/b]")
+	result = _strip_unsupported_bbcode_tags(result)
+	if not result.contains("[color"):
+		result = result.replace("[/color]", "")
+	if not result.contains("[wave"):
+		result = result.replace("[/wave]", "")
+	if not result.contains("[shake"):
+		result = result.replace("[/shake]", "")
+	if not result.contains("[b"):
+		result = result.replace("[/b]", "")
+	if not result.contains("[i"):
+		result = result.replace("[/i]", "")
+	if not result.contains("[u"):
+		result = result.replace("[/u]", "")
+	return result.strip_edges()
+
+func _sanitize_plain_text(text: String) -> String:
+	var result := _sanitize_display_text(text)
+	var regex := RegEx.new()
+	regex.compile("\\[[^\\]]+\\]")
+	return regex.sub(result, "", true).strip_edges()
+
+func _strip_unsupported_bbcode_tags(text: String) -> String:
+	var regex := RegEx.new()
+	regex.compile("\\[([^\\]]+)\\]")
+	var result := text
+	for match_result in regex.search_all(text):
+		var raw_tag := match_result.get_string(1).strip_edges()
+		var tag_name := raw_tag.trim_prefix("/").split(" ")[0].split("=")[0].to_lower()
+		if not _is_allowed_text_bbcode(raw_tag, tag_name):
+			result = result.replace(match_result.get_string(0), "")
+	return result
+
+func _is_allowed_text_bbcode(raw_tag: String, tag_name: String) -> bool:
+	if tag_name not in ALLOWED_TEXT_BBCODE_TAGS:
+		return false
+	if tag_name == "color":
+		return raw_tag.begins_with("/") or raw_tag.begins_with("color=")
+	return raw_tag == tag_name or raw_tag == "/" + tag_name
 
 
 # ================= UI 截图与清理 =================
