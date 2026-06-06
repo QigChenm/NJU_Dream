@@ -6,12 +6,19 @@ extends CanvasLayer
 # 页面容器
 @onready var cg_page: Control = $CGPage
 @onready var music_page: Control = $MusicPage
+@onready var bg_page: Control = $BGPage
 
 # CG 区域
 @onready var cg_grid: GridContainer = $CGPage/CGGrid
 @onready var cg_left_arrow: TextureButton = $CGPage/PageNav/LeftArrow
 @onready var cg_right_arrow: TextureButton = $CGPage/PageNav/RightArrow
 @onready var cg_page_buttons_grid: GridContainer = $CGPage/PageNav/PageButtons
+
+# 背景区域（新增）
+@onready var bg_grid: GridContainer = $BGPage/BGGrid
+@onready var bg_left_arrow: TextureButton = $BGPage/PageNav/LeftArrow
+@onready var bg_right_arrow: TextureButton = $BGPage/PageNav/RightArrow
+@onready var bg_page_buttons_grid: GridContainer = $BGPage/PageNav/PageButtons
 
 # 音乐区域
 @onready var music_list: ItemList = $MusicPage/MusicList
@@ -23,16 +30,25 @@ extends CanvasLayer
 # 切换按钮
 @onready var cg_tab_btn: TextureButton = $HBoxContainer/CGTabBtn
 @onready var music_tab_btn: TextureButton = $HBoxContainer/MusicTabBtn
+@onready var bg_tab_btn: TextureButton = $HBoxContainer/BGTabBtn
 
 const SLOT_WIDTH = 524
 const SLOT_HEIGHT = 300
+const CG_SLOTS_PER_PAGE = 6
+const BG_SLOTS_PER_PAGE = 6
 
+# CG 相关变量
 var _cg_slots: Array[TextureRect] = []
 var _cg_page_buttons: Array[TextureButton] = []
 var _current_cg_page: int = 0
 var _cg_preview_popup: Popup = null
 var _cg_data_ids: Array = []
-const CG_SLOTS_PER_PAGE = 6
+
+# 背景相关变量
+var _bg_slots: Array[TextureRect] = []
+var _bg_page_buttons: Array[TextureButton] = []
+var _current_bg_page: int = 0
+var _bg_data_ids: Array = []
 
 func _ready() -> void:
 	visible = false
@@ -42,9 +58,12 @@ func _ready() -> void:
 	_apply_fonts()
 	_collect_cg_slots()
 	_collect_cg_page_buttons()
+	_collect_bg_slots()
+	_collect_bg_page_buttons()
 	_connect_signals()
 	_refresh_cg_page()
 	_refresh_music_page()
+	_refresh_bg_page()
 
 	if AudioManager:
 		print("[GalleryUI] 音频数据库大小：%d" % AudioManager.audio_database.size())
@@ -66,12 +85,12 @@ func _apply_fonts() -> void:
 	pass
 
 
+# ---------- 收集 CG 槽位 ----------
 func _collect_cg_slots() -> void:
 	_cg_slots.clear()
 	for child in cg_grid.get_children():
 		if child is TextureRect:
 			_cg_slots.append(child)
-			# 强制开启鼠标检测，确保能接收点击
 			child.mouse_filter = Control.MOUSE_FILTER_STOP
 
 
@@ -87,9 +106,31 @@ func _collect_cg_page_buttons() -> void:
 	cg_right_arrow.pressed.connect(_on_cg_right_arrow)
 
 
+# ---------- 收集背景槽位 ----------
+func _collect_bg_slots() -> void:
+	_bg_slots.clear()
+	for child in bg_grid.get_children():
+		if child is TextureRect:
+			_bg_slots.append(child)
+			child.mouse_filter = Control.MOUSE_FILTER_STOP
+
+
+func _collect_bg_page_buttons() -> void:
+	_bg_page_buttons.clear()
+	for child in bg_page_buttons_grid.get_children():
+		if child is TextureButton:
+			var page_num = child.get_meta("page", -1)
+			if page_num >= 0:
+				child.pressed.connect(_on_bg_page_button_pressed.bind(page_num))
+				_bg_page_buttons.append(child)
+	bg_left_arrow.pressed.connect(_on_bg_left_arrow)
+	bg_right_arrow.pressed.connect(_on_bg_right_arrow)
+
+
 func _connect_signals() -> void:
 	cg_tab_btn.pressed.connect(_on_cg_tab_pressed)
 	music_tab_btn.pressed.connect(_on_music_tab_pressed)
+	bg_tab_btn.pressed.connect(_on_bg_tab_pressed)
 	play_btn.pressed.connect(_on_play_pressed)
 	stop_btn.pressed.connect(_on_stop_pressed)
 	music_list.item_activated.connect(_on_music_item_activated)
@@ -99,16 +140,26 @@ func _connect_signals() -> void:
 	UIManager.panel_closed.connect(_on_gallery_closed)
 
 
+# ---------- 标签切换 ----------
 func _on_cg_tab_pressed() -> void:
 	cg_page.visible = true
 	music_page.visible = false
+	bg_page.visible = false
 	_refresh_cg_page()
 
 
 func _on_music_tab_pressed() -> void:
 	cg_page.visible = false
 	music_page.visible = true
+	bg_page.visible = false
 	_refresh_music_page()
+
+
+func _on_bg_tab_pressed() -> void:
+	cg_page.visible = false
+	music_page.visible = false
+	bg_page.visible = true
+	_refresh_bg_page()
 
 
 # ================= CG 鉴赏 =================
@@ -126,7 +177,6 @@ func _refresh_cg_page() -> void:
 		var info_bg = slot.get_node_or_null("InfoBg") as TextureRect
 		var info_label = slot.get_node_or_null("Info") as Label
 
-		# 先断开之前可能绑定的 gui_input 信号，避免重复绑定
 		_disconnect_slot_input(slot)
 
 		if global_idx < _cg_data_ids.size():
@@ -148,7 +198,6 @@ func _refresh_cg_page() -> void:
 					info_label.text = data.display_name if data.display_name != "" else cg_id
 				if info_bg:
 					info_bg.visible = true
-				# 绑定点击预览信号
 				slot.gui_input.connect(_on_cg_slot_clicked.bind(cg_id), CONNECT_ONE_SHOT)
 			else:
 				if thumbnail:
@@ -160,7 +209,6 @@ func _refresh_cg_page() -> void:
 		else:
 			slot.visible = false
 
-	# 更新页码按钮
 	for i in range(_cg_page_buttons.size()):
 		var btn = _cg_page_buttons[i]
 		btn.visible = i < total_pages
@@ -171,7 +219,6 @@ func _refresh_cg_page() -> void:
 
 
 func _disconnect_slot_input(slot: Control) -> void:
-	# 辅助方法：清除所有已连接的 gui_input 信号（避免累积）
 	for connection in slot.gui_input.get_connections():
 		slot.gui_input.disconnect(connection.callable)
 
@@ -186,30 +233,20 @@ func _show_cg_preview(cg_id: String) -> void:
 		_cg_preview_popup = Popup.new()
 		_cg_preview_popup.name = "CGPreviewPopup"
 		_cg_preview_popup.process_mode = PROCESS_MODE_ALWAYS
-
 		var bg = ColorRect.new()
-		bg.name = "Background"
 		bg.color = Color(0, 0, 0, 0.7)
 		bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		bg.mouse_filter = Control.MOUSE_FILTER_STOP
 		bg.gui_input.connect(_on_preview_background_clicked)
 		_cg_preview_popup.add_child(bg)
-
 		var img = TextureRect.new()
 		img.name = "PreviewImage"
 		img.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		img.anchor_left = 0.5
-		img.anchor_right = 0.5
-		img.anchor_top = 0.5
-		img.anchor_bottom = 0.5
-		img.offset_left = -600
-		img.offset_right = 600
-		img.offset_top = -400
-		img.offset_bottom = 400
+		img.anchor_left = 0.5; img.anchor_right = 0.5; img.anchor_top = 0.5; img.anchor_bottom = 0.5
+		img.offset_left = -600; img.offset_right = 600; img.offset_top = -400; img.offset_bottom = 400
 		img.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_cg_preview_popup.add_child(img)
-
 		add_child(_cg_preview_popup)
 
 	var preview_image = _cg_preview_popup.get_node("PreviewImage") as TextureRect
@@ -238,6 +275,85 @@ func _on_cg_right_arrow() -> void:
 	if _current_cg_page < total_pages - 1:
 		_current_cg_page += 1
 		_refresh_cg_page()
+
+
+# ================= 背景展示（新增） =================
+func _refresh_bg_page() -> void:
+	_bg_data_ids.clear()
+	if BackgroundManager:
+		_bg_data_ids = BackgroundManager.background_database.keys()
+	var total_pages = max(1, ceil(float(_bg_data_ids.size()) / BG_SLOTS_PER_PAGE))
+	_current_bg_page = clamp(_current_bg_page, 0, total_pages - 1)
+
+	for i in range(_bg_slots.size()):
+		var global_idx = _current_bg_page * BG_SLOTS_PER_PAGE + i
+		var slot = _bg_slots[i]
+		var thumbnail = slot.get_node_or_null("Thumbnail") as TextureRect
+		var info_bg = slot.get_node_or_null("InfoBg") as TextureRect
+		var info_label = slot.get_node_or_null("Info") as Label
+
+		_disconnect_slot_input(slot)
+
+		if global_idx < _bg_data_ids.size():
+			var bg_id = _bg_data_ids[global_idx]
+			var data: BackgroundData = BackgroundManager.background_database[bg_id]
+			slot.visible = true
+			if thumbnail:
+				var original_img = data.texture.get_image()
+				if original_img:
+					var scale = min(float(SLOT_WIDTH) / original_img.get_width(),
+									float(SLOT_HEIGHT) / original_img.get_height())
+					var new_width = int(original_img.get_width() * scale)
+					var new_height = int(original_img.get_height() * scale)
+					original_img.resize(new_width, new_height, Image.INTERPOLATE_LANCZOS)
+					thumbnail.texture = ImageTexture.create_from_image(original_img)
+			if info_label:
+				info_label.text = data.display_name if data.display_name != "" else bg_id
+			if info_bg:
+				info_bg.visible = true
+			slot.gui_input.connect(_on_bg_slot_clicked.bind(bg_id), CONNECT_ONE_SHOT)
+		else:
+			slot.visible = false
+
+	for i in range(_bg_page_buttons.size()):
+		var btn = _bg_page_buttons[i]
+		btn.visible = i < total_pages
+		if i < total_pages:
+			btn.modulate = Color.YELLOW if i == _current_bg_page else Color.WHITE
+	bg_left_arrow.disabled = (_current_bg_page == 0)
+	bg_right_arrow.disabled = (_current_bg_page >= total_pages - 1)
+
+
+func _on_bg_slot_clicked(event: InputEvent, bg_id: String) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		_show_bg_preview(bg_id)
+
+
+func _show_bg_preview(bg_id: String) -> void:
+	# 复用预览弹窗，但修改图片源
+	if not _cg_preview_popup:
+		_show_cg_preview("")  # 先创建弹窗，然后更换图片
+	var preview_image = _cg_preview_popup.get_node("PreviewImage") as TextureRect
+	preview_image.texture = BackgroundManager.background_database[bg_id].texture
+	_cg_preview_popup.show()
+
+
+func _on_bg_page_button_pressed(page: int) -> void:
+	_current_bg_page = page
+	_refresh_bg_page()
+
+
+func _on_bg_left_arrow() -> void:
+	if _current_bg_page > 0:
+		_current_bg_page -= 1
+		_refresh_bg_page()
+
+
+func _on_bg_right_arrow() -> void:
+	var total_pages = max(1, ceil(float(_bg_data_ids.size()) / BG_SLOTS_PER_PAGE))
+	if _current_bg_page < total_pages - 1:
+		_current_bg_page += 1
+		_refresh_bg_page()
 
 
 # ================= 音乐鉴赏 =================

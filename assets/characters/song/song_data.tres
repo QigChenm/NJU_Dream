@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="CharacterData" format=3 uid="uid://b5tjvwpo2wbrg"]
+
+[ext_resource type="Texture2D" uid="uid://dxib2mkjh1qwq" path="res://assets/characters/song/default.png" id="1_c1ond"]
+[ext_resource type="Script" uid="uid://fsylenqllr31" path="res://scripts/datatypes/character_data.gd" id="1_w4q6h"]
+[ext_resource type="Texture2D" uid="uid://qx07fv4f8cbt" path="res://assets/characters/song/happy.png" id="2_mh34g"]
+[ext_resource type="Texture2D" uid="uid://bln1yynplppky" path="res://assets/characters/song/sad.png" id="3_k6nl1"]
+[ext_resource type="Texture2D" uid="uid://koan5bqx3aav" path="res://assets/characters/song/angry.png" id="4_oikbo"]
+[ext_resource type="Texture2D" uid="uid://b26l0cmeu6448" path="res://assets/characters/song/confused.png" id="5_qohgw"]
+[ext_resource type="Texture2D" uid="uid://dnjhg6cryyrss" path="res://assets/characters/song/surprised.png" id="6_n2bj7"]
+[ext_resource type="Texture2D" uid="uid://c0oheaefo84ru" path="res://assets/characters/song/very_happy.png" id="7_jmbi0"]
+
+[resource]
+script = ExtResource("1_w4q6h")
+character_id = "song"
+display_name = "宋青"
+default_affection = 30
+expressions = {
+"angry": ExtResource("4_oikbo"),
+"confused": ExtResource("5_qohgw"),
+"default": ExtResource("1_c1ond"),
+"eyes_down": ExtResource("3_k6nl1"),
+"eyes_widen": ExtResource("6_n2bj7"),
+"frown": ExtResource("4_oikbo"),
+"happy": ExtResource("2_mh34g"),
+"sad": ExtResource("3_k6nl1"),
+"slight_smile": ExtResource("2_mh34g"),
+"surprised": ExtResource("6_n2bj7"),
+"very_happy": ExtResource("7_jmbi0")
+}
+metadata/_custom_type_script = "uid://fsylenqllr31"

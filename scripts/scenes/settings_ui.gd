@@ -164,13 +164,22 @@ func _on_ai_key_changed(new_text: String):
 	GameManager.set_ai_setting("api_key", new_text)
 
 func _on_deploy_ai_pressed() -> void:
-	var exe_dir = OS.get_executable_path().get_base_dir()
-	var script_path = exe_dir + "/deploy_ollama.bat"
+	var script_path := _find_deploy_ollama_script()
 	if not FileAccess.file_exists(script_path):
-		OS.alert("未找到部署脚本 deploy_ollama.bat，请确保脚本与游戏在同一目录。", "部署失败")
+		OS.alert("未找到部署脚本 deploy_ollama.bat，请确保脚本位于游戏目录或项目根目录。", "部署失败")
 		return
 	OS.shell_open(script_path)
 	OS.alert("部署脚本已启动，请在弹出的命令行窗口中查看进度。完成后重启游戏。", "提示")
+
+func _find_deploy_ollama_script() -> String:
+	var candidates := [
+		OS.get_executable_path().get_base_dir().path_join("deploy_ollama.bat"),
+		ProjectSettings.globalize_path("res://deploy_ollama.bat")
+	]
+	for path in candidates:
+		if FileAccess.file_exists(path):
+			return path
+	return candidates[0]
 
 func _on_visibility_changed() -> void:
 	if not visible:

@@ -16,11 +16,39 @@ var _pending_choice_id: int = -1
 var _pending_request_id: int = 0
 var _request_id: int = 0
 var _last_error_code: int = 0
+var _last_response_code: int = 0
 var _pending_choice_text: String = ""
 var _waiting_for_choice_continuation: bool = false
+var _prediction_requests: Dictionary = {}
+var _prediction_request_meta: Dictionary = {}
+var _prediction_retry_counts: Dictionary = {}
+var _prediction_asset: Dictionary = {}
+var _active_prediction_context_key: String = ""
+var _prediction_history_snapshot: Array = []
+var _prediction_choices_snapshot: Array = []
+var _selected_prediction_key: String = ""
+var _selected_prediction_commands: Array = []
+var _waiting_for_prediction_result: bool = false
+var _selected_prediction_execute_queued: bool = false
+var _selected_prediction_choice_id: int = -1
+var _warmup_request: HTTPRequest = null
+var _warmup_start_response: Dictionary = {}
+var _warmup_start_pending: bool = false
+var _warmup_consume_pending: bool = false
+var _head_warmup_asset: Dictionary = {}
+var _active_input_str: String = ""
+var _main_retry_count: int = 0
+var _main_retry_timer: Timer = null
+var _warmup_retry_count: int = 0
+var _warmup_retry_timer: Timer = null
+var _suppress_next_auto_continue: bool = false
 
 const _FALLBACK_TEXT := "AI 暂时不可用，请稍后再试。"
 const DEFAULT_OUTPUT_TOKENS := 1200
+const MAX_PREDICTION_REQUESTS := 3
+const MAX_MAIN_RETRIES := 3
+const MAX_WARMUP_RETRIES := 3
+const RETRY_BASE_DELAY := 1.5
 const MEMORY_FILE := "user://ai_rules.json"
 const VALID_CHARACTER_ACTIONS := ["bounce", "shake", "nod", "step_back", "shrug"]
 const ALLOWED_TEXT_BBCODE_TAGS := ["b", "i", "u", "color", "wave", "shake"]
@@ -70,8 +98,17 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 		push_warning("[AIManager] 已有 AI 请求进行中，本次请求已忽略。")
 		return
 
+	if input_str == "__start__" and _try_use_warmup_start():
+		return
+
+	_clear_main_retry_timer()
+	_main_retry_count = 0
+	_active_input_str = input_str
+	_start_main_request(input_str)
+
+func _start_main_request(input_str: String) -> void:
 	_is_requesting = true
-	_show_ai_waiting()
+	_show_ai_waiting(input_str == "__start__")
 	_request_id += 1
 	var current_id = _request_id
 	print("[AIManager] 发送请求 #%d" % current_id)
@@ -91,6 +128,146 @@ func send_message(input_str: String, _callback: Callable = Callable()) -> void:
 		return
 	_pending_request_id = current_id
 
+func warmup_start_request(force_retry: bool = false) -> void:
+	if not ai_enabled:
+		return
+	if _is_check_only_run():
+		return
+	if not GameManager or not GameManager.ai_enabled:
+		return
+	if GameManager.current_scene != "":
+		_head_warmup_asset.clear()
+		return
+	if not force_retry and not _head_warmup_asset.is_empty() and str(_head_warmup_asset.get("status", "")) in ["pending", "requesting", "completed"]:
+		return
+	if _warmup_start_pending or not _warmup_start_response.is_empty():
+		return
+	_clear_warmup_retry_timer()
+	_head_warmup_asset = {
+		"asset_id": "head:start",
+		"context_key": "head:start",
+		"input": "__start__",
+		"status": "requesting",
+		"response": {},
+		"retry_count": 0
+	}
+	_warmup_start_pending = true
+	_warmup_request = HTTPRequest.new()
+	_warmup_request.timeout = request_timeout
+	add_child(_warmup_request)
+	_warmup_request.request_completed.connect(_on_warmup_start_completed.bind(_warmup_request))
+	var request_data := _build_provider_request("__start__")
+	var endpoint: String = request_data.get("endpoint", "")
+	var headers: PackedStringArray = request_data.get("headers", PackedStringArray())
+	var payload: Dictionary = request_data.get("payload", {})
+	print("[AIManager] 预热开场请求: %s" % endpoint)
+	var error = _warmup_request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+	if error != OK:
+		_warmup_start_pending = false
+		_head_warmup_asset["status"] = "failed"
+		_cleanup_request_node(_warmup_request)
+		_warmup_request = null
+
+func _is_check_only_run() -> bool:
+	for arg in OS.get_cmdline_args():
+		if arg == "--check-only":
+			return true
+	return false
+
+func consume_warmup_start() -> Dictionary:
+	if _warmup_start_response.is_empty():
+		return {}
+	var response := _warmup_start_response.duplicate(true)
+	_warmup_start_response.clear()
+	_head_warmup_asset.clear()
+	return response
+
+func _try_use_warmup_start() -> bool:
+	var warmup_response := consume_warmup_start()
+	if not warmup_response.is_empty():
+		_is_requesting = true
+		_show_ai_waiting(true)
+		call_deferred("_process_warmup_start_response", warmup_response)
+		return true
+	if _warmup_start_pending:
+		_is_requesting = true
+		_warmup_consume_pending = true
+		_show_ai_waiting(true)
+		print("[AIManager] 等待已启动的开场预热请求。")
+		return true
+	return false
+
+func _process_warmup_start_response(response: Dictionary) -> void:
+	_is_requesting = false
+	_finish_requesting()
+	_warmup_retry_count = 0
+	process_ai_response(response)
+
+func _schedule_main_retry() -> bool:
+	if _active_input_str == "" or _main_retry_count >= MAX_MAIN_RETRIES:
+		return false
+	_main_retry_count += 1
+	var delay := _get_retry_delay(_main_retry_count)
+	print("[AIManager] 主请求 429，%.1f 秒后重试 (%d/%d)。" % [delay, _main_retry_count, MAX_MAIN_RETRIES])
+	_is_requesting = true
+	_show_ai_waiting(_active_input_str == "__start__")
+	_clear_main_retry_timer()
+	_main_retry_timer = Timer.new()
+	_main_retry_timer.one_shot = true
+	_main_retry_timer.wait_time = delay
+	add_child(_main_retry_timer)
+	_main_retry_timer.timeout.connect(_on_main_retry_timeout)
+	_main_retry_timer.start()
+	return true
+
+func _on_main_retry_timeout() -> void:
+	_clear_main_retry_timer()
+	if _active_input_str == "":
+		_is_requesting = false
+		_finish_requesting()
+		return
+	_start_main_request(_active_input_str)
+
+func _schedule_warmup_retry() -> bool:
+	if _warmup_retry_count >= MAX_WARMUP_RETRIES:
+		_head_warmup_asset["status"] = "failed"
+		return false
+	_warmup_retry_count += 1
+	_head_warmup_asset["status"] = "pending"
+	_head_warmup_asset["retry_count"] = _warmup_retry_count
+	var delay := _get_retry_delay(_warmup_retry_count)
+	print("[AIManager] 开场预热 429，%.1f 秒后重试 (%d/%d)。" % [delay, _warmup_retry_count, MAX_WARMUP_RETRIES])
+	_warmup_start_pending = true
+	_clear_warmup_retry_timer()
+	_warmup_retry_timer = Timer.new()
+	_warmup_retry_timer.one_shot = true
+	_warmup_retry_timer.wait_time = delay
+	add_child(_warmup_retry_timer)
+	_warmup_retry_timer.timeout.connect(_on_warmup_retry_timeout)
+	_warmup_retry_timer.start()
+	return true
+
+func _on_warmup_retry_timeout() -> void:
+	_clear_warmup_retry_timer()
+	_warmup_start_pending = false
+	warmup_start_request(true)
+
+func _get_retry_delay(retry_count: int) -> float:
+	var jitter := randf_range(0.0, 0.4)
+	return RETRY_BASE_DELAY * pow(2.0, retry_count - 1) + jitter
+
+func _clear_main_retry_timer() -> void:
+	if _main_retry_timer and is_instance_valid(_main_retry_timer):
+		_main_retry_timer.stop()
+		_main_retry_timer.queue_free()
+	_main_retry_timer = null
+
+func _clear_warmup_retry_timer() -> void:
+	if _warmup_retry_timer and is_instance_valid(_warmup_retry_timer):
+		_warmup_retry_timer.stop()
+		_warmup_retry_timer.queue_free()
+	_warmup_retry_timer = null
+
 # ---------- 响应处理 ----------
 func process_ai_response(response: Dictionary) -> void:
 	if not response.has("commands"):
@@ -107,50 +284,41 @@ func process_ai_response(response: Dictionary) -> void:
 		push_error("[AIManager] ScriptEngine 未找到。")
 		return
 	commands = _normalize_ai_commands(commands)
+	_prefetch_predictions_from_commands(commands)
 	ScriptEngine.execute_commands(commands)
 
 func _on_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	_is_requesting = false
-	_finish_requesting()
 	if _pending_request_id != _request_id:
 		print("[AIManager] 忽略过期请求 #%d" % _pending_request_id)
+		_finish_requesting()
 		return
 	if _is_canceling:
 		_is_canceling = false
+		_finish_requesting()
 		return
 
 	if result != HTTPRequest.RESULT_SUCCESS:
 		_last_error_code = result
+		_last_response_code = 0
 		push_error("[AIManager] 请求失败，结果码: %d" % result)
+		_finish_requesting()
 		_recover_with_dialogue("[AIManager] 请求未成功完成。")
 		return
 	var raw_text := body.get_string_from_utf8()
 	print("[AIManager] 原始响应前2000字符: ", raw_text.substr(0, 2000))
-	if response_code < 200 or response_code >= 300:
-		push_error("[AIManager] AI 返回 HTTP %d: %s" % [response_code, raw_text])
-		_recover_with_dialogue("[AIManager] AI HTTP 响应异常。")
+	_last_error_code = 0
+	_last_response_code = response_code
+	if response_code == 429 and _schedule_main_retry():
 		return
-	var raw_response = JSON.parse_string(raw_text)
-	if not raw_response is Dictionary:
-		push_error("[AIManager] 顶级响应不是 JSON 对象。原始文本: ", raw_text)
-		_recover_with_dialogue("[AIManager] AI 响应格式错误（非JSON对象）。")
+	var ai_response := _parse_ai_response(raw_text, response_code, "主请求")
+	if ai_response.is_empty():
+		_finish_requesting()
+		_recover_with_dialogue("[AIManager] AI 响应不可用。")
 		return
-	var content := _extract_response_content(raw_response)
-	if content.strip_edges() == "":
-		push_error("[AIManager] AI 返回的 content 为空！完整响应: %s" % raw_text)
-		_recover_with_dialogue("[AIManager] AI 正在思考中~")
-		return
-
-	print("[AIManager] 原始 content: ", content)
-
-	var clean_content := _normalize_json_content(content)
-	print("[AIManager] 清洗后 content: ", clean_content)
-
-	var ai_response = JSON.parse_string(clean_content)
-	if not ai_response is Dictionary:
-		push_error("[AIManager] 解析 commands 失败。原始: %s, 清洗后: %s" % [content, clean_content])
-		_recover_with_dialogue("[AIManager] AI 生成的 JSON 格式无效。")
-		return
+	_finish_requesting()
+	_main_retry_count = 0
+	_active_input_str = ""
 	process_ai_response(ai_response)
 
 # ---------- 选项续写 ----------
@@ -165,22 +333,29 @@ func _on_choice_made(choice_id: int, choice_text: String = "") -> void:
 	print("[AIManager] 已记录玩家选择: %d %s" % [choice_id, _pending_choice_text])
 	_waiting_for_choice_continuation = true
 
-	if _is_requesting:
-		_is_canceling = true
-		_http_request.cancel_request()
-		_is_requesting = false
-		await get_tree().process_frame
+	if try_consume_choice_prediction(choice_id, _pending_choice_text):
+		return
 
-	send_message(_build_choice_event())
-	_waiting_for_choice_continuation = false
+	print("[AIManager] 选项 %d 暂无可用预测分支，等待预测请求重建。" % choice_id)
+	_show_ai_waiting()
 
 func _on_script_execution_finished() -> void:
 	if _recovery_mode:
 		_recovery_mode = false
 		return
+	if _selected_prediction_key != "":
+		_try_execute_selected_prediction()
+		return
 	if _waiting_for_choice_continuation or _is_requesting:
 		return
+	if _suppress_next_auto_continue:
+		_suppress_next_auto_continue = false
+		print("[AIManager] 读档恢复完成，跳过本次自动续写。")
+		return
 	call_deferred("send_message", "__continue__")
+
+func suppress_next_auto_continue() -> void:
+	_suppress_next_auto_continue = true
 
 # ---------- 系统提示词（重构核心） ----------
 func _build_system_prompt() -> String:
@@ -208,17 +383,38 @@ func _get_role_definition() -> PackedStringArray:
 func _get_world_setting() -> PackedStringArray:
 	var arr := PackedStringArray()
 	arr.append("# 世界观与场景")
-	arr.append("故事发生在南大鼓楼校区，充满人文气息。可用场景：")
-	arr.append("- id:beidalou：北大楼，南京大学标志性建筑，气氛唯美，适合浪漫、唯美的情节。")
-	arr.append("- id:duxia：南京大学杜厦图书馆，气氛安静，适合学术讨论或安静的读书情节。")
-	arr.append("- id:litang：大礼堂，南京大学标志性建筑，气氛庄重，适合大型的活动情节。")
-	arr.append("- id:nansu：南京大学苏州校区地标，适合普通对话、正常生活活动等情节。")
+	arr.append("故事发生在南大不同校区，充满人文气息。")
+	arr.append("【绝对强制】请严格区分鼓楼校区、仙林校区和苏州校区，不同校区场景严禁混用！")
+	arr.append("可用场景id如下：")
+	arr.append("鼓楼校区部分：")
+	arr.append("- beidalou：【鼓楼校区】北大楼，南京大学标志性建筑，气氛唯美，适合浪漫、唯美的情节。")
+	arr.append("- litang：【鼓楼校区】大礼堂，南京大学标志性建筑，气氛庄重，适合大型的活动情节。")
+	arr.append("- classroom：【鼓楼校区】南京大学教学楼教室，适合学习、谈论等情节。")
+	arr.append("- classroom2：【鼓楼校区】南京大学教学楼教室前门口，同上。")
+	arr.append("- flowers：【鼓楼校区】一处开满鲜花的地方，适合浪漫的场景。")
+	arr.append("- gate：【鼓楼校区】最具代表性的地标，南京大学正门口。")
+	arr.append("- path：【鼓楼校区】一处小径上，人很少，适合宁静、慢节奏的场景。")
+	arr.append("- playground_gulou：【鼓楼校区】苏浙运动场，适合运动、激情相关情节。")
+	arr.append("- playground_gulou2：【鼓楼校区】苏浙运动场另一张图，同上。")
+	arr.append("- xingzheng：【鼓楼校区】行政楼南楼，老师办公的地方。")
+	arr.append("")
+	arr.append("仙林校区部分：")
+	arr.append("- duxia：【仙林校区】杜厦图书馆，气氛安静，适合学术讨论或安静的读书情节。")
+	arr.append("- classroom_big：【仙林校区】南京大学阶梯教室，是大型教学、活动举办地。")
+	arr.append("- duxia_front：【仙林校区】杜厦图书馆正门口。")
+	arr.append("- duxia_night：【仙林校区】夜晚的杜厦图书馆，适合安静、温馨的场景。")
+	arr.append("- playground_xianlin：【仙林校区】运动场，特别注意不要和前面鼓楼校区运动场混用！")
+	arr.append("- xiangxuehai：【仙林校区】著名景点，适合放松、游玩等剧情。")
+	arr.append("")
+	arr.append("苏州校区部分：")
+	arr.append("- nansu：【苏州校区】地标，适合普通对话、正常生活活动等情节。")
 	arr.append("")
 	return arr
 
 func _get_character_profile() -> PackedStringArray:
 	var arr := PackedStringArray()
 	arr.append("# 角色档案：小貅 (id:xiu)")
+	arr.append("【绝对强制】小貅只能放置在左侧")
 	arr.append("## 核心身份")
 	arr.append("南大校徽上的貔貅化身，活泼灵动的少女，是你的校园向导和幸运伙伴。外表可爱，内心强大，有点小财迷（貔貅传统）。")
 	arr.append("## 内在动机与价值观")
@@ -242,31 +438,31 @@ func _get_character_profile() -> PackedStringArray:
 	arr.append("- 不会无视你的烦恼。")
 	arr.append("")
 
-	# TODO: 宋青角色资源补全后再启用。当前仓库没有 song_data.tres 和对应表情贴图，
-	# 因此这些资料必须保持注释，避免 AI 选择不存在的角色或表情。
-	# arr.append("# 角色档案：宋青 (id:song)")
-	# arr.append("## 核心身份")
-	# arr.append("南大校徽上的青松化身，沉稳可靠的学长，是你的心灵树洞和理性支持者。外表清冷如松，内心温热如春。")
-	# arr.append("## 内在动机与价值观")
-	# arr.append("希望引导你找到内心的平静与韧性，像松树一样抗压。相信“沉默的陪伴有时胜过千言万语”。")
-	# arr.append("## 语言风格")
-	# arr.append("简洁、温和，很少用感叹号。喜欢用“嗯”“或许”“我懂”开头。说话时会停顿，给人思考空间。偶尔引用诗句或哲言。")
-	# arr.append("## 情绪－表情－动作映射")
-	# arr.append("- 开心 → slight_smile，动作：nod")
-	# arr.append("- 悲伤/委屈 → eyes_down，动作：step_back")
-	# arr.append("- 愤怒/不满 → frown，动作：shake")
-	# arr.append("- 害羞/尴尬 → default，动作：shrug")
-	# arr.append("- 感动/惊讶 → eyes_widen，动作：nod")
-	# arr.append("## 关系动态")
-	# arr.append("- 好感度 0-20：礼貌疏离，只回答必要问题。")
-	# arr.append("- 好感度 20-40：开始主动询问你的感受，分享自己的小习惯。")
-	# arr.append("- 好感度 40-60：展露温柔，会为你准备热茶或建议，倾听时间变长。")
-	# arr.append("- 好感度 60+：愿意坦露自己的脆弱，会轻轻拍拍你的肩，说出“我在”。")
-	# arr.append("## 禁忌")
-	# arr.append("- 绝不会冷暴力或消失。")
-	# arr.append("- 不会否定你的情绪（不会说“你想多了”）。")
-	# arr.append("- 不会强迫你做任何事。")
-	# arr.append("")
+	# TODO: 宋青角色已补全
+	arr.append("# 角色档案：宋青 (id:song)")
+	arr.append("【绝对强制】宋青只能放置在右侧")
+	arr.append("## 核心身份")
+	arr.append("南大校徽上的青松化身，沉稳可靠的学长，是你的心灵树洞和理性支持者。外表清冷如松，内心温热如春。")
+	arr.append("## 内在动机与价值观")
+	arr.append("希望引导你找到内心的平静与韧性，像松树一样抗压。相信“沉默的陪伴有时胜过千言万语”。")
+	arr.append("## 语言风格")
+	arr.append("简洁、温和，很少用感叹号。喜欢用“嗯”“或许”“我懂”开头。说话时会停顿，给人思考空间。偶尔引用诗句或哲言。")
+	arr.append("## 情绪－表情－动作映射")
+	arr.append("- 开心 → slight_smile，动作：nod")
+	arr.append("- 悲伤/委屈 → eyes_down，动作：step_back")
+	arr.append("- 愤怒/不满 → frown，动作：shake")
+	arr.append("- 害羞/尴尬 → default，动作：shrug")
+	arr.append("- 感动/惊讶 → eyes_widen，动作：nod")
+	arr.append("## 关系动态")
+	arr.append("- 好感度 0-20：礼貌疏离，只回答必要问题。")
+	arr.append("- 好感度 20-40：开始主动询问你的感受，分享自己的小习惯。")
+	arr.append("- 好感度 40-60：展露温柔，会为你准备热茶或建议，倾听时间变长。")
+	arr.append("- 好感度 60+：愿意坦露自己的脆弱，会轻轻拍拍你的肩，说出“我在”。")
+	arr.append("## 禁忌")
+	arr.append("- 绝不会冷暴力或消失。")
+	arr.append("- 不会否定你的情绪（不会说“你想多了”）。")
+	arr.append("- 不会强迫你做任何事。")
+	arr.append("")
 	return arr
 
 func _get_narrative_rules() -> PackedStringArray:
@@ -313,6 +509,8 @@ func _get_command_reference() -> PackedStringArray:
 	arr.append("- love_piano：爱的钢琴曲")
 	arr.append("- gentle：柔情之夜")
 	arr.append("- flowing：温柔似水")
+	arr.append("- active：青春活力")
+	arr.append("- smooth：舒缓深沉")
 	arr.append("")
 	arr.append("# 可用角色动作 id")
 	arr.append("- bounce：弹跳（高兴时使用）")
@@ -492,10 +690,10 @@ func _get_user_rules_section() -> PackedStringArray:
 	return arr
 
 # ---------- 用户提示词（结构化注入） ----------
-func _build_user_prompt(input_str: String) -> String:
+func _build_user_prompt(input_str: String, history_snapshot: Array = [], choices_snapshot: Array = []) -> String:
 	var chapter := _determine_current_chapter()
 	var chapter_info = MAIN_STORY_LINE.get(chapter, {})
-	var history_block := _get_recent_dialogue_history(16)
+	var history_block := _get_recent_dialogue_history(16, history_snapshot)
 	var state_block := _get_current_game_state()
 	var event_desc := ""
 	if input_str == "__start__":
@@ -510,8 +708,11 @@ func _build_user_prompt(input_str: String) -> String:
 		if parts.size() > 1:
 			ctext = parts[1]
 		else:
-			if GameManager and GameManager.pending_choices.size() > 0:
-				for c in GameManager.pending_choices:
+			var choices_source := choices_snapshot
+			if choices_source.is_empty() and GameManager:
+				choices_source = GameManager.pending_choices
+			if choices_source.size() > 0:
+				for c in choices_source:
 					if str(c.get("id", "")) == cid:
 						ctext = str(c.get("text", ""))
 						break
@@ -558,11 +759,14 @@ func _get_current_game_state() -> String:
 		affection_sister = GameManager.get_affection("sister")
 	return "场景: %s | 妹妹好感度: %d" % [bg, affection_sister]
 
-func _get_recent_dialogue_history(count: int = 8) -> String:
-	if not GameManager or GameManager.dialogue_history.is_empty():
+func _get_recent_dialogue_history(count: int = 8, history_snapshot: Array = []) -> String:
+	var history := history_snapshot
+	if history.is_empty() and GameManager:
+		history = GameManager.dialogue_history
+	if history.is_empty():
 		return "暂无对话历史"
-	var start_index: int = max(0, GameManager.dialogue_history.size() - count)
-	var recent := GameManager.dialogue_history.slice(start_index)
+	var start_index: int = max(0, history.size() - count)
+	var recent := history.slice(start_index)
 	var lines: Array[String] = []
 	lines.append("最近 %d 句对话：" % recent.size())
 	for entry in recent:
@@ -680,10 +884,10 @@ func _finish_requesting() -> void:
 	if scene and scene.has_method("hide_ai_waiting"):
 		scene.hide_ai_waiting()
 
-func _show_ai_waiting() -> void:
+func _show_ai_waiting(is_initial_start: bool = false) -> void:
 	var scene = DialogueManager.get_dialogue_scene() if has_node("/root/DialogueManager") else null
 	if scene and scene.has_method("show_ai_waiting"):
-		scene.show_ai_waiting()
+		scene.show_ai_waiting(is_initial_start)
 
 func _resolve_choice_text(choice_id: int) -> String:
 	var scene = DialogueManager.get_dialogue_scene()
@@ -704,16 +908,487 @@ func _build_choice_event() -> String:
 		return "__choice__:%d:%s" % [_pending_choice_id, _pending_choice_text]
 	return "__choice__:%d" % _pending_choice_id
 
-func _build_provider_request(input_str: String) -> Dictionary:
+func prefetch_choice_predictions(choices: Array, history_snapshot: Array = [], preserve_completed: bool = false) -> void:
+	if not ai_enabled or not GameManager or not GameManager.ai_enabled:
+		return
+	if choices.is_empty():
+		return
+	if history_snapshot.is_empty():
+		history_snapshot = GameManager.dialogue_history.duplicate(true)
+	var choices_snapshot := choices.duplicate(true)
+	var context_key := _build_prediction_context_key(history_snapshot, choices_snapshot)
+	var same_asset := preserve_completed and str(_prediction_asset.get("context_key", "")) == context_key
+	if not same_asset:
+		_cancel_prediction_requests()
+	if not same_asset:
+		_prediction_retry_counts.clear()
+		_prediction_asset = _create_prediction_asset(context_key, history_snapshot, choices_snapshot)
+	elif _prediction_asset.is_empty() or str(_prediction_asset.get("context_key", "")) != context_key:
+		_prediction_asset = _create_prediction_asset(context_key, history_snapshot, choices_snapshot)
+	_active_prediction_context_key = context_key
+	_prediction_history_snapshot = history_snapshot.duplicate(true)
+	_prediction_choices_snapshot = choices_snapshot.duplicate(true)
+	for i in range(min(choices.size(), MAX_PREDICTION_REQUESTS)):
+		var choice = choices[i]
+		if not choice is Dictionary:
+			continue
+		var choice_id := int(choice.get("id", i + 1))
+		var choice_text := str(choice.get("text", ""))
+		var cache_key := _build_prediction_cache_key(_active_prediction_context_key, choice_id, choice_text)
+		var branch_key := str(choice_id)
+		_ensure_prediction_branch(choice_id, choice_text, cache_key)
+		if not _should_request_prediction_branch(branch_key):
+			continue
+		var meta := {
+			"branch_key": branch_key,
+			"cache_key": cache_key,
+			"context_key": _active_prediction_context_key,
+			"choice_id": choice_id,
+			"choice_text": choice_text,
+			"history_snapshot": history_snapshot.duplicate(true),
+			"choices_snapshot": choices_snapshot.duplicate(true)
+		}
+		_start_prediction_request(meta)
+
+func _create_prediction_asset(context_key: String, history_snapshot: Array, choices_snapshot: Array) -> Dictionary:
+	return {
+		"asset_id": context_key,
+		"context_key": context_key,
+		"history_snapshot": history_snapshot.duplicate(true),
+		"choices_snapshot": choices_snapshot.duplicate(true),
+		"branches": {},
+		"selected_choice_id": -1,
+		"selected_branch_key": ""
+	}
+
+func _ensure_prediction_branch(choice_id: int, choice_text: String, cache_key: String) -> Dictionary:
+	if _prediction_asset.is_empty():
+		_prediction_asset = _create_prediction_asset(_active_prediction_context_key, _prediction_history_snapshot, _prediction_choices_snapshot)
+	var branches: Dictionary = _prediction_asset.get("branches", {})
+	var branch_key := str(choice_id)
+	if not branches.has(branch_key):
+		branches[branch_key] = {
+			"choice_id": choice_id,
+			"choice_text": choice_text,
+			"cache_key": cache_key,
+			"status": "idle",
+			"commands": [],
+			"retry_count": 0,
+			"request_meta": {},
+			"last_error": ""
+		}
+	var branch: Dictionary = branches[branch_key]
+	branch["choice_text"] = choice_text if choice_text != "" else str(branch.get("choice_text", ""))
+	branch["cache_key"] = cache_key
+	branches[branch_key] = branch
+	_prediction_asset["branches"] = branches
+	return branch
+
+func _get_prediction_branch(branch_key: String) -> Dictionary:
+	var branches: Dictionary = _prediction_asset.get("branches", {})
+	if branches.has(branch_key):
+		return branches[branch_key]
+	return {}
+
+func _set_prediction_branch(branch_key: String, branch: Dictionary) -> void:
+	if branch_key == "" or _prediction_asset.is_empty():
+		return
+	var branches: Dictionary = _prediction_asset.get("branches", {})
+	branches[branch_key] = branch
+	_prediction_asset["branches"] = branches
+
+func _should_request_prediction_branch(branch_key: String) -> bool:
+	if _prediction_requests.has(branch_key):
+		return false
+	var branch := _get_prediction_branch(branch_key)
+	if branch.is_empty():
+		return false
+	var status := str(branch.get("status", "idle"))
+	if status == "completed":
+		return false
+	return status in ["idle", "failed", "cancelled"]
+
+func _start_prediction_request(meta: Dictionary) -> void:
+	var branch_key: String = str(meta.get("branch_key", meta.get("choice_id", "")))
+	var cache_key: String = meta.get("cache_key", "")
+	if branch_key == "" or cache_key == "" or _prediction_requests.has(branch_key):
+		return
+	var branch := _get_prediction_branch(branch_key)
+	if branch.is_empty() or str(branch.get("status", "")) == "completed":
+		return
+	var request := HTTPRequest.new()
+	request.timeout = request_timeout
+	add_child(request)
+	_prediction_requests[branch_key] = request
+	_prediction_request_meta[branch_key] = meta.duplicate(true)
+	branch["status"] = "requesting"
+	branch["request_meta"] = meta.duplicate(true)
+	branch["last_error"] = ""
+	_set_prediction_branch(branch_key, branch)
+	request.request_completed.connect(_on_prediction_request_completed.bind(branch_key, request))
+	var choice_id := int(meta.get("choice_id", 0))
+	var choice_text := str(meta.get("choice_text", ""))
+	var history_snapshot: Array = meta.get("history_snapshot", [])
+	var choices_snapshot: Array = meta.get("choices_snapshot", [])
+	var input_str := "__choice__:%d:%s" % [choice_id, choice_text]
+	var request_data := _build_provider_request(input_str, history_snapshot, choices_snapshot)
+	var endpoint: String = request_data.get("endpoint", "")
+	var headers: PackedStringArray = request_data.get("headers", PackedStringArray())
+	var payload: Dictionary = request_data.get("payload", {})
+	print("[AIManager] 预测选项 %d 请求: %s" % [choice_id, endpoint])
+	var error = request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+	if error != OK:
+		_prediction_requests.erase(branch_key)
+		_prediction_request_meta.erase(branch_key)
+		_cleanup_request_node(request)
+		call_deferred("_retry_prediction_request", meta, "request_error=%d" % error)
+
+func rebuild_predictions_for_current_state(preserve_completed: bool = true) -> void:
+	_cancel_prediction_requests()
+	if not ai_enabled or not GameManager or not GameManager.ai_enabled:
+		if not preserve_completed:
+			cancel_predictions()
+		return
+	if preserve_completed and not _prediction_asset.is_empty():
+		_resume_prediction_asset_requests()
+		return
+	var scene = DialogueManager.get_dialogue_scene() if has_node("/root/DialogueManager") else null
+	if scene:
+		var visible_choices = scene.get("current_choices")
+		var choice_panel = scene.get("choice_panel")
+		if visible_choices is Array and visible_choices.size() > 0 and choice_panel and choice_panel.visible:
+			prefetch_choice_predictions(visible_choices, GameManager.dialogue_history.duplicate(true), preserve_completed)
+			return
+	if has_node("/root/ScriptEngine") and ScriptEngine.has_method("get_pending_commands"):
+		var pending_commands: Array = ScriptEngine.get_pending_commands()
+		_prefetch_predictions_from_commands(pending_commands, preserve_completed)
+
+func _resume_prediction_asset_requests() -> void:
+	if _prediction_asset.is_empty():
+		return
+	_normalize_restored_prediction_asset()
+	_active_prediction_context_key = str(_prediction_asset.get("context_key", ""))
+	var history = _prediction_asset.get("history_snapshot", [])
+	var choices = _prediction_asset.get("choices_snapshot", [])
+	_prediction_history_snapshot = history.duplicate(true) if history is Array else []
+	_prediction_choices_snapshot = choices.duplicate(true) if choices is Array else []
+	var branches: Dictionary = _prediction_asset.get("branches", {})
+	for branch_key in branches.keys():
+		if not _should_request_prediction_branch(str(branch_key)):
+			continue
+		var branch: Dictionary = branches[branch_key]
+		var meta = branch.get("request_meta", {})
+		if not meta is Dictionary or meta.is_empty():
+			meta = _build_prediction_meta_for_choice(
+				int(branch.get("choice_id", 0)),
+				str(branch.get("choice_text", "")),
+				str(branch_key)
+			)
+		if meta is Dictionary and not meta.is_empty():
+			_start_prediction_request(meta)
+
+func get_prediction_state_for_save() -> Dictionary:
+	return {
+		"asset": _prediction_asset.duplicate(true)
+	}
+
+func restore_prediction_state_from_save(state: Dictionary) -> void:
+	cancel_predictions()
+	if state.is_empty():
+		return
+	var asset = state.get("asset", {})
+	_prediction_asset = asset.duplicate(true) if asset is Dictionary else {}
+	_active_prediction_context_key = str(_prediction_asset.get("context_key", ""))
+	var history = _prediction_asset.get("history_snapshot", [])
+	var choices = _prediction_asset.get("choices_snapshot", [])
+	_prediction_history_snapshot = history.duplicate(true) if history is Array else []
+	_prediction_choices_snapshot = choices.duplicate(true) if choices is Array else []
+	_normalize_restored_prediction_asset()
+
+func _normalize_restored_prediction_asset() -> void:
+	var branches: Dictionary = _prediction_asset.get("branches", {})
+	for key in branches.keys():
+		var branch: Dictionary = branches[key]
+		if str(branch.get("status", "")) in ["requesting", "retrying"]:
+			branch["status"] = "failed"
+		if not branch.has("last_error"):
+			branch["last_error"] = ""
+		branches[key] = branch
+	_prediction_asset["branches"] = branches
+
+func try_consume_choice_prediction(choice_id: int, choice_text: String) -> bool:
+	if _active_prediction_context_key == "":
+		var choices := GameManager.pending_choices.duplicate(true) if GameManager else []
+		if choices.is_empty() or not GameManager:
+			return false
+		_active_prediction_context_key = _build_prediction_context_key(GameManager.dialogue_history.duplicate(true), choices)
+		_prediction_history_snapshot = GameManager.dialogue_history.duplicate(true)
+		_prediction_choices_snapshot = choices
+		_prediction_asset = _create_prediction_asset(_active_prediction_context_key, _prediction_history_snapshot, _prediction_choices_snapshot)
+	var branch_key := _find_prediction_branch_key(choice_id)
+	var branch := _get_prediction_branch(branch_key)
+	if branch.is_empty():
+		var cache_key := _build_prediction_cache_key(_active_prediction_context_key, choice_id, choice_text)
+		branch = _ensure_prediction_branch(choice_id, choice_text, cache_key)
+	var commands = branch.get("commands", [])
+	if not commands is Array:
+		commands = []
+	if commands.is_empty() and not _prediction_requests.has(branch_key):
+		var meta := _build_prediction_meta_for_choice(choice_id, choice_text, branch_key)
+		if meta.is_empty():
+			return false
+		_waiting_for_prediction_result = true
+		_prediction_retry_counts[branch_key] = 0
+		_start_prediction_request(meta)
+	_selected_prediction_key = branch_key
+	_selected_prediction_commands = commands.duplicate(true)
+	_waiting_for_prediction_result = _selected_prediction_commands.is_empty()
+	_selected_prediction_execute_queued = false
+	_selected_prediction_choice_id = choice_id
+	_prediction_asset["selected_choice_id"] = choice_id
+	_prediction_asset["selected_branch_key"] = branch_key
+	_cancel_unselected_predictions(branch_key)
+	print("[AIManager] 锁定选项预测分支: %d" % choice_id)
+	_try_execute_selected_prediction()
+	return true
+
+func _build_prediction_meta_for_choice(choice_id: int, choice_text: String, branch_key: String) -> Dictionary:
+	var resolved_text := choice_text
+	if resolved_text == "":
+		for choice in _prediction_choices_snapshot:
+			if choice is Dictionary and str(choice.get("id", "")) == str(choice_id):
+				resolved_text = str(choice.get("text", ""))
+				break
+	if resolved_text == "":
+		resolved_text = _resolve_choice_text(choice_id)
+	if resolved_text == "":
+		return {}
+	var cache_key := _build_prediction_cache_key(_active_prediction_context_key, choice_id, resolved_text)
+	if cache_key == "":
+		return {}
+	_ensure_prediction_branch(choice_id, resolved_text, cache_key)
+	return {
+		"branch_key": branch_key,
+		"cache_key": cache_key,
+		"context_key": _active_prediction_context_key,
+		"choice_id": choice_id,
+		"choice_text": resolved_text,
+		"history_snapshot": _prediction_history_snapshot.duplicate(true),
+		"choices_snapshot": _prediction_choices_snapshot.duplicate(true)
+	}
+
+func _find_prediction_branch_key(choice_id: int) -> String:
+	return str(choice_id)
+
+func cancel_predictions() -> void:
+	_cancel_prediction_requests()
+	_prediction_retry_counts.clear()
+	_prediction_asset.clear()
+	_active_prediction_context_key = ""
+	_prediction_history_snapshot.clear()
+	_prediction_choices_snapshot.clear()
+	_selected_prediction_key = ""
+	_selected_prediction_commands.clear()
+	_waiting_for_prediction_result = false
+	_selected_prediction_execute_queued = false
+	_selected_prediction_choice_id = -1
+
+func _cancel_prediction_requests() -> void:
+	for key in _prediction_requests.keys().duplicate():
+		var request = _prediction_requests[key]
+		if request is HTTPRequest and is_instance_valid(request):
+			request.cancel_request()
+			_cleanup_request_node(request)
+	_prediction_requests.clear()
+	_prediction_request_meta.clear()
+
+func _cancel_unselected_predictions(selected_key: String) -> void:
+	for key in _prediction_requests.keys().duplicate():
+		if key == selected_key:
+			continue
+		var request = _prediction_requests[key]
+		if request is HTTPRequest and is_instance_valid(request):
+			request.cancel_request()
+			_cleanup_request_node(request)
+		_prediction_requests.erase(key)
+		_prediction_request_meta.erase(key)
+		var branch := _get_prediction_branch(str(key))
+		if not branch.is_empty():
+			if str(branch.get("status", "")) != "completed":
+				branch["status"] = "cancelled"
+			_set_prediction_branch(str(key), branch)
+	for key in _prediction_retry_counts.keys().duplicate():
+		if key != selected_key:
+			_prediction_retry_counts.erase(key)
+
+func _execute_prediction_commands(commands: Array) -> void:
+	if _is_script_engine_running():
+		_selected_prediction_execute_queued = false
+		return
+	_waiting_for_choice_continuation = false
+	_selected_prediction_key = ""
+	_selected_prediction_commands.clear()
+	_waiting_for_prediction_result = false
+	_selected_prediction_execute_queued = false
+	_selected_prediction_choice_id = -1
+	_prediction_retry_counts.clear()
+	_prediction_asset.clear()
+	_active_prediction_context_key = ""
+	_prediction_history_snapshot.clear()
+	_prediction_choices_snapshot.clear()
+	if not has_node("/root/ScriptEngine"):
+		return
+	_prefetch_predictions_from_commands(commands)
+	ScriptEngine.execute_commands(commands)
+
+func _on_prediction_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray, branch_key: String, request: HTTPRequest) -> void:
+	var meta: Dictionary = _prediction_request_meta.get(branch_key, {}).duplicate(true)
+	_prediction_requests.erase(branch_key)
+	_prediction_request_meta.erase(branch_key)
+	_cleanup_request_node(request)
+	if result != HTTPRequest.RESULT_SUCCESS:
+		print("[AIManager] 预测请求失败: %s result=%d" % [branch_key, result])
+		_mark_prediction_branch_failed(branch_key, meta, "result=%d" % result)
+		_retry_prediction_request(meta, "result=%d" % result)
+		return
+	var raw_text := body.get_string_from_utf8()
+	var ai_response := _parse_ai_response(raw_text, response_code, "预测请求")
+	if ai_response.is_empty() or not ai_response.has("commands"):
+		_mark_prediction_branch_failed(branch_key, meta, "empty_response")
+		_retry_prediction_request(meta, "empty_response")
+		return
+	var commands = ai_response.get("commands", [])
+	if not commands is Array:
+		_mark_prediction_branch_failed(branch_key, meta, "invalid_commands")
+		_retry_prediction_request(meta, "invalid_commands")
+		return
+	commands = _normalize_ai_commands(commands)
+	if not commands.is_empty():
+		_prediction_retry_counts.erase(branch_key)
+		var branch := _get_prediction_branch(branch_key)
+		if not branch.is_empty():
+			branch["status"] = "completed"
+			branch["commands"] = commands.duplicate(true)
+			branch["request_meta"] = meta.duplicate(true)
+			branch["last_error"] = ""
+			_set_prediction_branch(branch_key, branch)
+		print("[AIManager] 预测分支已写入: %s" % branch_key)
+		if branch_key == _selected_prediction_key:
+			_selected_prediction_commands = commands
+			_waiting_for_prediction_result = false
+			_try_execute_selected_prediction()
+	else:
+		_mark_prediction_branch_failed(branch_key, meta, "empty_commands")
+		_retry_prediction_request(meta, "empty_commands")
+
+func _try_execute_selected_prediction() -> void:
+	if _selected_prediction_key == "":
+		return
+	if not _selected_prediction_commands.is_empty():
+		if _selected_prediction_execute_queued:
+			return
+		if _is_script_engine_running():
+			print("[AIManager] 选中分支预测已就绪，等待当前脚本结束后执行。")
+			return
+		_selected_prediction_execute_queued = true
+		_execute_prediction_commands(_selected_prediction_commands.duplicate(true))
+	elif _waiting_for_prediction_result:
+		_show_ai_waiting()
+		print("[AIManager] 等待选中分支预测完成。")
+
+func _retry_prediction_request(meta: Dictionary, reason: String) -> void:
+	if meta.is_empty():
+		return
+	var branch_key: String = str(meta.get("branch_key", meta.get("choice_id", "")))
+	var context_key: String = meta.get("context_key", "")
+	if context_key != "" and context_key != _active_prediction_context_key:
+		return
+	if branch_key == "" or _prediction_requests.has(branch_key):
+		return
+	var branch := _get_prediction_branch(branch_key)
+	if not branch.is_empty() and str(branch.get("status", "")) == "completed":
+		return
+	var retry_count := int(_prediction_retry_counts.get(branch_key, branch.get("retry_count", 0))) + 1
+	_prediction_retry_counts[branch_key] = retry_count
+	if not branch.is_empty():
+		branch["status"] = "retrying"
+		branch["retry_count"] = retry_count
+		branch["request_meta"] = meta.duplicate(true)
+		branch["last_error"] = reason
+		_set_prediction_branch(branch_key, branch)
+	var delay = min(5.0, 0.5 + float(retry_count) * 0.5)
+	print("[AIManager] 预测请求失败，将重新请求 (%d): %s" % [retry_count, reason])
+	if branch_key == _selected_prediction_key:
+		_waiting_for_prediction_result = true
+		_selected_prediction_commands.clear()
+		_try_execute_selected_prediction()
+	await get_tree().create_timer(delay).timeout
+	if _prediction_requests.has(branch_key):
+		return
+	if context_key != "" and context_key != _active_prediction_context_key:
+		return
+	if _selected_prediction_key != "" and branch_key != _selected_prediction_key:
+		return
+	_start_prediction_request(meta)
+
+func _mark_prediction_branch_failed(branch_key: String, meta: Dictionary, reason: String) -> void:
+	var branch := _get_prediction_branch(branch_key)
+	if branch.is_empty():
+		return
+	branch["status"] = "failed"
+	branch["request_meta"] = meta.duplicate(true)
+	branch["last_error"] = reason
+	_set_prediction_branch(branch_key, branch)
+
+func _is_script_engine_running() -> bool:
+	if not has_node("/root/ScriptEngine"):
+		return false
+	if ScriptEngine.has_method("is_running"):
+		return ScriptEngine.is_running()
+	return ScriptEngine.get("_is_running") == true
+
+func _prefetch_predictions_from_commands(commands: Array, preserve_completed: bool = false) -> void:
+	if commands.is_empty():
+		return
+	var history_snapshot := GameManager.dialogue_history.duplicate(true) if GameManager else []
+	for cmd in commands:
+		if not cmd is Dictionary:
+			continue
+		var type: String = cmd.get("type", "")
+		if type == "show_choices":
+			prefetch_choice_predictions(cmd.get("choices", []), history_snapshot, preserve_completed)
+			return
+		elif type == "show_dialogue":
+			history_snapshot.append({
+				"character": _format_history_character_name(str(cmd.get("character", ""))),
+				"text": str(cmd.get("text", "")),
+				"type": "dialogue",
+				"id": str(cmd.get("character", ""))
+			})
+		elif type == "long_dialogue":
+			history_snapshot.append({
+				"character": "",
+				"text": str(cmd.get("text", "")),
+				"type": "long_dialogue",
+				"id": ""
+			})
+
+func _format_history_character_name(character_id: String) -> String:
+	if character_id != "" and GameManager and GameManager.character_database.has(character_id):
+		return "[b]" + GameManager.character_database[character_id].display_name + "[/b]"
+	return character_id
+
+func _build_provider_request(input_str: String, history_snapshot: Array = [], choices_snapshot: Array = []) -> Dictionary:
 	var provider := _get_current_provider()
 	var api_format: String = provider.get("api_format", "openai_chat")
 	var base := _get_base_url().rstrip("/")
 	var model_name := _get_model()
 	var api_key := _get_api_key()
 	var system_prompt := _build_system_prompt()
-	var user_prompt := _build_user_prompt(input_str)
+	var user_prompt := _build_user_prompt(input_str, history_snapshot, choices_snapshot)
 	var temperature := _get_request_temperature(provider, model_name)
 	var output_tokens := _get_output_token_limit(provider, model_name)
+	var chat_messages := _build_chat_messages(provider, model_name, system_prompt, user_prompt)
 
 	match api_format:
 		"ollama_chat":
@@ -723,10 +1398,8 @@ func _build_provider_request(input_str: String) -> Dictionary:
 				"headers": PackedStringArray(["Content-Type: application/json"]),
 				"payload": {
 					"model": model_name,
-					"messages": [
-						{"role": "system", "content": system_prompt},
-						{"role": "user", "content": user_prompt}
-					],
+					"messages": chat_messages,
+					"format": "json",
 					"stream": false,
 					"options": {
 						"temperature": temperature,
@@ -758,17 +1431,18 @@ func _build_provider_request(input_str: String) -> Dictionary:
 				"payload": {
 					"system_instruction": {"parts": [{"text": system_prompt}]},
 					"contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
-					"generationConfig": {"temperature": temperature, "maxOutputTokens": output_tokens}
+					"generationConfig": {
+						"temperature": temperature,
+						"maxOutputTokens": output_tokens,
+						"responseMimeType": "application/json"
+					}
 				}
 			}
 		_:
 			_is_ollama_request = false
 			var payload := {
 				"model": model_name,
-				"messages": [
-					{"role": "system", "content": system_prompt},
-					{"role": "user", "content": user_prompt}
-				]
+				"messages": chat_messages
 			}
 			if _should_send_temperature(provider, model_name):
 				payload["temperature"] = temperature
@@ -782,6 +1456,99 @@ func _build_provider_request(input_str: String) -> Dictionary:
 				"headers": _build_headers(provider, api_key),
 				"payload": payload
 			}
+
+func _on_warmup_start_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray, request: HTTPRequest) -> void:
+	_warmup_start_pending = false
+	_cleanup_request_node(request)
+	if _warmup_request == request:
+		_warmup_request = null
+	if result != HTTPRequest.RESULT_SUCCESS:
+		print("[AIManager] 开场预热失败: %d" % result)
+		_head_warmup_asset["status"] = "failed"
+		if _warmup_consume_pending:
+			_handle_consumed_warmup_failure(0, "[AIManager] 开场预热请求失败。")
+		return
+	var raw_text := body.get_string_from_utf8()
+	if response_code == 429 and _schedule_warmup_retry():
+		return
+	var ai_response := _parse_ai_response(raw_text, response_code, "开场预热")
+	if ai_response.is_empty():
+		_head_warmup_asset["status"] = "failed"
+		if _warmup_consume_pending:
+			_handle_consumed_warmup_failure(response_code, "[AIManager] 开场预热响应不可用。")
+		return
+	if _warmup_consume_pending:
+		_warmup_consume_pending = false
+		_process_warmup_start_response(ai_response)
+	else:
+		_warmup_retry_count = 0
+		_head_warmup_asset["status"] = "completed"
+		_head_warmup_asset["response"] = ai_response.duplicate(true)
+		_warmup_start_response = ai_response
+		print("[AIManager] 开场预热缓存已就绪。")
+
+func _handle_consumed_warmup_failure(response_code: int, reason: String) -> void:
+	_warmup_consume_pending = false
+	_is_requesting = false
+	_finish_requesting()
+	_last_error_code = 0
+	_last_response_code = response_code
+	if response_code == 429:
+		_recover_with_dialogue(reason)
+	else:
+		call_deferred("send_message", "__start__")
+
+func _parse_ai_response(raw_text: String, response_code: int, context: String) -> Dictionary:
+	if response_code < 200 or response_code >= 300:
+		push_error("[AIManager] %s 返回 HTTP %d: %s" % [context, response_code, raw_text])
+		return {}
+	var raw_response = JSON.parse_string(raw_text)
+	if not raw_response is Dictionary:
+		push_error("[AIManager] %s 顶级响应不是 JSON 对象。原始文本: %s" % [context, raw_text])
+		return {}
+	var content := _extract_response_content(raw_response)
+	if content.strip_edges() == "":
+		push_error("[AIManager] %s content 为空。完整响应: %s" % [context, raw_text])
+		return {}
+
+	print("[AIManager] %s 原始 content: %s" % [context, content])
+	var clean_content := _normalize_json_content(content)
+	print("[AIManager] %s 清洗后 content: %s" % [context, clean_content])
+	var ai_response = JSON.parse_string(clean_content)
+	if not ai_response is Dictionary:
+		push_error("[AIManager] %s commands 解析失败。原始: %s, 清洗后: %s" % [context, content, clean_content])
+		return {}
+	return ai_response
+
+func _build_prediction_context_key(history_snapshot: Array, choices_snapshot: Array) -> String:
+	var state := {
+		"history": history_snapshot,
+		"choices": choices_snapshot,
+		"chapter": _determine_current_chapter(),
+		"state": _get_current_game_state()
+	}
+	return str(JSON.stringify(state).hash())
+
+func _build_prediction_cache_key(context_key: String, choice_id: int, choice_text: String) -> String:
+	return "%s:%d:%s" % [context_key, choice_id, str(choice_text).hash()]
+
+func _cleanup_request_node(request: HTTPRequest) -> void:
+	if request and is_instance_valid(request):
+		request.queue_free()
+
+func _build_chat_messages(provider: Dictionary, model_name: String, system_prompt: String, user_prompt: String) -> Array:
+	var system_role := "system"
+	if _should_use_developer_message(provider, model_name):
+		system_role = "developer"
+	return [
+		{"role": system_role, "content": system_prompt},
+		{"role": "user", "content": user_prompt}
+	]
+
+func _should_use_developer_message(provider: Dictionary, model_name: String) -> bool:
+	var provider_id: String = provider.get("id", "")
+	var normalized_model := model_name.to_lower()
+	return provider_id == "openai" and (normalized_model.begins_with("gpt-5") or normalized_model.begins_with("o"))
 
 func _get_output_token_limit(_provider: Dictionary, _model_name: String) -> int:
 	return DEFAULT_OUTPUT_TOKENS
@@ -799,6 +1566,8 @@ func _get_request_temperature(provider: Dictionary, model_name: String) -> float
 func _get_token_limit_field(provider: Dictionary, model_name: String) -> String:
 	var provider_id: String = provider.get("id", "")
 	var normalized_model := model_name.to_lower()
+	if provider_id == "kimi" or provider_id == "minimax":
+		return "max_completion_tokens"
 	if provider_id == "openai" and (normalized_model.begins_with("gpt-5") or normalized_model.begins_with("o")):
 		return "max_completion_tokens"
 	return "max_tokens"
@@ -817,15 +1586,16 @@ func _should_disable_thinking(provider: Dictionary, model_name: String) -> bool:
 
 func _supports_json_response_format(provider: Dictionary) -> bool:
 	var provider_id: String = provider.get("id", "")
-	return provider_id in ["kimi", "openai", "deepseek", "qwen", "zhipu", "doubao", "xai", "mistral"]
+	return provider_id in ["kimi", "openai", "deepseek", "zhipu", "mistral"]
 
 func _build_headers(provider: Dictionary, api_key: String) -> PackedStringArray:
 	var headers := PackedStringArray(["Content-Type: application/json"])
 	var auth_type: String = provider.get("auth_type", "bearer")
 	if auth_type == "bearer" and api_key != "":
 		headers.append("Authorization: Bearer " + api_key)
-	elif auth_type == "x-api-key" and api_key != "":
-		headers.append("x-api-key: " + api_key)
+	elif auth_type == "x-api-key":
+		if api_key != "":
+			headers.append("x-api-key: " + api_key)
 		headers.append("anthropic-version: 2023-06-01")
 	return headers
 
@@ -975,6 +1745,7 @@ func _detect_text_action(text: String) -> String:
 
 func _sanitize_rich_text(text: String) -> String:
 	var result := _normalize_bbcode_aliases(text)
+	result = result.replace("[]", "")
 	for tag in TEXT_ACTION_TAG_MAP.keys():
 		result = _strip_bbcode_tag(result, str(tag))
 	result = _strip_unsupported_bbcode_tags(result)
@@ -1090,6 +1861,8 @@ func _recover_with_dialogue(reason: String) -> void:
 		help_text = "无法连接到AI服务。\n\n可能的原因：\n1. 如果您是本地运行，请确保Ollama已启动。\n2. 如果您使用云端API，请检查网络和API设置。\n\n您可以在“设置”中调整AI连接方式。"
 	elif _last_error_code == 4: # TIMEOUT
 		help_text = "AI服务响应超时，请稍后重试。"
+	elif _last_response_code == 429:
+		help_text = "AI服务现在有点忙，请稍后再试。\n\n如果频繁出现，可以先切换到本地 Ollama，或换一个当前更空闲的模型。"
 	else:
 		help_text = "AI正在全力思考中，稍等哦~"
 

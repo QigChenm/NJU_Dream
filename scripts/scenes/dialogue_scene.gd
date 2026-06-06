@@ -3,7 +3,7 @@ extends Control
 
 # ================= 信号 =================
 signal continue_pressed
-signal choice_selected(choice_id: int)
+signal choice_selected(choice_id: int, choice_text: String)
 signal long_dialogue_finished
 
 # ================= 属性 =================
@@ -36,6 +36,7 @@ var is_waiting_for_input: bool = false
 var current_choices: Array = []
 
 # 打字机效果
+var force_manual_next_dialogue: bool = false
 var typewriter_tween: Tween = null
 var typewriter_timer: Timer = null
 var long_typewriter_timer: Timer = null
@@ -57,6 +58,8 @@ var auto_mode_paused_by_choice: bool = false
 var skip_mode_paused_by_choice: bool = false
 var _current_line_recorded: bool = false
 var _has_shown_initial_wait_text: bool = false
+var _ai_settings_signature_on_panel_open: String = ""
+var _quick_save_in_progress: bool = false
 
 const ALLOWED_TEXT_BBCODE_TAGS := ["b", "i", "u", "color", "wave", "shake"]
 const INITIAL_WAIT_TEXT := "[wave amp=50.0 freq=5.0]请稍等，正在初始化游戏……[/wave]"
@@ -228,8 +231,11 @@ func _start_game_flow() -> void:
 		GameManager.open_about_on_load = false
 		call_deferred("_open_about_from_menu")
 	else:
+		var should_warmup_start := GameManager.current_scene == ""
 		if GameManager.current_scene == "":
 			GameManager.start_new_game()
+		if should_warmup_start and has_node("/root/AIManager") and GameManager.ai_enabled:
+			AIManager.warmup_start_request()
 		DialogueManager.start_dialogue()
 
 
@@ -240,10 +246,13 @@ func _enable_input() -> void:
 
 # ================= 对话显示 =================
 func display_dialogue(data: Dictionary) -> void:
-	wait.visible = false
+	if wait.visible:
+		wait.visible = false
 	_current_line_recorded = false
 	choice_panel.hide()
 	_kill_typewriter()
+	var force_manual = data.get("_force_manual", false) or force_manual_next_dialogue
+	force_manual_next_dialogue = false
 
 	var character = data.get("character", "")
 	var display_name = "[b]" + _resolve_character_name(character) + "[/b]"
@@ -257,7 +266,7 @@ func display_dialogue(data: Dictionary) -> void:
 			portrait.texture = GameManager.character_database[character].portrait
 			portrait.show()
 
-	_full_text = _sanitize_display_text(data.get("text", ""))
+	_full_text = data.get("text", "")
 	text_label.text = _full_text
 	text_label.visible_characters = 0
 
@@ -265,17 +274,15 @@ func display_dialogue(data: Dictionary) -> void:
 	var total_chars = _full_text.length()
 	is_typewriter_playing = true
 
-	var character_id = character
-
-	if GameManager.is_skip_mode:
+	if GameManager.is_skip_mode and not force_manual:
 		_stop_auto_timer()
 		text_label.visible_characters = total_chars
 		is_typewriter_playing = false
-		_record_dialogue_history(display_name, character_id)
+		_record_dialogue_history(display_name)
 		_start_skip_advance_timer()
 		is_waiting_for_input = true
 		click_indicator.hide()
-	else:
+	elif not force_manual:
 		_start_typewriter_timer(total_chars, speed, func():
 			is_typewriter_playing = false
 			if GameManager.is_auto_mode:
@@ -285,7 +292,16 @@ func display_dialogue(data: Dictionary) -> void:
 				_stop_auto_timer()
 				is_waiting_for_input = true
 				click_indicator.show()
-			_record_dialogue_history(display_name, character_id)
+			_record_dialogue_history(display_name)
+		)
+	else:
+		_start_typewriter_timer(total_chars, speed, func():
+			is_typewriter_playing = false
+			_stop_auto_timer()
+			_stop_skip_advance_timer()
+			is_waiting_for_input = true
+			click_indicator.show()
+			_record_dialogue_history(display_name)
 		)
 
 	dialogue_box.show()
@@ -302,6 +318,8 @@ func _kill_typewriter() -> void:
 		typewriter_tween.kill()
 	is_typewriter_playing = false
 	_stop_typewriter()
+	_stop_auto_timer()
+	_stop_skip_advance_timer()
 	if auto_advance_timer:
 		auto_advance_timer.stop()
 		auto_advance_timer.queue_free()
@@ -359,7 +377,6 @@ func display_choices(choices: Array) -> void:
 		t.tween_property(btn, "scale", Vector2(1.05, 1.05), 0.1)
 		t.tween_property(btn, "scale", Vector2.ONE, 0.15).set_ease(Tween.EASE_OUT)
 
-
 func _pause_auto_for_choices() -> void:
 	if not GameManager.is_auto_mode:
 		return
@@ -372,13 +389,14 @@ func _pause_auto_for_choices() -> void:
 # ================= 选项点击 =================
 func _on_choice_pressed(choice_id: int) -> void:
 	var resolved_choice_id := _resolve_choice_id_from_button(choice_id)
-	_record_choice(resolved_choice_id)
+	var choice_text := _get_choice_text(resolved_choice_id)
+	_record_choice(resolved_choice_id, choice_text)
 	choice_panel.hide()
 	if skip_mode_paused_by_choice:
 		skip_mode_paused_by_choice = false
 		GameManager.is_skip_mode = true
 		GameManager.skip_mode_changed.emit(true)
-	choice_selected.emit(resolved_choice_id)
+	choice_selected.emit(resolved_choice_id, choice_text)
 	_restore_auto_after_choice()
 
 func _resolve_choice_id_from_button(button_index: int) -> int:
@@ -406,12 +424,19 @@ func _on_choice_mouse_exited(btn: TextureButton) -> void:
 			label.add_theme_color_override("font_color", Color("#34859B"))
 
 
-func _record_choice(choice_id: int) -> void:
-	var choice_text = ""
+func _get_choice_text(choice_id: int) -> String:
 	for c in current_choices:
 		if str(c.get("id", "")) == str(choice_id):
-			choice_text = _sanitize_plain_text(c.get("text", ""))
-			break
+			return _sanitize_plain_text(c.get("text", ""))
+	if GameManager:
+		for c in GameManager.pending_choices:
+			if c is Dictionary and str(c.get("id", "")) == str(choice_id):
+				return _sanitize_plain_text(c.get("text", ""))
+	return ""
+
+func _record_choice(choice_id: int, choice_text: String = "") -> void:
+	if choice_text == "":
+		choice_text = _get_choice_text(choice_id)
 	if choice_text != "":
 		GameManager.dialogue_history.append({
 			"character": "玩家",
@@ -623,9 +648,16 @@ func _on_backlog_button_pressed() -> void:
 	UIManager.open_panel("BacklogUI")
 
 func _on_quick_save_pressed() -> void:
-	SaveManager.auto_save_to_latest_slot()
+	if _quick_save_in_progress:
+		return
+	_quick_save_in_progress = true
+	await SaveManager.auto_save_to_latest_slot()
+	_quick_save_in_progress = false
 	
 func _on_quick_load_pressed() -> void:
+	if _quick_save_in_progress:
+		push_warning("[DialogueScene] 快速保存尚未完成，暂不能快速读档。")
+		return
 	if UIManager._current_panel != "":
 		UIManager.close_current_panel()
 	if get_tree().paused:
@@ -747,6 +779,8 @@ func _on_long_close_pressed() -> void:
 
 
 func _return_to_main_menu() -> void:
+	if has_node("/root/AIManager"):
+		AIManager.cancel_predictions()
 	if AudioManager:
 		AudioManager.stop_all()
 	if ScriptEngine:
@@ -789,9 +823,33 @@ func _open_about_from_menu() -> void:
 
 
 # ================= 面板回调 =================
-func _on_panel_opened(_panel_name: String) -> void: pass
-func _on_panel_closed(_panel_name: String) -> void: pass
+func _on_panel_opened(panel_name: String) -> void:
+	if panel_name == "SettingsUI":
+		_ai_settings_signature_on_panel_open = _build_ai_settings_signature()
 
+func _on_panel_closed(panel_name: String) -> void:
+	if panel_name == "SettingsUI":
+		var settings_changed := _ai_settings_signature_on_panel_open != _build_ai_settings_signature()
+		_ai_settings_signature_on_panel_open = ""
+		if settings_changed:
+			_rebuild_ai_predictions_after_state_change()
+
+func _rebuild_ai_predictions_after_state_change() -> void:
+	if has_node("/root/AIManager") and AIManager.has_method("rebuild_predictions_for_current_state"):
+		call_deferred("_deferred_rebuild_ai_predictions")
+
+func _deferred_rebuild_ai_predictions() -> void:
+	if has_node("/root/AIManager") and AIManager.has_method("rebuild_predictions_for_current_state"):
+		AIManager.rebuild_predictions_for_current_state()
+
+func _build_ai_settings_signature() -> String:
+	if not GameManager:
+		return ""
+	var settings := GameManager.ai_settings.duplicate(true)
+	return JSON.stringify({
+		"enabled": GameManager.ai_enabled,
+		"settings": settings
+	})
 
 # ================= 对话状态存取（存档用） =================
 func get_dialogue_state() -> Dictionary:
@@ -890,13 +948,13 @@ func hide_long_dialogue() -> void:
 		long_skip_timer.queue_free()
 		long_skip_timer = null
 
-func show_ai_waiting() -> void:
+func show_ai_waiting(is_initial_start: bool = false) -> void:
 	if wait:
-		if _has_shown_initial_wait_text:
-			wait.text = ""
-		else:
+		if is_initial_start and not _has_shown_initial_wait_text:
 			wait.text = INITIAL_WAIT_TEXT
 			_has_shown_initial_wait_text = true
+		else:
+			wait.text = ""
 		wait.visible = true
 
 func hide_ai_waiting() -> void:
@@ -905,6 +963,7 @@ func hide_ai_waiting() -> void:
 
 func _sanitize_display_text(text: String) -> String:
 	var result := str(text)
+	result = result.replace("[]", "")
 	result = result.replace("[italic]", "[i]")
 	result = result.replace("[/italic]", "[/i]")
 	result = result.replace("[italics]", "[i]")
@@ -993,3 +1052,11 @@ func clean_up_all_ui() -> void:
 		if is_instance_valid(dialog):
 			dialog.queue_free()
 	print("[DialogueScene] 动态UI清理完成。")
+
+
+func set_force_manual_next_dialogue() -> void:
+	force_manual_next_dialogue = true
+	_stop_auto_timer()
+	_stop_skip_advance_timer()
+	if typewriter_timer and not typewriter_timer.is_stopped():
+		_stop_typewriter()

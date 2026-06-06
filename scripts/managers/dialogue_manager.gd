@@ -159,11 +159,16 @@ func _on_continue() -> void:
 	line_finished.emit()
 
 
-func _on_choice(choice_id: int) -> void:
-	var text := ""
+func _on_choice(choice_id: int, choice_text: String = "") -> void:
+	var text := choice_text
 	var choices = _scene_instance.get("current_choices") if _scene_instance else []
-	if choices is Array:
+	if text == "" and choices is Array:
 		for c in choices:
+			if c is Dictionary and str(c.get("id", "")) == str(choice_id):
+				text = str(c.get("text", ""))
+				break
+	if text == "" and GameManager:
+		for c in GameManager.pending_choices:
 			if c is Dictionary and str(c.get("id", "")) == str(choice_id):
 				text = str(c.get("text", ""))
 				break

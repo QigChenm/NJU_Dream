@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BackgroundData" format=3 uid="uid://0w2e34pi2l5b"]
+
+[ext_resource type="FontFile" uid="uid://cv4m0rys7x10i" path="res://assets/fonts/ChillRoundGothic_Bold.ttf" id="1_3fftc"]
+[ext_resource type="Script" uid="uid://bn1rl1bkkavgq" path="res://scripts/datatypes/background_data.gd" id="2_xwrf4"]
+[ext_resource type="Texture2D" uid="uid://cvac88cfglc4g" path="res://assets/backgrounds/classroom_big.png" id="3_3fftc"]
+
+[resource]
+script = ExtResource("2_xwrf4")
+background_id = "classroom_big"
+display_name = "大教室"
+location_name = "阶梯教室"
+location_font = ExtResource("1_3fftc")
+location_font_size = 40
+texture = ExtResource("3_3fftc")
+metadata/_custom_type_script = "uid://bn1rl1bkkavgq"

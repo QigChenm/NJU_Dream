@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BackgroundData" format=3 uid="uid://b60hn7rgv2qdc"]
+
+[ext_resource type="FontFile" uid="uid://cv4m0rys7x10i" path="res://assets/fonts/ChillRoundGothic_Bold.ttf" id="1_kbinm"]
+[ext_resource type="Script" uid="uid://bn1rl1bkkavgq" path="res://scripts/datatypes/background_data.gd" id="2_3rmqe"]
+[ext_resource type="Texture2D" uid="uid://dfm4s4o2t6pn3" path="res://assets/backgrounds/playground_xianlin.png" id="3_kbinm"]
+
+[resource]
+script = ExtResource("2_3rmqe")
+background_id = "playground_xianlin"
+display_name = "仙林运动场"
+location_name = "仙林运动场"
+location_font = ExtResource("1_kbinm")
+location_font_size = 40
+texture = ExtResource("3_kbinm")
+metadata/_custom_type_script = "uid://bn1rl1bkkavgq"

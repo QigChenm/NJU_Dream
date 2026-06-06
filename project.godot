@@ -11,11 +11,11 @@ config_version=5
 [application]
 
 config/name="最南幻想"
-config/version="0.1.00"
+config/version="0.1.0"
 run/main_scene="uid://bl0x60ry2c2mp"
 config/features=PackedStringArray("4.6", "Mobile")
 boot_splash/show_image=false
-config/icon="res://icon.webp"
+config/icon="uid://c1ne8a3n0j812"
 
 [audio]
 

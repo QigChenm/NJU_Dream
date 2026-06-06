@@ -5,6 +5,9 @@ extends Control
 @onready var title_label: TextureRect = $TitleLabel
 
 func _ready() -> void:
+	if has_node("/root/AIManager") and GameManager.ai_enabled:
+		AIManager.warmup_start_request()
+
 	title_label.modulate.a = 0.0
 	logo_container.modulate.a = 0.0
 

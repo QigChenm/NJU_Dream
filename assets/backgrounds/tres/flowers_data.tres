@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BackgroundData" format=3 uid="uid://dpijn1rknfsrv"]
+
+[ext_resource type="FontFile" uid="uid://cv4m0rys7x10i" path="res://assets/fonts/ChillRoundGothic_Bold.ttf" id="1_duwtk"]
+[ext_resource type="Script" uid="uid://bn1rl1bkkavgq" path="res://scripts/datatypes/background_data.gd" id="2_3g1go"]
+[ext_resource type="Texture2D" uid="uid://c36faos2beb6t" path="res://assets/backgrounds/flowers.png" id="3_duwtk"]
+
+[resource]
+script = ExtResource("2_3g1go")
+background_id = "flowers"
+display_name = "花间"
+location_name = "花间"
+location_font = ExtResource("1_duwtk")
+location_font_size = 40
+texture = ExtResource("3_duwtk")
+metadata/_custom_type_script = "uid://bn1rl1bkkavgq"

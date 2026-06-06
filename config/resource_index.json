@@ -1,13 +1,26 @@
 {
 	"characters": [
-		"res://assets/characters/xiu/xiu_data.tres"
+		"res://assets/characters/xiu/xiu_data.tres",
+		"res://assets/characters/song/song_data.tres"
 	],
 	"backgrounds": [
 		"res://assets/backgrounds/tres/beidalou_data.tres",
 		"res://assets/backgrounds/tres/duxia_data.tres",
 		"res://assets/backgrounds/tres/litang_data.tres",
 		"res://assets/backgrounds/tres/nansu_data.tres",
-		"res://assets/backgrounds/tres/duxia_night_data.tres"
+		"res://assets/backgrounds/tres/duxia_night_data.tres",
+		"res://assets/backgrounds/tres/classroom_data.tres",
+		"res://assets/backgrounds/tres/classroom2_data.tres",
+		"res://assets/backgrounds/tres/classroom_big_data.tres",
+		"res://assets/backgrounds/tres/duxia_front_data.tres",
+		"res://assets/backgrounds/tres/flowers_data.tres",
+		"res://assets/backgrounds/tres/gate_data.tres",
+		"res://assets/backgrounds/tres/path_data.tres",
+		"res://assets/backgrounds/tres/playground_gulou2_data.tres",
+		"res://assets/backgrounds/tres/playground_gulou_data.tres",
+		"res://assets/backgrounds/tres/playground_xianlin_data.tres",
+		"res://assets/backgrounds/tres/xiangxuehai_data.tres",
+		"res://assets/backgrounds/tres/xingzheng_data.tres"
 	],
 	"audio_bgm": [
 		"res://assets/audio/bgm/tres/bgm_spring_forest.tres",

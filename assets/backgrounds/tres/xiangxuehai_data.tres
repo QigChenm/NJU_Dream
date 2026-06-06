@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="BackgroundData" format=3 uid="uid://drpypr3shi3nc"]
+
+[ext_resource type="FontFile" uid="uid://cv4m0rys7x10i" path="res://assets/fonts/ChillRoundGothic_Bold.ttf" id="1_lshed"]
+[ext_resource type="Script" uid="uid://bn1rl1bkkavgq" path="res://scripts/datatypes/background_data.gd" id="2_esksj"]
+[ext_resource type="Texture2D" uid="uid://b2787v4gbkorn" path="res://assets/backgrounds/xiangxuehai.png" id="3_lshed"]
+
+[resource]
+script = ExtResource("2_esksj")
+background_id = "xiangxuehai"
+display_name = "香雪海"
+location_name = "香雪海"
+location_font = ExtResource("1_lshed")
+location_font_size = 40
+texture = ExtResource("3_lshed")
+metadata/_custom_type_script = "uid://bn1rl1bkkavgq"
