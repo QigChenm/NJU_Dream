@@ -19,10 +19,10 @@ var _last_error_code: int = 0
 var _last_response_code: int = 0
 var _pending_choice_text: String = ""
 var _waiting_for_choice_continuation: bool = false
-var _prediction_cache: Dictionary = {}
 var _prediction_requests: Dictionary = {}
 var _prediction_request_meta: Dictionary = {}
 var _prediction_retry_counts: Dictionary = {}
+var _prediction_asset: Dictionary = {}
 var _active_prediction_context_key: String = ""
 var _prediction_history_snapshot: Array = []
 var _prediction_choices_snapshot: Array = []
@@ -35,6 +35,7 @@ var _warmup_request: HTTPRequest = null
 var _warmup_start_response: Dictionary = {}
 var _warmup_start_pending: bool = false
 var _warmup_consume_pending: bool = false
+var _head_warmup_asset: Dictionary = {}
 var _active_input_str: String = ""
 var _main_retry_count: int = 0
 var _main_retry_timer: Timer = null
@@ -127,12 +128,29 @@ func _start_main_request(input_str: String) -> void:
 		return
 	_pending_request_id = current_id
 
-func warmup_start_request() -> void:
-	if not ai_enabled or _warmup_start_pending or not _warmup_start_response.is_empty():
+func warmup_start_request(force_retry: bool = false) -> void:
+	if not ai_enabled:
+		return
+	if _is_check_only_run():
 		return
 	if not GameManager or not GameManager.ai_enabled:
 		return
+	if GameManager.current_scene != "":
+		_head_warmup_asset.clear()
+		return
+	if not force_retry and not _head_warmup_asset.is_empty() and str(_head_warmup_asset.get("status", "")) in ["pending", "requesting", "completed"]:
+		return
+	if _warmup_start_pending or not _warmup_start_response.is_empty():
+		return
 	_clear_warmup_retry_timer()
+	_head_warmup_asset = {
+		"asset_id": "head:start",
+		"context_key": "head:start",
+		"input": "__start__",
+		"status": "requesting",
+		"response": {},
+		"retry_count": 0
+	}
 	_warmup_start_pending = true
 	_warmup_request = HTTPRequest.new()
 	_warmup_request.timeout = request_timeout
@@ -146,14 +164,22 @@ func warmup_start_request() -> void:
 	var error = _warmup_request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
 	if error != OK:
 		_warmup_start_pending = false
+		_head_warmup_asset["status"] = "failed"
 		_cleanup_request_node(_warmup_request)
 		_warmup_request = null
+
+func _is_check_only_run() -> bool:
+	for arg in OS.get_cmdline_args():
+		if arg == "--check-only":
+			return true
+	return false
 
 func consume_warmup_start() -> Dictionary:
 	if _warmup_start_response.is_empty():
 		return {}
 	var response := _warmup_start_response.duplicate(true)
 	_warmup_start_response.clear()
+	_head_warmup_asset.clear()
 	return response
 
 func _try_use_warmup_start() -> bool:
@@ -204,8 +230,11 @@ func _on_main_retry_timeout() -> void:
 
 func _schedule_warmup_retry() -> bool:
 	if _warmup_retry_count >= MAX_WARMUP_RETRIES:
+		_head_warmup_asset["status"] = "failed"
 		return false
 	_warmup_retry_count += 1
+	_head_warmup_asset["status"] = "pending"
+	_head_warmup_asset["retry_count"] = _warmup_retry_count
 	var delay := _get_retry_delay(_warmup_retry_count)
 	print("[AIManager] 开场预热 429，%.1f 秒后重试 (%d/%d)。" % [delay, _warmup_retry_count, MAX_WARMUP_RETRIES])
 	_warmup_start_pending = true
@@ -221,7 +250,7 @@ func _schedule_warmup_retry() -> bool:
 func _on_warmup_retry_timeout() -> void:
 	_clear_warmup_retry_timer()
 	_warmup_start_pending = false
-	warmup_start_request()
+	warmup_start_request(true)
 
 func _get_retry_delay(retry_count: int) -> float:
 	var jitter := randf_range(0.0, 0.4)
@@ -888,12 +917,14 @@ func prefetch_choice_predictions(choices: Array, history_snapshot: Array = [], p
 		history_snapshot = GameManager.dialogue_history.duplicate(true)
 	var choices_snapshot := choices.duplicate(true)
 	var context_key := _build_prediction_context_key(history_snapshot, choices_snapshot)
-	var should_preserve := preserve_completed and _active_prediction_context_key == context_key
-	if not should_preserve:
+	var same_asset := preserve_completed and str(_prediction_asset.get("context_key", "")) == context_key
+	if not same_asset:
 		_cancel_prediction_requests()
-	if not should_preserve:
-		_prediction_cache.clear()
+	if not same_asset:
 		_prediction_retry_counts.clear()
+		_prediction_asset = _create_prediction_asset(context_key, history_snapshot, choices_snapshot)
+	elif _prediction_asset.is_empty() or str(_prediction_asset.get("context_key", "")) != context_key:
+		_prediction_asset = _create_prediction_asset(context_key, history_snapshot, choices_snapshot)
 	_active_prediction_context_key = context_key
 	_prediction_history_snapshot = history_snapshot.duplicate(true)
 	_prediction_choices_snapshot = choices_snapshot.duplicate(true)
@@ -904,9 +935,12 @@ func prefetch_choice_predictions(choices: Array, history_snapshot: Array = [], p
 		var choice_id := int(choice.get("id", i + 1))
 		var choice_text := str(choice.get("text", ""))
 		var cache_key := _build_prediction_cache_key(_active_prediction_context_key, choice_id, choice_text)
-		if _has_prediction_for_choice(choice_id, cache_key):
+		var branch_key := str(choice_id)
+		_ensure_prediction_branch(choice_id, choice_text, cache_key)
+		if not _should_request_prediction_branch(branch_key):
 			continue
 		var meta := {
+			"branch_key": branch_key,
 			"cache_key": cache_key,
 			"context_key": _active_prediction_context_key,
 			"choice_id": choice_id,
@@ -916,28 +950,82 @@ func prefetch_choice_predictions(choices: Array, history_snapshot: Array = [], p
 		}
 		_start_prediction_request(meta)
 
-func _has_prediction_for_choice(choice_id: int, exact_key: String) -> bool:
-	if _prediction_cache.has(exact_key) or _prediction_requests.has(exact_key):
-		return true
-	var prefix := "%s:%d:" % [_active_prediction_context_key, choice_id]
-	for key in _prediction_cache.keys():
-		if str(key).begins_with(prefix):
-			return true
-	for key in _prediction_requests.keys():
-		if str(key).begins_with(prefix):
-			return true
-	return false
+func _create_prediction_asset(context_key: String, history_snapshot: Array, choices_snapshot: Array) -> Dictionary:
+	return {
+		"asset_id": context_key,
+		"context_key": context_key,
+		"history_snapshot": history_snapshot.duplicate(true),
+		"choices_snapshot": choices_snapshot.duplicate(true),
+		"branches": {},
+		"selected_choice_id": -1,
+		"selected_branch_key": ""
+	}
+
+func _ensure_prediction_branch(choice_id: int, choice_text: String, cache_key: String) -> Dictionary:
+	if _prediction_asset.is_empty():
+		_prediction_asset = _create_prediction_asset(_active_prediction_context_key, _prediction_history_snapshot, _prediction_choices_snapshot)
+	var branches: Dictionary = _prediction_asset.get("branches", {})
+	var branch_key := str(choice_id)
+	if not branches.has(branch_key):
+		branches[branch_key] = {
+			"choice_id": choice_id,
+			"choice_text": choice_text,
+			"cache_key": cache_key,
+			"status": "idle",
+			"commands": [],
+			"retry_count": 0,
+			"request_meta": {},
+			"last_error": ""
+		}
+	var branch: Dictionary = branches[branch_key]
+	branch["choice_text"] = choice_text if choice_text != "" else str(branch.get("choice_text", ""))
+	branch["cache_key"] = cache_key
+	branches[branch_key] = branch
+	_prediction_asset["branches"] = branches
+	return branch
+
+func _get_prediction_branch(branch_key: String) -> Dictionary:
+	var branches: Dictionary = _prediction_asset.get("branches", {})
+	if branches.has(branch_key):
+		return branches[branch_key]
+	return {}
+
+func _set_prediction_branch(branch_key: String, branch: Dictionary) -> void:
+	if branch_key == "" or _prediction_asset.is_empty():
+		return
+	var branches: Dictionary = _prediction_asset.get("branches", {})
+	branches[branch_key] = branch
+	_prediction_asset["branches"] = branches
+
+func _should_request_prediction_branch(branch_key: String) -> bool:
+	if _prediction_requests.has(branch_key):
+		return false
+	var branch := _get_prediction_branch(branch_key)
+	if branch.is_empty():
+		return false
+	var status := str(branch.get("status", "idle"))
+	if status == "completed":
+		return false
+	return status in ["idle", "failed", "cancelled"]
 
 func _start_prediction_request(meta: Dictionary) -> void:
+	var branch_key: String = str(meta.get("branch_key", meta.get("choice_id", "")))
 	var cache_key: String = meta.get("cache_key", "")
-	if cache_key == "" or _prediction_requests.has(cache_key) or _prediction_cache.has(cache_key):
+	if branch_key == "" or cache_key == "" or _prediction_requests.has(branch_key):
+		return
+	var branch := _get_prediction_branch(branch_key)
+	if branch.is_empty() or str(branch.get("status", "")) == "completed":
 		return
 	var request := HTTPRequest.new()
 	request.timeout = request_timeout
 	add_child(request)
-	_prediction_requests[cache_key] = request
-	_prediction_request_meta[cache_key] = meta.duplicate(true)
-	request.request_completed.connect(_on_prediction_request_completed.bind(cache_key, request))
+	_prediction_requests[branch_key] = request
+	_prediction_request_meta[branch_key] = meta.duplicate(true)
+	branch["status"] = "requesting"
+	branch["request_meta"] = meta.duplicate(true)
+	branch["last_error"] = ""
+	_set_prediction_branch(branch_key, branch)
+	request.request_completed.connect(_on_prediction_request_completed.bind(branch_key, request))
 	var choice_id := int(meta.get("choice_id", 0))
 	var choice_text := str(meta.get("choice_text", ""))
 	var history_snapshot: Array = meta.get("history_snapshot", [])
@@ -950,8 +1038,8 @@ func _start_prediction_request(meta: Dictionary) -> void:
 	print("[AIManager] 预测选项 %d 请求: %s" % [choice_id, endpoint])
 	var error = request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
 	if error != OK:
-		_prediction_requests.erase(cache_key)
-		_prediction_request_meta.erase(cache_key)
+		_prediction_requests.erase(branch_key)
+		_prediction_request_meta.erase(branch_key)
 		_cleanup_request_node(request)
 		call_deferred("_retry_prediction_request", meta, "request_error=%d" % error)
 
@@ -960,6 +1048,9 @@ func rebuild_predictions_for_current_state(preserve_completed: bool = true) -> v
 	if not ai_enabled or not GameManager or not GameManager.ai_enabled:
 		if not preserve_completed:
 			cancel_predictions()
+		return
+	if preserve_completed and not _prediction_asset.is_empty():
+		_resume_prediction_asset_requests()
 		return
 	var scene = DialogueManager.get_dialogue_scene() if has_node("/root/DialogueManager") else null
 	if scene:
@@ -972,25 +1063,58 @@ func rebuild_predictions_for_current_state(preserve_completed: bool = true) -> v
 		var pending_commands: Array = ScriptEngine.get_pending_commands()
 		_prefetch_predictions_from_commands(pending_commands, preserve_completed)
 
+func _resume_prediction_asset_requests() -> void:
+	if _prediction_asset.is_empty():
+		return
+	_normalize_restored_prediction_asset()
+	_active_prediction_context_key = str(_prediction_asset.get("context_key", ""))
+	var history = _prediction_asset.get("history_snapshot", [])
+	var choices = _prediction_asset.get("choices_snapshot", [])
+	_prediction_history_snapshot = history.duplicate(true) if history is Array else []
+	_prediction_choices_snapshot = choices.duplicate(true) if choices is Array else []
+	var branches: Dictionary = _prediction_asset.get("branches", {})
+	for branch_key in branches.keys():
+		if not _should_request_prediction_branch(str(branch_key)):
+			continue
+		var branch: Dictionary = branches[branch_key]
+		var meta = branch.get("request_meta", {})
+		if not meta is Dictionary or meta.is_empty():
+			meta = _build_prediction_meta_for_choice(
+				int(branch.get("choice_id", 0)),
+				str(branch.get("choice_text", "")),
+				str(branch_key)
+			)
+		if meta is Dictionary and not meta.is_empty():
+			_start_prediction_request(meta)
+
 func get_prediction_state_for_save() -> Dictionary:
 	return {
-		"context_key": _active_prediction_context_key,
-		"history_snapshot": _prediction_history_snapshot.duplicate(true),
-		"choices_snapshot": _prediction_choices_snapshot.duplicate(true),
-		"cache": _prediction_cache.duplicate(true)
+		"asset": _prediction_asset.duplicate(true)
 	}
 
 func restore_prediction_state_from_save(state: Dictionary) -> void:
 	cancel_predictions()
 	if state.is_empty():
 		return
-	_active_prediction_context_key = str(state.get("context_key", ""))
-	var history = state.get("history_snapshot", [])
-	var choices = state.get("choices_snapshot", [])
-	var cache = state.get("cache", {})
+	var asset = state.get("asset", {})
+	_prediction_asset = asset.duplicate(true) if asset is Dictionary else {}
+	_active_prediction_context_key = str(_prediction_asset.get("context_key", ""))
+	var history = _prediction_asset.get("history_snapshot", [])
+	var choices = _prediction_asset.get("choices_snapshot", [])
 	_prediction_history_snapshot = history.duplicate(true) if history is Array else []
 	_prediction_choices_snapshot = choices.duplicate(true) if choices is Array else []
-	_prediction_cache = cache.duplicate(true) if cache is Dictionary else {}
+	_normalize_restored_prediction_asset()
+
+func _normalize_restored_prediction_asset() -> void:
+	var branches: Dictionary = _prediction_asset.get("branches", {})
+	for key in branches.keys():
+		var branch: Dictionary = branches[key]
+		if str(branch.get("status", "")) in ["requesting", "retrying"]:
+			branch["status"] = "failed"
+		if not branch.has("last_error"):
+			branch["last_error"] = ""
+		branches[key] = branch
+	_prediction_asset["branches"] = branches
 
 func try_consume_choice_prediction(choice_id: int, choice_text: String) -> bool:
 	if _active_prediction_context_key == "":
@@ -1000,25 +1124,35 @@ func try_consume_choice_prediction(choice_id: int, choice_text: String) -> bool:
 		_active_prediction_context_key = _build_prediction_context_key(GameManager.dialogue_history.duplicate(true), choices)
 		_prediction_history_snapshot = GameManager.dialogue_history.duplicate(true)
 		_prediction_choices_snapshot = choices
-	var cache_key := _find_prediction_key(choice_id, choice_text)
-	if not _prediction_cache.has(cache_key) and not _prediction_requests.has(cache_key):
-		var meta := _build_prediction_meta_for_choice(choice_id, choice_text, cache_key)
+		_prediction_asset = _create_prediction_asset(_active_prediction_context_key, _prediction_history_snapshot, _prediction_choices_snapshot)
+	var branch_key := _find_prediction_branch_key(choice_id)
+	var branch := _get_prediction_branch(branch_key)
+	if branch.is_empty():
+		var cache_key := _build_prediction_cache_key(_active_prediction_context_key, choice_id, choice_text)
+		branch = _ensure_prediction_branch(choice_id, choice_text, cache_key)
+	var commands = branch.get("commands", [])
+	if not commands is Array:
+		commands = []
+	if commands.is_empty() and not _prediction_requests.has(branch_key):
+		var meta := _build_prediction_meta_for_choice(choice_id, choice_text, branch_key)
 		if meta.is_empty():
 			return false
 		_waiting_for_prediction_result = true
-		_prediction_retry_counts[cache_key] = 0
+		_prediction_retry_counts[branch_key] = 0
 		_start_prediction_request(meta)
-	_selected_prediction_key = cache_key
-	_selected_prediction_commands = _prediction_cache.get(cache_key, [])
+	_selected_prediction_key = branch_key
+	_selected_prediction_commands = commands.duplicate(true)
 	_waiting_for_prediction_result = _selected_prediction_commands.is_empty()
 	_selected_prediction_execute_queued = false
 	_selected_prediction_choice_id = choice_id
-	_cancel_unselected_predictions(cache_key)
+	_prediction_asset["selected_choice_id"] = choice_id
+	_prediction_asset["selected_branch_key"] = branch_key
+	_cancel_unselected_predictions(branch_key)
 	print("[AIManager] 锁定选项预测分支: %d" % choice_id)
 	_try_execute_selected_prediction()
 	return true
 
-func _build_prediction_meta_for_choice(choice_id: int, choice_text: String, cache_key: String) -> Dictionary:
+func _build_prediction_meta_for_choice(choice_id: int, choice_text: String, branch_key: String) -> Dictionary:
 	var resolved_text := choice_text
 	if resolved_text == "":
 		for choice in _prediction_choices_snapshot:
@@ -1029,9 +1163,12 @@ func _build_prediction_meta_for_choice(choice_id: int, choice_text: String, cach
 		resolved_text = _resolve_choice_text(choice_id)
 	if resolved_text == "":
 		return {}
+	var cache_key := _build_prediction_cache_key(_active_prediction_context_key, choice_id, resolved_text)
 	if cache_key == "":
-		cache_key = _build_prediction_cache_key(_active_prediction_context_key, choice_id, resolved_text)
+		return {}
+	_ensure_prediction_branch(choice_id, resolved_text, cache_key)
 	return {
+		"branch_key": branch_key,
 		"cache_key": cache_key,
 		"context_key": _active_prediction_context_key,
 		"choice_id": choice_id,
@@ -1040,23 +1177,13 @@ func _build_prediction_meta_for_choice(choice_id: int, choice_text: String, cach
 		"choices_snapshot": _prediction_choices_snapshot.duplicate(true)
 	}
 
-func _find_prediction_key(choice_id: int, choice_text: String) -> String:
-	var exact_key := _build_prediction_cache_key(_active_prediction_context_key, choice_id, choice_text)
-	if _prediction_cache.has(exact_key) or _prediction_requests.has(exact_key):
-		return exact_key
-	var prefix := "%s:%d:" % [_active_prediction_context_key, choice_id]
-	for key in _prediction_cache.keys():
-		if str(key).begins_with(prefix):
-			return str(key)
-	for key in _prediction_requests.keys():
-		if str(key).begins_with(prefix):
-			return str(key)
-	return exact_key
+func _find_prediction_branch_key(choice_id: int) -> String:
+	return str(choice_id)
 
 func cancel_predictions() -> void:
 	_cancel_prediction_requests()
-	_prediction_cache.clear()
 	_prediction_retry_counts.clear()
+	_prediction_asset.clear()
 	_active_prediction_context_key = ""
 	_prediction_history_snapshot.clear()
 	_prediction_choices_snapshot.clear()
@@ -1085,9 +1212,11 @@ func _cancel_unselected_predictions(selected_key: String) -> void:
 			_cleanup_request_node(request)
 		_prediction_requests.erase(key)
 		_prediction_request_meta.erase(key)
-	for key in _prediction_cache.keys().duplicate():
-		if key != selected_key:
-			_prediction_cache.erase(key)
+		var branch := _get_prediction_branch(str(key))
+		if not branch.is_empty():
+			if str(branch.get("status", "")) != "completed":
+				branch["status"] = "cancelled"
+			_set_prediction_branch(str(key), branch)
 	for key in _prediction_retry_counts.keys().duplicate():
 		if key != selected_key:
 			_prediction_retry_counts.erase(key)
@@ -1102,8 +1231,8 @@ func _execute_prediction_commands(commands: Array) -> void:
 	_waiting_for_prediction_result = false
 	_selected_prediction_execute_queued = false
 	_selected_prediction_choice_id = -1
-	_prediction_cache.clear()
 	_prediction_retry_counts.clear()
+	_prediction_asset.clear()
 	_active_prediction_context_key = ""
 	_prediction_history_snapshot.clear()
 	_prediction_choices_snapshot.clear()
@@ -1112,34 +1241,44 @@ func _execute_prediction_commands(commands: Array) -> void:
 	_prefetch_predictions_from_commands(commands)
 	ScriptEngine.execute_commands(commands)
 
-func _on_prediction_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray, cache_key: String, request: HTTPRequest) -> void:
-	var meta: Dictionary = _prediction_request_meta.get(cache_key, {}).duplicate(true)
-	_prediction_requests.erase(cache_key)
-	_prediction_request_meta.erase(cache_key)
+func _on_prediction_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray, branch_key: String, request: HTTPRequest) -> void:
+	var meta: Dictionary = _prediction_request_meta.get(branch_key, {}).duplicate(true)
+	_prediction_requests.erase(branch_key)
+	_prediction_request_meta.erase(branch_key)
 	_cleanup_request_node(request)
 	if result != HTTPRequest.RESULT_SUCCESS:
-		print("[AIManager] 预测请求失败: %s result=%d" % [cache_key, result])
+		print("[AIManager] 预测请求失败: %s result=%d" % [branch_key, result])
+		_mark_prediction_branch_failed(branch_key, meta, "result=%d" % result)
 		_retry_prediction_request(meta, "result=%d" % result)
 		return
 	var raw_text := body.get_string_from_utf8()
 	var ai_response := _parse_ai_response(raw_text, response_code, "预测请求")
 	if ai_response.is_empty() or not ai_response.has("commands"):
+		_mark_prediction_branch_failed(branch_key, meta, "empty_response")
 		_retry_prediction_request(meta, "empty_response")
 		return
 	var commands = ai_response.get("commands", [])
 	if not commands is Array:
+		_mark_prediction_branch_failed(branch_key, meta, "invalid_commands")
 		_retry_prediction_request(meta, "invalid_commands")
 		return
 	commands = _normalize_ai_commands(commands)
 	if not commands.is_empty():
-		_prediction_retry_counts.erase(cache_key)
-		_prediction_cache[cache_key] = commands
-		print("[AIManager] 预测缓存已写入: %s" % cache_key)
-		if cache_key == _selected_prediction_key:
+		_prediction_retry_counts.erase(branch_key)
+		var branch := _get_prediction_branch(branch_key)
+		if not branch.is_empty():
+			branch["status"] = "completed"
+			branch["commands"] = commands.duplicate(true)
+			branch["request_meta"] = meta.duplicate(true)
+			branch["last_error"] = ""
+			_set_prediction_branch(branch_key, branch)
+		print("[AIManager] 预测分支已写入: %s" % branch_key)
+		if branch_key == _selected_prediction_key:
 			_selected_prediction_commands = commands
 			_waiting_for_prediction_result = false
 			_try_execute_selected_prediction()
 	else:
+		_mark_prediction_branch_failed(branch_key, meta, "empty_commands")
 		_retry_prediction_request(meta, "empty_commands")
 
 func _try_execute_selected_prediction() -> void:
@@ -1160,28 +1299,46 @@ func _try_execute_selected_prediction() -> void:
 func _retry_prediction_request(meta: Dictionary, reason: String) -> void:
 	if meta.is_empty():
 		return
-	var cache_key: String = meta.get("cache_key", "")
+	var branch_key: String = str(meta.get("branch_key", meta.get("choice_id", "")))
 	var context_key: String = meta.get("context_key", "")
 	if context_key != "" and context_key != _active_prediction_context_key:
 		return
-	if cache_key == "" or _prediction_cache.has(cache_key) or _prediction_requests.has(cache_key):
+	if branch_key == "" or _prediction_requests.has(branch_key):
 		return
-	var retry_count := int(_prediction_retry_counts.get(cache_key, 0)) + 1
-	_prediction_retry_counts[cache_key] = retry_count
+	var branch := _get_prediction_branch(branch_key)
+	if not branch.is_empty() and str(branch.get("status", "")) == "completed":
+		return
+	var retry_count := int(_prediction_retry_counts.get(branch_key, branch.get("retry_count", 0))) + 1
+	_prediction_retry_counts[branch_key] = retry_count
+	if not branch.is_empty():
+		branch["status"] = "retrying"
+		branch["retry_count"] = retry_count
+		branch["request_meta"] = meta.duplicate(true)
+		branch["last_error"] = reason
+		_set_prediction_branch(branch_key, branch)
 	var delay = min(5.0, 0.5 + float(retry_count) * 0.5)
 	print("[AIManager] 预测请求失败，将重新请求 (%d): %s" % [retry_count, reason])
-	if cache_key == _selected_prediction_key:
+	if branch_key == _selected_prediction_key:
 		_waiting_for_prediction_result = true
 		_selected_prediction_commands.clear()
 		_try_execute_selected_prediction()
 	await get_tree().create_timer(delay).timeout
-	if _prediction_cache.has(cache_key) or _prediction_requests.has(cache_key):
+	if _prediction_requests.has(branch_key):
 		return
 	if context_key != "" and context_key != _active_prediction_context_key:
 		return
-	if _selected_prediction_key != "" and cache_key != _selected_prediction_key:
+	if _selected_prediction_key != "" and branch_key != _selected_prediction_key:
 		return
 	_start_prediction_request(meta)
+
+func _mark_prediction_branch_failed(branch_key: String, meta: Dictionary, reason: String) -> void:
+	var branch := _get_prediction_branch(branch_key)
+	if branch.is_empty():
+		return
+	branch["status"] = "failed"
+	branch["request_meta"] = meta.duplicate(true)
+	branch["last_error"] = reason
+	_set_prediction_branch(branch_key, branch)
 
 func _is_script_engine_running() -> bool:
 	if not has_node("/root/ScriptEngine"):
@@ -1307,6 +1464,7 @@ func _on_warmup_start_completed(result: int, response_code: int, _headers: Packe
 		_warmup_request = null
 	if result != HTTPRequest.RESULT_SUCCESS:
 		print("[AIManager] 开场预热失败: %d" % result)
+		_head_warmup_asset["status"] = "failed"
 		if _warmup_consume_pending:
 			_handle_consumed_warmup_failure(0, "[AIManager] 开场预热请求失败。")
 		return
@@ -1315,6 +1473,7 @@ func _on_warmup_start_completed(result: int, response_code: int, _headers: Packe
 		return
 	var ai_response := _parse_ai_response(raw_text, response_code, "开场预热")
 	if ai_response.is_empty():
+		_head_warmup_asset["status"] = "failed"
 		if _warmup_consume_pending:
 			_handle_consumed_warmup_failure(response_code, "[AIManager] 开场预热响应不可用。")
 		return
@@ -1323,6 +1482,8 @@ func _on_warmup_start_completed(result: int, response_code: int, _headers: Packe
 		_process_warmup_start_response(ai_response)
 	else:
 		_warmup_retry_count = 0
+		_head_warmup_asset["status"] = "completed"
+		_head_warmup_asset["response"] = ai_response.duplicate(true)
 		_warmup_start_response = ai_response
 		print("[AIManager] 开场预热缓存已就绪。")
 
