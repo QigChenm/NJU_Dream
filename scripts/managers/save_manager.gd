@@ -293,6 +293,8 @@ func _apply_save_data(dict: Dictionary) -> void:
 		var pending_commands: Array = dict.get("pending_commands", [])
 		se.silently_set_commands(pending_commands)
 		if not pending_commands.is_empty():
+			if has_node("/root/AIManager") and get_node("/root/AIManager").has_method("suppress_next_auto_continue"):
+				get_node("/root/AIManager").suppress_next_auto_continue()
 			se.execute_commands(pending_commands)
 			print("[SaveManager] 剧情进程已从存档点恢复，共 %d 条新指令。" % pending_commands.size())
 		else:

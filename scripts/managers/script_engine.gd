@@ -344,9 +344,9 @@ func _on_command_timeout() -> void:
 
 # ================= 信号回调 =================
 func _on_ui_hidden_for_bg() -> void:
-	BackgroundManager.change_background(_current_cmd.get("background", ""), _current_cmd.get("transition", "fade"), _current_cmd.get("duration", 0.5))
 	if not BackgroundManager.is_connected("transition_finished", _on_background_done):
 		BackgroundManager.connect("transition_finished", _on_background_done, CONNECT_ONE_SHOT)
+	BackgroundManager.change_background(_current_cmd.get("background", ""), _current_cmd.get("transition", "fade"), _current_cmd.get("duration", 0.5))
 
 
 func _on_line_finished() -> void:

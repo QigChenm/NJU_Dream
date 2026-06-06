@@ -3,7 +3,7 @@ extends Control
 
 # ================= 信号 =================
 signal continue_pressed
-signal choice_selected(choice_id: int)
+signal choice_selected(choice_id: int, choice_text: String)
 signal long_dialogue_finished
 
 # ================= 属性 =================
@@ -59,6 +59,7 @@ var skip_mode_paused_by_choice: bool = false
 var _current_line_recorded: bool = false
 var _has_shown_initial_wait_text: bool = false
 var _ai_settings_signature_on_panel_open: String = ""
+var _quick_save_in_progress: bool = false
 
 const ALLOWED_TEXT_BBCODE_TAGS := ["b", "i", "u", "color", "wave", "shake"]
 const INITIAL_WAIT_TEXT := "[wave amp=50.0 freq=5.0]请稍等，正在初始化游戏……[/wave]"
@@ -388,13 +389,14 @@ func _pause_auto_for_choices() -> void:
 # ================= 选项点击 =================
 func _on_choice_pressed(choice_id: int) -> void:
 	var resolved_choice_id := _resolve_choice_id_from_button(choice_id)
-	_record_choice(resolved_choice_id)
+	var choice_text := _get_choice_text(resolved_choice_id)
+	_record_choice(resolved_choice_id, choice_text)
 	choice_panel.hide()
 	if skip_mode_paused_by_choice:
 		skip_mode_paused_by_choice = false
 		GameManager.is_skip_mode = true
 		GameManager.skip_mode_changed.emit(true)
-	choice_selected.emit(resolved_choice_id)
+	choice_selected.emit(resolved_choice_id, choice_text)
 	_restore_auto_after_choice()
 
 func _resolve_choice_id_from_button(button_index: int) -> int:
@@ -422,17 +424,19 @@ func _on_choice_mouse_exited(btn: TextureButton) -> void:
 			label.add_theme_color_override("font_color", Color("#34859B"))
 
 
-func _record_choice(choice_id: int) -> void:
-	var choice_text = ""
+func _get_choice_text(choice_id: int) -> String:
 	for c in current_choices:
 		if str(c.get("id", "")) == str(choice_id):
-			choice_text = _sanitize_plain_text(c.get("text", ""))
-			break
-	if choice_text == "" and GameManager:
+			return _sanitize_plain_text(c.get("text", ""))
+	if GameManager:
 		for c in GameManager.pending_choices:
 			if c is Dictionary and str(c.get("id", "")) == str(choice_id):
-				choice_text = _sanitize_plain_text(c.get("text", ""))
-				break
+				return _sanitize_plain_text(c.get("text", ""))
+	return ""
+
+func _record_choice(choice_id: int, choice_text: String = "") -> void:
+	if choice_text == "":
+		choice_text = _get_choice_text(choice_id)
 	if choice_text != "":
 		GameManager.dialogue_history.append({
 			"character": "玩家",
@@ -644,9 +648,16 @@ func _on_backlog_button_pressed() -> void:
 	UIManager.open_panel("BacklogUI")
 
 func _on_quick_save_pressed() -> void:
-	SaveManager.auto_save_to_latest_slot()
+	if _quick_save_in_progress:
+		return
+	_quick_save_in_progress = true
+	await SaveManager.auto_save_to_latest_slot()
+	_quick_save_in_progress = false
 	
 func _on_quick_load_pressed() -> void:
+	if _quick_save_in_progress:
+		push_warning("[DialogueScene] 快速保存尚未完成，暂不能快速读档。")
+		return
 	if UIManager._current_panel != "":
 		UIManager.close_current_panel()
 	if get_tree().paused:
@@ -937,13 +948,13 @@ func hide_long_dialogue() -> void:
 		long_skip_timer.queue_free()
 		long_skip_timer = null
 
-func show_ai_waiting() -> void:
+func show_ai_waiting(is_initial_start: bool = false) -> void:
 	if wait:
-		if _has_shown_initial_wait_text:
-			wait.text = ""
-		else:
+		if is_initial_start and not _has_shown_initial_wait_text:
 			wait.text = INITIAL_WAIT_TEXT
 			_has_shown_initial_wait_text = true
+		else:
+			wait.text = ""
 		wait.visible = true
 
 func hide_ai_waiting() -> void:
