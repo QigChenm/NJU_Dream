@@ -287,12 +287,17 @@ func _apply_save_data(dict: Dictionary) -> void:
 		for entry in history:
 			GameManager.dialogue_history.append(entry)
 
+	if has_node("/root/AIManager") and get_node("/root/AIManager").has_method("restore_prediction_state_from_save"):
+		get_node("/root/AIManager").restore_prediction_state_from_save(dict.get("ai_prediction_state", {}))
+
 	# 恢复剧本指令
 	if has_node("/root/ScriptEngine"):
 		var se = get_node("/root/ScriptEngine")
 		var pending_commands: Array = dict.get("pending_commands", [])
 		se.silently_set_commands(pending_commands)
 		if not pending_commands.is_empty():
+			if has_node("/root/AIManager") and get_node("/root/AIManager").has_method("suppress_next_auto_continue"):
+				get_node("/root/AIManager").suppress_next_auto_continue()
 			se.execute_commands(pending_commands)
 			print("[SaveManager] 剧情进程已从存档点恢复，共 %d 条新指令。" % pending_commands.size())
 		else:
@@ -300,8 +305,6 @@ func _apply_save_data(dict: Dictionary) -> void:
 	else:
 		push_error("[SaveManager] ScriptEngine 未找到，无法恢复剧情。")
 
-	if has_node("/root/AIManager") and get_node("/root/AIManager").has_method("restore_prediction_state_from_save"):
-		get_node("/root/AIManager").restore_prediction_state_from_save(dict.get("ai_prediction_state", {}))
 	if has_node("/root/AIManager") and get_node("/root/AIManager").has_method("rebuild_predictions_for_current_state"):
 		get_node("/root/AIManager").call_deferred("rebuild_predictions_for_current_state", true)
 
