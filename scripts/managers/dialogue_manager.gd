@@ -167,6 +167,11 @@ func _on_choice(choice_id: int) -> void:
 			if c is Dictionary and str(c.get("id", "")) == str(choice_id):
 				text = str(c.get("text", ""))
 				break
+	if text == "" and GameManager:
+		for c in GameManager.pending_choices:
+			if c is Dictionary and str(c.get("id", "")) == str(choice_id):
+				text = str(c.get("text", ""))
+				break
 	print("[DialogueManager] 收到选择: %d -> %s" % [choice_id, text])
 	choice_made.emit(choice_id, text)
 

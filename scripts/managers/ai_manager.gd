@@ -896,21 +896,38 @@ func prefetch_choice_predictions(choices: Array, history_snapshot: Array = [], p
 		var cache_key := _build_prediction_cache_key(_active_prediction_context_key, choice_id, choice_text)
 		if _prediction_cache.has(cache_key):
 			continue
-		var request := HTTPRequest.new()
-		request.timeout = request_timeout
-		add_child(request)
-		_prediction_requests[cache_key] = request
-		request.request_completed.connect(_on_prediction_request_completed.bind(cache_key, request))
-		var input_str := "__choice__:%d:%s" % [choice_id, choice_text]
-		var request_data := _build_provider_request(input_str, history_snapshot, choices_snapshot)
-		var endpoint: String = request_data.get("endpoint", "")
-		var headers: PackedStringArray = request_data.get("headers", PackedStringArray())
-		var payload: Dictionary = request_data.get("payload", {})
-		print("[AIManager] 预测选项 %d 请求: %s" % [choice_id, endpoint])
-		var error = request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
-		if error != OK:
-			_prediction_requests.erase(cache_key)
-			_cleanup_request_node(request)
+		var meta := {
+			"cache_key": cache_key,
+			"choice_id": choice_id,
+			"choice_text": choice_text,
+			"history_snapshot": history_snapshot.duplicate(true),
+			"choices_snapshot": choices_snapshot.duplicate(true)
+		}
+		_start_prediction_request(meta)
+
+func _start_prediction_request(meta: Dictionary) -> void:
+	var cache_key: String = meta.get("cache_key", "")
+	if cache_key == "" or _prediction_requests.has(cache_key) or _prediction_cache.has(cache_key):
+		return
+	var request := HTTPRequest.new()
+	request.timeout = request_timeout
+	add_child(request)
+	_prediction_requests[cache_key] = request
+	request.request_completed.connect(_on_prediction_request_completed.bind(cache_key, request))
+	var choice_id := int(meta.get("choice_id", 0))
+	var choice_text := str(meta.get("choice_text", ""))
+	var history_snapshot: Array = meta.get("history_snapshot", [])
+	var choices_snapshot: Array = meta.get("choices_snapshot", [])
+	var input_str := "__choice__:%d:%s" % [choice_id, choice_text]
+	var request_data := _build_provider_request(input_str, history_snapshot, choices_snapshot)
+	var endpoint: String = request_data.get("endpoint", "")
+	var headers: PackedStringArray = request_data.get("headers", PackedStringArray())
+	var payload: Dictionary = request_data.get("payload", {})
+	print("[AIManager] 预测选项 %d 请求: %s" % [choice_id, endpoint])
+	var error = request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+	if error != OK:
+		_prediction_requests.erase(cache_key)
+		_cleanup_request_node(request)
 
 func rebuild_predictions_for_current_state(preserve_completed: bool = true) -> void:
 	_cancel_prediction_requests()
@@ -952,7 +969,7 @@ func restore_prediction_state_from_save(state: Dictionary) -> void:
 func try_consume_choice_prediction(choice_id: int, choice_text: String) -> bool:
 	if _active_prediction_context_key == "":
 		return false
-	var cache_key := _build_prediction_cache_key(_active_prediction_context_key, choice_id, choice_text)
+	var cache_key := _find_prediction_key(choice_id, choice_text)
 	if not _prediction_cache.has(cache_key) and not _prediction_requests.has(cache_key):
 		cancel_predictions()
 		return false
@@ -966,6 +983,19 @@ func try_consume_choice_prediction(choice_id: int, choice_text: String) -> bool:
 	print("[AIManager] 锁定选项预测分支: %d" % choice_id)
 	_try_execute_selected_prediction()
 	return true
+
+func _find_prediction_key(choice_id: int, choice_text: String) -> String:
+	var exact_key := _build_prediction_cache_key(_active_prediction_context_key, choice_id, choice_text)
+	if _prediction_cache.has(exact_key) or _prediction_requests.has(exact_key):
+		return exact_key
+	var prefix := "%s:%d:" % [_active_prediction_context_key, choice_id]
+	for key in _prediction_cache.keys():
+		if str(key).begins_with(prefix):
+			return str(key)
+	for key in _prediction_requests.keys():
+		if str(key).begins_with(prefix):
+			return str(key)
+	return exact_key
 
 func cancel_predictions() -> void:
 	_cancel_prediction_requests()
