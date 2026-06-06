@@ -22,6 +22,7 @@ var _waiting_for_choice_continuation: bool = false
 var _prediction_cache: Dictionary = {}
 var _prediction_requests: Dictionary = {}
 var _prediction_request_meta: Dictionary = {}
+var _prediction_retry_counts: Dictionary = {}
 var _active_prediction_context_key: String = ""
 var _prediction_history_snapshot: Array = []
 var _prediction_choices_snapshot: Array = []
@@ -30,8 +31,6 @@ var _selected_prediction_commands: Array = []
 var _waiting_for_prediction_result: bool = false
 var _selected_prediction_execute_queued: bool = false
 var _selected_prediction_choice_id: int = -1
-var _selected_prediction_is_fallback: bool = false
-var _selected_prediction_retry_count: int = 0
 var _warmup_request: HTTPRequest = null
 var _warmup_start_response: Dictionary = {}
 var _warmup_start_pending: bool = false
@@ -46,7 +45,6 @@ var _suppress_next_auto_continue: bool = false
 const _FALLBACK_TEXT := "AI 暂时不可用，请稍后再试。"
 const DEFAULT_OUTPUT_TOKENS := 1200
 const MAX_PREDICTION_REQUESTS := 3
-const MAX_SELECTED_PREDICTION_RETRIES := 2
 const MAX_MAIN_RETRIES := 3
 const MAX_WARMUP_RETRIES := 3
 const RETRY_BASE_DELAY := 1.5
@@ -309,9 +307,8 @@ func _on_choice_made(choice_id: int, choice_text: String = "") -> void:
 	if try_consume_choice_prediction(choice_id, _pending_choice_text):
 		return
 
-	print("[AIManager] 选项 %d 没有可用预测分支，按钮点击不触发普通请求。" % choice_id)
-	_waiting_for_choice_continuation = false
-	_queue_prediction_fallback_dialogue("当前选项预测还没有准备好，请稍后再试。")
+	print("[AIManager] 选项 %d 暂无可用预测分支，等待预测请求重建。" % choice_id)
+	_show_ai_waiting()
 
 func _on_script_execution_finished() -> void:
 	if _recovery_mode:
@@ -896,6 +893,7 @@ func prefetch_choice_predictions(choices: Array, history_snapshot: Array = [], p
 		_cancel_prediction_requests()
 	if not should_preserve:
 		_prediction_cache.clear()
+		_prediction_retry_counts.clear()
 	_active_prediction_context_key = context_key
 	_prediction_history_snapshot = history_snapshot.duplicate(true)
 	_prediction_choices_snapshot = choices_snapshot.duplicate(true)
@@ -910,6 +908,7 @@ func prefetch_choice_predictions(choices: Array, history_snapshot: Array = [], p
 			continue
 		var meta := {
 			"cache_key": cache_key,
+			"context_key": _active_prediction_context_key,
 			"choice_id": choice_id,
 			"choice_text": choice_text,
 			"history_snapshot": history_snapshot.duplicate(true),
@@ -954,8 +953,7 @@ func _start_prediction_request(meta: Dictionary) -> void:
 		_prediction_requests.erase(cache_key)
 		_prediction_request_meta.erase(cache_key)
 		_cleanup_request_node(request)
-		if cache_key == _selected_prediction_key:
-			call_deferred("_retry_or_fallback_selected_prediction", meta, "request_error=%d" % error)
+		call_deferred("_retry_prediction_request", meta, "request_error=%d" % error)
 
 func rebuild_predictions_for_current_state(preserve_completed: bool = true) -> void:
 	_cancel_prediction_requests()
@@ -996,22 +994,51 @@ func restore_prediction_state_from_save(state: Dictionary) -> void:
 
 func try_consume_choice_prediction(choice_id: int, choice_text: String) -> bool:
 	if _active_prediction_context_key == "":
-		return false
+		var choices := GameManager.pending_choices.duplicate(true) if GameManager else []
+		if choices.is_empty() or not GameManager:
+			return false
+		_active_prediction_context_key = _build_prediction_context_key(GameManager.dialogue_history.duplicate(true), choices)
+		_prediction_history_snapshot = GameManager.dialogue_history.duplicate(true)
+		_prediction_choices_snapshot = choices
 	var cache_key := _find_prediction_key(choice_id, choice_text)
 	if not _prediction_cache.has(cache_key) and not _prediction_requests.has(cache_key):
-		cancel_predictions()
-		return false
+		var meta := _build_prediction_meta_for_choice(choice_id, choice_text, cache_key)
+		if meta.is_empty():
+			return false
+		_waiting_for_prediction_result = true
+		_prediction_retry_counts[cache_key] = 0
+		_start_prediction_request(meta)
 	_selected_prediction_key = cache_key
 	_selected_prediction_commands = _prediction_cache.get(cache_key, [])
 	_waiting_for_prediction_result = _selected_prediction_commands.is_empty()
 	_selected_prediction_execute_queued = false
 	_selected_prediction_choice_id = choice_id
-	_selected_prediction_is_fallback = false
-	_selected_prediction_retry_count = 0
 	_cancel_unselected_predictions(cache_key)
 	print("[AIManager] 锁定选项预测分支: %d" % choice_id)
 	_try_execute_selected_prediction()
 	return true
+
+func _build_prediction_meta_for_choice(choice_id: int, choice_text: String, cache_key: String) -> Dictionary:
+	var resolved_text := choice_text
+	if resolved_text == "":
+		for choice in _prediction_choices_snapshot:
+			if choice is Dictionary and str(choice.get("id", "")) == str(choice_id):
+				resolved_text = str(choice.get("text", ""))
+				break
+	if resolved_text == "":
+		resolved_text = _resolve_choice_text(choice_id)
+	if resolved_text == "":
+		return {}
+	if cache_key == "":
+		cache_key = _build_prediction_cache_key(_active_prediction_context_key, choice_id, resolved_text)
+	return {
+		"cache_key": cache_key,
+		"context_key": _active_prediction_context_key,
+		"choice_id": choice_id,
+		"choice_text": resolved_text,
+		"history_snapshot": _prediction_history_snapshot.duplicate(true),
+		"choices_snapshot": _prediction_choices_snapshot.duplicate(true)
+	}
 
 func _find_prediction_key(choice_id: int, choice_text: String) -> String:
 	var exact_key := _build_prediction_cache_key(_active_prediction_context_key, choice_id, choice_text)
@@ -1029,6 +1056,7 @@ func _find_prediction_key(choice_id: int, choice_text: String) -> String:
 func cancel_predictions() -> void:
 	_cancel_prediction_requests()
 	_prediction_cache.clear()
+	_prediction_retry_counts.clear()
 	_active_prediction_context_key = ""
 	_prediction_history_snapshot.clear()
 	_prediction_choices_snapshot.clear()
@@ -1037,8 +1065,6 @@ func cancel_predictions() -> void:
 	_waiting_for_prediction_result = false
 	_selected_prediction_execute_queued = false
 	_selected_prediction_choice_id = -1
-	_selected_prediction_is_fallback = false
-	_selected_prediction_retry_count = 0
 
 func _cancel_prediction_requests() -> void:
 	for key in _prediction_requests.keys().duplicate():
@@ -1062,30 +1088,28 @@ func _cancel_unselected_predictions(selected_key: String) -> void:
 	for key in _prediction_cache.keys().duplicate():
 		if key != selected_key:
 			_prediction_cache.erase(key)
+	for key in _prediction_retry_counts.keys().duplicate():
+		if key != selected_key:
+			_prediction_retry_counts.erase(key)
 
 func _execute_prediction_commands(commands: Array) -> void:
 	if _is_script_engine_running():
 		_selected_prediction_execute_queued = false
 		return
-	var is_fallback := _selected_prediction_is_fallback
 	_waiting_for_choice_continuation = false
 	_selected_prediction_key = ""
 	_selected_prediction_commands.clear()
 	_waiting_for_prediction_result = false
 	_selected_prediction_execute_queued = false
 	_selected_prediction_choice_id = -1
-	_selected_prediction_is_fallback = false
-	_selected_prediction_retry_count = 0
 	_prediction_cache.clear()
+	_prediction_retry_counts.clear()
 	_active_prediction_context_key = ""
 	_prediction_history_snapshot.clear()
 	_prediction_choices_snapshot.clear()
 	if not has_node("/root/ScriptEngine"):
 		return
-	if is_fallback:
-		_recovery_mode = true
-	else:
-		_prefetch_predictions_from_commands(commands)
+	_prefetch_predictions_from_commands(commands)
 	ScriptEngine.execute_commands(commands)
 
 func _on_prediction_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray, cache_key: String, request: HTTPRequest) -> void:
@@ -1095,30 +1119,28 @@ func _on_prediction_request_completed(result: int, response_code: int, _headers:
 	_cleanup_request_node(request)
 	if result != HTTPRequest.RESULT_SUCCESS:
 		print("[AIManager] 预测请求失败: %s result=%d" % [cache_key, result])
-		if cache_key == _selected_prediction_key:
-			_retry_or_fallback_selected_prediction(meta, "result=%d" % result)
+		_retry_prediction_request(meta, "result=%d" % result)
 		return
 	var raw_text := body.get_string_from_utf8()
 	var ai_response := _parse_ai_response(raw_text, response_code, "预测请求")
 	if ai_response.is_empty() or not ai_response.has("commands"):
-		if cache_key == _selected_prediction_key:
-			_retry_or_fallback_selected_prediction(meta, "empty_response")
+		_retry_prediction_request(meta, "empty_response")
 		return
 	var commands = ai_response.get("commands", [])
 	if not commands is Array:
-		if cache_key == _selected_prediction_key:
-			_retry_or_fallback_selected_prediction(meta, "invalid_commands")
+		_retry_prediction_request(meta, "invalid_commands")
 		return
 	commands = _normalize_ai_commands(commands)
 	if not commands.is_empty():
+		_prediction_retry_counts.erase(cache_key)
 		_prediction_cache[cache_key] = commands
 		print("[AIManager] 预测缓存已写入: %s" % cache_key)
 		if cache_key == _selected_prediction_key:
 			_selected_prediction_commands = commands
 			_waiting_for_prediction_result = false
 			_try_execute_selected_prediction()
-	elif cache_key == _selected_prediction_key:
-		_retry_or_fallback_selected_prediction(meta, "empty_commands")
+	else:
+		_retry_prediction_request(meta, "empty_commands")
 
 func _try_execute_selected_prediction() -> void:
 	if _selected_prediction_key == "":
@@ -1135,34 +1157,31 @@ func _try_execute_selected_prediction() -> void:
 		_show_ai_waiting()
 		print("[AIManager] 等待选中分支预测完成。")
 
-func _retry_or_fallback_selected_prediction(meta: Dictionary, reason: String) -> void:
-	if meta.is_empty() or _selected_prediction_key == "":
-		_fallback_selected_prediction()
+func _retry_prediction_request(meta: Dictionary, reason: String) -> void:
+	if meta.is_empty():
 		return
-	if _selected_prediction_retry_count >= MAX_SELECTED_PREDICTION_RETRIES:
-		print("[AIManager] 选中分支预测重试耗尽: %s" % reason)
-		_fallback_selected_prediction()
+	var cache_key: String = meta.get("cache_key", "")
+	var context_key: String = meta.get("context_key", "")
+	if context_key != "" and context_key != _active_prediction_context_key:
 		return
-	_selected_prediction_retry_count += 1
-	_waiting_for_prediction_result = true
-	_selected_prediction_commands.clear()
-	print("[AIManager] 选中分支预测失败，重试 (%d/%d): %s" % [_selected_prediction_retry_count, MAX_SELECTED_PREDICTION_RETRIES, reason])
-	call_deferred("_start_prediction_request", meta)
-	_try_execute_selected_prediction()
-
-func _fallback_selected_prediction() -> void:
-	cancel_predictions()
-	_waiting_for_choice_continuation = false
-	_queue_prediction_fallback_dialogue("选中分支预测失败，请稍后再试。")
-
-func _queue_prediction_fallback_dialogue(text: String) -> void:
-	_selected_prediction_commands = [{"type": "show_dialogue", "character": "", "text": text}]
-	_waiting_for_prediction_result = false
-	_selected_prediction_execute_queued = false
-	_selected_prediction_is_fallback = true
-	if _selected_prediction_key == "":
-		_selected_prediction_key = "local_fallback"
-	_try_execute_selected_prediction()
+	if cache_key == "" or _prediction_cache.has(cache_key) or _prediction_requests.has(cache_key):
+		return
+	var retry_count := int(_prediction_retry_counts.get(cache_key, 0)) + 1
+	_prediction_retry_counts[cache_key] = retry_count
+	var delay = min(5.0, 0.5 + float(retry_count) * 0.5)
+	print("[AIManager] 预测请求失败，将重新请求 (%d): %s" % [retry_count, reason])
+	if cache_key == _selected_prediction_key:
+		_waiting_for_prediction_result = true
+		_selected_prediction_commands.clear()
+		_try_execute_selected_prediction()
+	await get_tree().create_timer(delay).timeout
+	if _prediction_cache.has(cache_key) or _prediction_requests.has(cache_key):
+		return
+	if context_key != "" and context_key != _active_prediction_context_key:
+		return
+	if _selected_prediction_key != "" and cache_key != _selected_prediction_key:
+		return
+	_start_prediction_request(meta)
 
 func _is_script_engine_running() -> bool:
 	if not has_node("/root/ScriptEngine"):
