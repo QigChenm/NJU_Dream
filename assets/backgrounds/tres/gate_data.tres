@@ -7,7 +7,7 @@
 [resource]
 script = ExtResource("2_1uy64")
 background_id = "gate"
-display_name = "正门"
+display_name = "鼓楼正门"
 location_name = "南京大学正门"
 location_font = ExtResource("1_idkxt")
 location_font_size = 40

@@ -7,7 +7,7 @@
 [resource]
 script = ExtResource("1_ywlvm")
 background_id = "duxia_night"
-display_name = "杜厦图书馆"
+display_name = "杜厦之夜"
 location_name = "杜厦之夜"
 location_font = ExtResource("1_848dt")
 location_font_size = 40
