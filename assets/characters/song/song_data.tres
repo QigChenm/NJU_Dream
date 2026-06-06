@@ -18,8 +18,12 @@ expressions = {
 "angry": ExtResource("4_oikbo"),
 "confused": ExtResource("5_qohgw"),
 "default": ExtResource("1_c1ond"),
+"eyes_down": ExtResource("3_k6nl1"),
+"eyes_widen": ExtResource("6_n2bj7"),
+"frown": ExtResource("4_oikbo"),
 "happy": ExtResource("2_mh34g"),
 "sad": ExtResource("3_k6nl1"),
+"slight_smile": ExtResource("2_mh34g"),
 "surprised": ExtResource("6_n2bj7"),
 "very_happy": ExtResource("7_jmbi0")
 }

@@ -377,6 +377,7 @@ func _get_world_setting() -> PackedStringArray:
 func _get_character_profile() -> PackedStringArray:
 	var arr := PackedStringArray()
 	arr.append("# 角色档案：小貅 (id:xiu)")
+	arr.append("【绝对强制】小貅只能放置在左侧")
 	arr.append("## 核心身份")
 	arr.append("南大校徽上的貔貅化身，活泼灵动的少女，是你的校园向导和幸运伙伴。外表可爱，内心强大，有点小财迷（貔貅传统）。")
 	arr.append("## 内在动机与价值观")
@@ -402,6 +403,7 @@ func _get_character_profile() -> PackedStringArray:
 
 	# TODO: 宋青角色已补全
 	arr.append("# 角色档案：宋青 (id:song)")
+	arr.append("【绝对强制】宋青只能放置在右侧")
 	arr.append("## 核心身份")
 	arr.append("南大校徽上的青松化身，沉稳可靠的学长，是你的心灵树洞和理性支持者。外表清冷如松，内心温热如春。")
 	arr.append("## 内在动机与价值观")
@@ -470,6 +472,8 @@ func _get_command_reference() -> PackedStringArray:
 	arr.append("- love_piano：爱的钢琴曲")
 	arr.append("- gentle：柔情之夜")
 	arr.append("- flowing：温柔似水")
+	arr.append("- active：青春活力")
+	arr.append("- smooth：舒缓深沉")
 	arr.append("")
 	arr.append("# 可用角色动作 id")
 	arr.append("- bounce：弹跳（高兴时使用）")

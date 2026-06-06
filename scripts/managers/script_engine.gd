@@ -51,7 +51,7 @@ var _current_cmd: Dictionary = {}
 var _timeout_timer: Timer = null
 var _command_pending: bool = false
 var _interaction_pending: bool = false
-
+var _background_just_changed: bool = false
 
 # ================= 启动与流程控制 =================
 func execute_commands(commands: Array) -> void:
@@ -132,16 +132,9 @@ func _execute_next() -> void:
 			_command_pending = true
 			_interaction_pending = true
 
-			var show_waiting = _current_cmd.get("waiting_indicator", false)
-			if show_waiting:
-				var scene = DialogueManager.get_dialogue_scene()
-				if scene and scene.has_method("show_waiting_indicator"):
-					await scene.show_waiting_indicator()
-
 			DialogueManager.display_line(_current_cmd)
 			if not DialogueManager.is_connected("line_finished", _on_line_finished):
 				DialogueManager.connect("line_finished", _on_line_finished, CONNECT_ONE_SHOT)
-		
 		
 		"long_dialogue":
 			_command_pending = true
@@ -377,19 +370,14 @@ func _on_choice_made(choice_id: int, choice_text: String) -> void:
 func _on_background_done() -> void:
 	_command_pending = false
 	_clear_timeout()
-	var next_index = _current_index + 1
-	var skip_ui_show = false
-	if next_index < _commands.size():
-		var next_cmd = _commands[next_index]
-		if next_cmd.get("type", "") == "long_dialogue":
-			skip_ui_show = true
-
-	if skip_ui_show:
-		_advance_to_next()
-	else:
-		UIManager.set_all_ui_visibility(true, "fade", 0.4)
-		if not UIManager.is_connected("all_ui_shown", _on_ui_shown_after_bg):
-			UIManager.connect("all_ui_shown", _on_ui_shown_after_bg, CONNECT_ONE_SHOT)
+	var scene = get_tree().current_scene
+	if scene:
+		if scene.has_method("_stop_auto_timer"):
+			scene._stop_auto_timer()
+		if scene.has_method("_stop_skip_advance_timer"):
+			scene._stop_skip_advance_timer()
+	UIManager.set_all_ui_visibility(true, "fade", 0.3)
+	_execute_next()
 
 
 func _on_ui_shown_after_bg() -> void:

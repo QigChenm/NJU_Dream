@@ -36,6 +36,7 @@ var is_waiting_for_input: bool = false
 var current_choices: Array = []
 
 # 打字机效果
+var force_manual_next_dialogue: bool = false
 var typewriter_tween: Tween = null
 var typewriter_timer: Timer = null
 var long_typewriter_timer: Timer = null
@@ -245,10 +246,13 @@ func _enable_input() -> void:
 
 # ================= 对话显示 =================
 func display_dialogue(data: Dictionary) -> void:
-	wait.visible = false
+	if wait.visible:
+		wait.visible = false
 	_current_line_recorded = false
 	choice_panel.hide()
 	_kill_typewriter()
+	var force_manual = data.get("_force_manual", false) or force_manual_next_dialogue
+	force_manual_next_dialogue = false
 
 	var character = data.get("character", "")
 	var display_name = "[b]" + _resolve_character_name(character) + "[/b]"
@@ -262,7 +266,7 @@ func display_dialogue(data: Dictionary) -> void:
 			portrait.texture = GameManager.character_database[character].portrait
 			portrait.show()
 
-	_full_text = _sanitize_display_text(data.get("text", ""))
+	_full_text = data.get("text", "")
 	text_label.text = _full_text
 	text_label.visible_characters = 0
 
@@ -270,17 +274,15 @@ func display_dialogue(data: Dictionary) -> void:
 	var total_chars = _full_text.length()
 	is_typewriter_playing = true
 
-	var character_id = character
-
-	if GameManager.is_skip_mode:
+	if GameManager.is_skip_mode and not force_manual:
 		_stop_auto_timer()
 		text_label.visible_characters = total_chars
 		is_typewriter_playing = false
-		_record_dialogue_history(display_name, character_id)
+		_record_dialogue_history(display_name)
 		_start_skip_advance_timer()
 		is_waiting_for_input = true
 		click_indicator.hide()
-	else:
+	elif not force_manual:
 		_start_typewriter_timer(total_chars, speed, func():
 			is_typewriter_playing = false
 			if GameManager.is_auto_mode:
@@ -290,7 +292,16 @@ func display_dialogue(data: Dictionary) -> void:
 				_stop_auto_timer()
 				is_waiting_for_input = true
 				click_indicator.show()
-			_record_dialogue_history(display_name, character_id)
+			_record_dialogue_history(display_name)
+		)
+	else:
+		_start_typewriter_timer(total_chars, speed, func():
+			is_typewriter_playing = false
+			_stop_auto_timer()
+			_stop_skip_advance_timer()
+			is_waiting_for_input = true
+			click_indicator.show()
+			_record_dialogue_history(display_name)
 		)
 
 	dialogue_box.show()
@@ -307,6 +318,8 @@ func _kill_typewriter() -> void:
 		typewriter_tween.kill()
 	is_typewriter_playing = false
 	_stop_typewriter()
+	_stop_auto_timer()
+	_stop_skip_advance_timer()
 	if auto_advance_timer:
 		auto_advance_timer.stop()
 		auto_advance_timer.queue_free()
@@ -1045,3 +1058,11 @@ func clean_up_all_ui() -> void:
 		if is_instance_valid(dialog):
 			dialog.queue_free()
 	print("[DialogueScene] 动态UI清理完成。")
+
+
+func set_force_manual_next_dialogue() -> void:
+	force_manual_next_dialogue = true
+	_stop_auto_timer()
+	_stop_skip_advance_timer()
+	if typewriter_timer and not typewriter_timer.is_stopped():
+		_stop_typewriter()
