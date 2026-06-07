@@ -625,6 +625,9 @@ theme_override_styles/normal = SubResource("StyleBoxTexture_ai_field")
 theme_override_styles/pressed = SubResource("StyleBoxTexture_ai_field_focus")
 theme_override_styles/hover = SubResource("StyleBoxTexture_ai_field_focus")
 theme_override_styles/focus = SubResource("StyleBoxTexture_ai_field_focus")
+autowrap_mode = 1
+clip_text = true
+fit_to_longest_item = false
 
 [node name="RefreshModels" type="TextureButton" parent="VBoxContainerR/AIURLContainer/AIModel" unique_id=1881968680]
 layout_mode = 2
@@ -756,4 +759,20 @@ grow_vertical = 2
 theme_override_fonts/font = ExtResource("4_inf46")
 theme_override_font_sizes/font_size = 32
 text = "保密承诺：我们尊重您的个人权益，绝不会收集和使用任何有关您的API密钥。API Key已设置为密文，请妥善保管您的密钥，防止被他人盗取。如果您在本游戏中有任何私自使用他人密钥的行为，将依法追究法律责任。"
+autowrap_mode = 3
+
+[node name="Temp_v0_1_0" type="Label" parent="." unique_id=908524455]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 669.0
+offset_top = 1024.0
+offset_right = -20.0
+offset_bottom = -23.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.8980392, 0.4509804, 0.4509804, 1)
+theme_override_fonts/font = ExtResource("4_inf46")
+theme_override_font_sizes/font_size = 32
+text = "温馨提示：当前版本ollama服务可能影响您的游戏体验，若追求剧情，请使用云服务商"
 autowrap_mode = 3
