@@ -206,6 +206,17 @@ func _execute_next() -> void:
 			_interaction_pending = false
 			_start_retry_timeout()
 			CharacterManager.play_action(_current_cmd.get("character", ""), _current_cmd.get("action", ""))
+			match _current_cmd.get("action", ""):
+				"bounce":
+					GameManager.adjust_pad(0.05, 0.1, 0.0)
+				"shake":
+					GameManager.adjust_pad(-0.02, 0.15, -0.05)
+				"nod":
+					GameManager.adjust_pad(0.03, 0.0, 0.05)
+				"step_back":
+					GameManager.adjust_pad(-0.05, 0.05, -0.1)
+				"shrug":
+					GameManager.adjust_pad(0.0, -0.02, 0.0)
 			if not CharacterManager.is_connected("action_completed", _on_action_done):
 				CharacterManager.connect("action_completed", _on_action_done, CONNECT_ONE_SHOT)
 

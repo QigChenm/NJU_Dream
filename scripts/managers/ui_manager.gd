@@ -148,6 +148,9 @@ func open_panel(panel_name: String) -> void:
 func close_panel(panel_name: String, unpause: bool = true) -> void:
 	if not _panels.has(panel_name):
 		return
+	if not SaveManager.continue_mode:
+		if _return_button: _return_button.visible = false
+		if _return_to_menu_button: _return_to_menu_button.visible = false
 
 	var panel: Node = _panels[panel_name]
 	panel.visible = false
