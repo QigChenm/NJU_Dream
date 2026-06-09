@@ -60,31 +60,44 @@ texture_normal = ExtResource("1_3xg78")
 texture_pressed = ExtResource("2_48y67")
 texture_hover = ExtResource("2_48y67")
 
-[node name="TopBar" type="HBoxContainer" parent="." unique_id=626219355]
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -1859.0
-offset_top = 41.0
-offset_right = -1659.0
-offset_bottom = 104.0
-grow_horizontal = 0
-theme_override_constants/separation = 6
-alignment = 2
-
-[node name="AffectionButton" type="TextureButton" parent="TopBar" unique_id=1910582159]
-visible = false
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="FeedbackButton" type="TextureButton" parent="TopBar" unique_id=685636751]
-layout_mode = 2
+[node name="AffectionButton" type="TextureButton" parent="." unique_id=1355751239]
+anchors_preset = -1
+anchor_left = 0.032
+anchor_top = 0.038000003
+anchor_right = 0.032
+anchor_bottom = 0.038000003
+offset_left = 208.56
+offset_top = -5.040001
+offset_right = 408.56
+offset_bottom = 57.96
 texture_normal = ExtResource("5_frrke")
 texture_pressed = ExtResource("6_vh1iw")
 texture_hover = ExtResource("6_vh1iw")
 
-[node name="Label" type="Label" parent="TopBar/FeedbackButton" unique_id=1648291803]
+[node name="Label" type="Label" parent="AffectionButton" unique_id=1481687887]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_bottom = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_fonts/font = ExtResource("7_fgtve")
+theme_override_font_sizes/font_size = 30
+text = "角色心情"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="FeedbackButton" type="TextureButton" parent="." unique_id=685636751]
+offset_left = 51.0
+offset_top = 36.0
+offset_right = 251.0
+offset_bottom = 99.0
+texture_normal = ExtResource("5_frrke")
+texture_pressed = ExtResource("6_vh1iw")
+texture_hover = ExtResource("6_vh1iw")
+
+[node name="Label" type="Label" parent="FeedbackButton" unique_id=1648291803]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

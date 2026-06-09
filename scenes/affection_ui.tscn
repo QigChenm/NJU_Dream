@@ -2,64 +2,101 @@
 
 [ext_resource type="Script" uid="uid://d1pj7j50wtuyk" path="res://scripts/scenes/affection_ui.gd" id="1_pr1g1"]
 [ext_resource type="FontFile" uid="uid://dnb6jjvxuy0x7" path="res://assets/fonts/SIMYOU.TTF" id="2_q3386"]
+[ext_resource type="Texture2D" uid="uid://dt71gfuri6xii" path="res://assets/ui/universal/通用_界面背景_llf.png" id="2_u4h5g"]
+[ext_resource type="FontFile" uid="uid://cv4m0rys7x10i" path="res://assets/fonts/ChillRoundGothic_Bold.ttf" id="3_6r55t"]
+[ext_resource type="Script" uid="uid://cab7nx5j8mx8p" path="res://scripts/scenes/pad_triangle.gd" id="4_6r55t"]
 
 [node name="AffectionPanel" type="CanvasLayer" unique_id=318039446]
 layer = 128
 script = ExtResource("1_pr1g1")
 
-[node name="Background" type="ColorRect" parent="." unique_id=512811416]
+[node name="Background" type="TextureRect" parent="." unique_id=1061957349]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(1, 1, 1, 0.5019608)
+texture = ExtResource("2_u4h5g")
 
-[node name="Panel" type="Panel" parent="." unique_id=1390046785]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="VBoxContainer" type="VBoxContainer" parent="Panel" unique_id=933885312]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="TitleLabel" type="Label" parent="Panel/VBoxContainer" unique_id=20581539]
-layout_mode = 2
+[node name="TitleLabel" type="Label" parent="." unique_id=20581539]
+offset_right = 1920.0
+offset_bottom = 111.0
 size_flags_vertical = 3
 size_flags_stretch_ratio = 0.5
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_fonts/font = ExtResource("2_q3386")
+theme_override_colors/font_color = Color(0.8980392, 0.4509804, 0.4509804, 1)
+theme_override_fonts/font = ExtResource("3_6r55t")
 theme_override_font_sizes/font_size = 50
 text = "好感度查看面板"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="SisterRow" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=1764164626]
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=933885312]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 51.0
+offset_top = 116.0
+offset_right = -49.0
+offset_bottom = -41.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 50
+
+[node name="PADContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=2016830729]
+layout_mode = 2
+theme_override_constants/separation = 50
+
+[node name="PADTriangle" type="Control" parent="VBoxContainer/PADContainer" unique_id=417087988]
+custom_minimum_size = Vector2(400, 400)
+layout_mode = 2
+script = ExtResource("4_6r55t")
+
+[node name="PadDescription" type="Label" parent="VBoxContainer/PADContainer" unique_id=1117285799]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+size_flags_stretch_ratio = 2.22
+theme_override_colors/font_color = Color(0.8980392, 0.4509804, 0.4509804, 1)
+theme_override_fonts/font = ExtResource("3_6r55t")
+theme_override_font_sizes/font_size = 40
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="CurrentTime" type="Label" parent="VBoxContainer/PADContainer" unique_id=1929097689]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+theme_override_colors/font_color = Color(0.8980392, 0.4509804, 0.4509804, 1)
+theme_override_fonts/font = ExtResource("3_6r55t")
+theme_override_font_sizes/font_size = 40
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Row1" type="HBoxContainer" parent="VBoxContainer" unique_id=1764164626]
 layout_mode = 2
 size_flags_vertical = 3
 size_flags_stretch_ratio = 3.0
+theme_override_constants/separation = 50
 
-[node name="NameLabel" type="Label" parent="Panel/VBoxContainer/SisterRow" unique_id=2080036057]
+[node name="NameLabel" type="Label" parent="VBoxContainer/Row1" unique_id=2080036057]
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 1
-theme_override_fonts/font = ExtResource("2_q3386")
-theme_override_font_sizes/font_size = 40
-text = "妹
-
-妹"
+size_flags_stretch_ratio = 0.21
+theme_override_colors/font_color = Color(0.8980392, 0.4509804, 0.4509804, 1)
+theme_override_fonts/font = ExtResource("3_6r55t")
+theme_override_font_sizes/font_size = 50
+text = "小貅"
 horizontal_alignment = 1
 vertical_alignment = 1
-metadata/character_id = "sister"
+metadata/character_id = "xiu"
 
-[node name="ValueLabel" type="Label" parent="Panel/VBoxContainer/SisterRow" unique_id=828157073]
+[node name="ValueLabel" type="Label" parent="VBoxContainer/Row1" unique_id=828157073]
+visible = false
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 size_flags_vertical = 1
@@ -68,34 +105,36 @@ theme_override_font_sizes/font_size = 30
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="ProgressBar" type="ProgressBar" parent="Panel/VBoxContainer/SisterRow" unique_id=1430069095]
+[node name="ProgressBar" type="ProgressBar" parent="VBoxContainer/Row1" unique_id=1430069095]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 1
 theme_override_font_sizes/font_size = 40
 step = 1.0
 
-[node name="FriendRow" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=1108917027]
+[node name="Row2" type="HBoxContainer" parent="VBoxContainer" unique_id=1108917027]
 layout_mode = 2
 size_flags_vertical = 3
 size_flags_stretch_ratio = 3.0
+theme_override_constants/separation = 50
 metadata/character_id = "friend"
 
-[node name="NameLabel" type="Label" parent="Panel/VBoxContainer/FriendRow" unique_id=1978470510]
+[node name="NameLabel" type="Label" parent="VBoxContainer/Row2" unique_id=742221380]
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 1
-theme_override_fonts/font = ExtResource("2_q3386")
-theme_override_font_sizes/font_size = 40
-text = "友
-
-人
-
-A"
+size_flags_stretch_ratio = 0.21
+theme_override_colors/font_color = Color(0.8980392, 0.4509804, 0.4509804, 1)
+theme_override_fonts/font = ExtResource("3_6r55t")
+theme_override_font_sizes/font_size = 50
+text = "宋青"
 horizontal_alignment = 1
 vertical_alignment = 1
+metadata/character_id = "song"
 
-[node name="ValueLabel" type="Label" parent="Panel/VBoxContainer/FriendRow" unique_id=814960340]
+[node name="ValueLabel" type="Label" parent="VBoxContainer/Row2" unique_id=814960340]
+visible = false
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 size_flags_vertical = 1
@@ -104,7 +143,7 @@ theme_override_font_sizes/font_size = 30
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="ProgressBar" type="ProgressBar" parent="Panel/VBoxContainer/FriendRow" unique_id=1165413749]
+[node name="ProgressBar" type="ProgressBar" parent="VBoxContainer/Row2" unique_id=1165413749]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 1

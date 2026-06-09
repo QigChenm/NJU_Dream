@@ -7,6 +7,7 @@ signal cg_unlocked(cg_id: String)
 signal bgm_unlocked(bgm_id: String)
 signal auto_mode_changed(enabled: bool)
 signal skip_mode_changed(enabled: bool)
+signal pad_description_changed(new_text: String)
 
 # ================= 常量 =================
 const UNLOCK_FILE := "user://unlocks.cfg"
@@ -35,6 +36,12 @@ var is_settings_from_main_menu: bool = false
 # 解锁数据
 var unlocked_cgs: Array[String] = []
 var unlocked_bgms: Array[String] = []
+
+# PAD
+var pad_pleasure: float = 0.0    # -1.0 到 1.0，越高越愉悦
+var pad_arousal: float = 0.0     # -1.0 到 1.0，越高越主动/语速快
+var pad_dominance: float = 0.0   # -1.0 到 1.0，越高越自信/主导
+var pad_description: String = ""
 
 
 # ================= 初始化 =================
@@ -83,6 +90,9 @@ func start_new_game() -> void:
 	variables.clear()
 	dialogue_history.clear()
 	current_scene = "prologue"
+	pad_pleasure = 0.0
+	pad_arousal = 0.0
+	pad_dominance = 0.0
 
 
 # ================= 角色数据库加载 =================
@@ -143,7 +153,16 @@ func get_affection(character: String) -> int:
 func add_affection(character: String, delta: int) -> void:
 	var current = get_affection(character)
 	set_affection(character, current + delta)
+	if delta > 0:
+		adjust_pad(0.02 * delta, 0.01 * delta, 0.01 * delta)
+	elif delta < 0:
+		adjust_pad(0.02 * delta, -0.01 * delta, -0.01 * delta)
 
+
+func adjust_pad(delta_pleasure: float = 0.0, delta_arousal: float = 0.0, delta_dominance: float = 0.0) -> void:
+	pad_pleasure = clamp(pad_pleasure + delta_pleasure, -1.0, 1.0)
+	pad_arousal = clamp(pad_arousal + delta_arousal, -1.0, 1.0)
+	pad_dominance = clamp(pad_dominance + delta_dominance, -1.0, 1.0)
 
 # ================= 事件标记便捷方法 =================
 func set_flag(flag_name: String, value = true) -> void:
@@ -462,3 +481,7 @@ func set_ai_enabled_direct(enabled: bool) -> void:
 	config.save("user://settings.cfg")
 	if has_node("/root/AIManager"):
 		get_node("/root/AIManager").ai_enabled = enabled
+
+func set_pad_description(text: String):
+	pad_description = text
+	pad_description_changed.emit(text)
