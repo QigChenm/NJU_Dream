@@ -39,6 +39,14 @@ extends Resource
 @export var pending_commands: Array = []
 @export var ai_prediction_state: Dictionary = {}
 
+# PAD
+@export var pad_pleasure: float = 0.0
+@export var pad_arousal: float = 0.0
+@export var pad_dominance: float = 0.0
+
+# 学习曲线
+@export var long_term_memories: Array = []
+
 
 ## 从字典恢复数据（供加载时使用）
 func restore_from_dict(dict: Dictionary) -> void:
@@ -63,6 +71,10 @@ func restore_from_dict(dict: Dictionary) -> void:
 	command_index = dict.get("command_index", 0)
 	pending_commands = dict.get("pending_commands", [])
 	ai_prediction_state = dict.get("ai_prediction_state", {})
+	pad_pleasure = dict.get("pad_pleasure", 0.0)
+	pad_arousal = dict.get("pad_arousal", 0.0)
+	pad_dominance = dict.get("pad_dominance", 0.0)
+	long_term_memories = dict.get("long_term_memories", [])
 
 
 ## 将数据转为可 JSON 序列化的字典
@@ -91,4 +103,8 @@ func to_dict() -> Dictionary:
 		"command_index": command_index,
 		"pending_commands": pending_commands,
 		"ai_prediction_state": ai_prediction_state,
+		"pad_pleasure": pad_pleasure,
+		"pad_arousal": pad_arousal,
+		"pad_dominance": pad_dominance,
+		"long_term_memories": long_term_memories
 	}

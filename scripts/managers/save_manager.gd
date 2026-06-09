@@ -107,6 +107,18 @@ func save_game(slot: int) -> void:
 		data.pending_commands = get_node("/root/ScriptEngine").get_pending_commands()
 	if has_node("/root/AIManager") and get_node("/root/AIManager").has_method("get_prediction_state_for_save"):
 		data.ai_prediction_state = get_node("/root/AIManager").get_prediction_state_for_save()
+	
+	# PAD
+	data.pad_pleasure = GameManager.pad_pleasure
+	data.pad_arousal = GameManager.pad_arousal
+	data.pad_dominance = GameManager.pad_dominance
+	
+	# 长期记忆（带衰减）
+	data.long_term_memories = []
+	if has_node("/root/AIManager"):
+		var ai = get_node("/root/AIManager")
+		ai._apply_forgetting_curve()
+		data.long_term_memories = ai.get_long_term_memories()
 
 	# 序列化并写入
 	var json_str := JSON.stringify(data.to_dict(), "\t")
@@ -289,6 +301,16 @@ func _apply_save_data(dict: Dictionary) -> void:
 
 	if has_node("/root/AIManager") and get_node("/root/AIManager").has_method("restore_prediction_state_from_save"):
 		get_node("/root/AIManager").restore_prediction_state_from_save(dict.get("ai_prediction_state", {}))
+	
+	# 恢复PAD
+	GameManager.pad_pleasure = dict.get("pad_pleasure", 0.0)
+	GameManager.pad_arousal = dict.get("pad_arousal", 0.0)
+	GameManager.pad_dominance = dict.get("pad_dominance", 0.0)
+	
+	# 恢复长期记忆
+	var memories: Array = dict.get("long_term_memories", [])
+	if has_node("/root/AIManager"):
+		get_node("/root/AIManager").set_long_term_memories(memories)
 
 	# 恢复剧本指令
 	if has_node("/root/ScriptEngine"):

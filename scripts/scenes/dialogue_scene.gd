@@ -67,9 +67,14 @@ const INITIAL_WAIT_TEXT := "[wave amp=50.0 freq=5.0]请稍等，正在初始化�
 
 # ================= 初始化 =================
 func _ready() -> void:
+	GameManager.is_auto_mode = false
+	GameManager.is_skip_mode = false
+	auto_mode_paused_by_choice = false
+	skip_mode_paused_by_choice = false
 	_init_ui_basics()
 	_register_systems()
 	_instantiate_hud()
+	_sync_mode_buttons()
 	_instantiate_panels()
 	_connect_uimanager_signals()
 	_start_game_flow()
@@ -132,7 +137,7 @@ func _instantiate_hud() -> void:
 
 	# 获取所有按钮引用
 	var settings_btn = hud_instance.get_node_or_null("ButtonBar/SettingsButton")
-	var affection_btn = hud_instance.get_node_or_null("TopBar/AffectionButton")
+	var affection_btn = hud_instance.get_node_or_null("AffectionButton")
 	var save_btn = hud_instance.get_node_or_null("ButtonBar/SaveButton")
 	var load_btn = hud_instance.get_node_or_null("ButtonBar/LoadButton")
 	var return_btn = hud_instance.get_node_or_null("ReturnButton")
@@ -143,7 +148,7 @@ func _instantiate_hud() -> void:
 	var quick_load_btn = hud_instance.get_node_or_null("QuickLoadButton")
 	var auto_btn = hud_instance.get_node_or_null("ButtonBar/AutoButton")
 	var skip_btn = hud_instance.get_node_or_null("ButtonBar/SkipButton")
-	var feedback_btn = hud_instance.get_node_or_null("TopBar/FeedbackButton")
+	var feedback_btn = hud_instance.get_node_or_null("FeedbackButton")
 
 	# 连接信号
 	if settings_btn:
@@ -249,6 +254,9 @@ func display_dialogue(data: Dictionary) -> void:
 	if wait.visible:
 		wait.visible = false
 	_current_line_recorded = false
+	auto_mode_paused_by_choice = false
+	skip_mode_paused_by_choice = false
+	_sync_mode_buttons()
 	choice_panel.hide()
 	_kill_typewriter()
 	var force_manual = data.get("_force_manual", false) or force_manual_next_dialogue
@@ -346,6 +354,7 @@ func display_choices(choices: Array) -> void:
 		GameManager.skip_mode_changed.emit(false)
 		_stop_auto_timer()
 	_pause_auto_for_choices()
+	_sync_mode_buttons()
 	is_waiting_for_input = false
 	click_indicator.hide()
 	current_choices = choices
@@ -397,6 +406,7 @@ func _on_choice_pressed(choice_id: int) -> void:
 		GameManager.is_skip_mode = true
 		GameManager.skip_mode_changed.emit(true)
 	choice_selected.emit(resolved_choice_id, choice_text)
+	_sync_mode_buttons()
 	_restore_auto_after_choice()
 
 func _resolve_choice_id_from_button(button_index: int) -> int:
@@ -474,25 +484,21 @@ func _on_auto_button_pressed() -> void:
 	GameManager.auto_mode_changed.emit(GameManager.is_auto_mode)
 	auto_mode_paused_by_choice = false
 	_stop_auto_timer()
+	_sync_mode_buttons()
 
-	if GameManager.is_auto_mode:
-		if is_waiting_for_input:
-			_start_auto_timer()
-	else:
+	if GameManager.is_auto_mode and is_waiting_for_input:
+		_start_auto_timer()
+	elif not GameManager.is_auto_mode:
 		if not is_typewriter_playing and not is_waiting_for_input:
 			is_waiting_for_input = true
 			click_indicator.show()
-
 
 func _on_skip_button_pressed() -> void:
 	GameManager.is_skip_mode = !GameManager.is_skip_mode
 	GameManager.skip_mode_changed.emit(GameManager.is_skip_mode)
 	skip_mode_paused_by_choice = false
-
-	if hud_instance:
-		var btn = hud_instance.get_node_or_null("TopBar/SkipButton")
-		if btn:
-			btn.modulate = Color.YELLOW if GameManager.is_skip_mode else Color.WHITE
+	_stop_skip_advance_timer()
+	_sync_mode_buttons()
 
 	if GameManager.is_skip_mode:
 		if long_dialogue_container.visible:
@@ -598,6 +604,19 @@ func _on_auto_advance_timeout() -> void:
 	continue_pressed.emit()
 
 
+func _sync_mode_buttons():
+	if not hud_instance:
+		return
+
+	var auto_btn = hud_instance.get_node_or_null("ButtonBar/AutoButton")
+	if auto_btn:
+		auto_btn.button_pressed = GameManager.is_auto_mode
+
+	var skip_btn = hud_instance.get_node_or_null("ButtonBar/SkipButton")
+	if skip_btn:
+		skip_btn.button_pressed = GameManager.is_skip_mode
+		
+		
 # ================= 继续与输入处理 =================
 func _gui_input(event: InputEvent) -> void:
 	if get_tree().paused or not is_waiting_for_input:
@@ -635,11 +654,16 @@ func _on_feedback_button_pressed() -> void:
 			if has_node("/root/AIManager"):
 				get_node("/root/AIManager").add_user_rule(text)
 				print("[DialogueScene] 规则已提交")
-			_set_return_buttons_visible(true),
+			UIManager.close_panel("TipUI")
+	,
 		func():
-			_set_return_buttons_visible(true)
+			UIManager.close_panel("TipUI")
 	)
-	_set_return_buttons_visible(false)
+
+	UIManager.open_panel("TipUI")
+
+	if UIManager._return_button:
+		UIManager._return_button.visible = false
 	
 func _on_backlog_button_pressed() -> void:
 	var panel = UIManager._panels.get("BacklogUI")
@@ -781,6 +805,7 @@ func _on_long_close_pressed() -> void:
 func _return_to_main_menu() -> void:
 	if has_node("/root/AIManager"):
 		AIManager.cancel_predictions()
+		AIManager._apply_forgetting_curve()
 	if AudioManager:
 		AudioManager.stop_all()
 	if ScriptEngine:

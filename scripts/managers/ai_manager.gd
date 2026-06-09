@@ -43,6 +43,14 @@ var _warmup_retry_count: int = 0
 var _warmup_retry_timer: Timer = null
 var _suppress_next_auto_continue: bool = false
 
+# ---------- 海马体记忆系统 ----------
+const LONG_TERM_MEMORY_FILE := "user://long_term_memories.json"
+var _long_term_memories: Array = []
+var _consolidation_counter: int = 0
+const CONSOLIDATION_INTERVAL := 15
+const MEMORY_DECAY_RATE := 0.02
+var _consolidation_request_pending: bool = false
+
 const _FALLBACK_TEXT := "AI 暂时不可用，请稍后再试。"
 const DEFAULT_OUTPUT_TOKENS := 1200
 const MAX_PREDICTION_REQUESTS := 3
@@ -72,6 +80,8 @@ const TEXT_ACTION_TAG_MAP := {
 
 # ---------- 初始化 ----------
 func _ready() -> void:
+	_load_long_term_memories()
+	_apply_forgetting_curve()
 	_http_request = HTTPRequest.new()
 	_http_request.timeout = request_timeout
 	_http_request.request_completed.connect(_on_request_completed)
@@ -283,6 +293,8 @@ func process_ai_response(response: Dictionary) -> void:
 	if not has_node("/root/ScriptEngine"):
 		push_error("[AIManager] ScriptEngine 未找到。")
 		return
+	if response.has("pad_description"):
+		GameManager.set_pad_description(str(response["pad_description"]))
 	commands = _normalize_ai_commands(commands)
 	_prefetch_predictions_from_commands(commands)
 	ScriptEngine.execute_commands(commands)
@@ -352,6 +364,11 @@ func _on_script_execution_finished() -> void:
 		_suppress_next_auto_continue = false
 		print("[AIManager] 读档恢复完成，跳过本次自动续写。")
 		return
+	# 海马体提炼计数
+	_consolidation_counter += 1
+	if _consolidation_counter >= CONSOLIDATION_INTERVAL:
+		_consolidation_counter = 0
+		_trigger_consolidation()
 	call_deferred("send_message", "__continue__")
 
 func suppress_next_auto_continue() -> void:
@@ -368,6 +385,13 @@ func _build_system_prompt() -> String:
 	lines.append_array(_get_resource_constraints_section())
 	lines.append_array(_get_dialogue_examples())
 	lines.append_array(_get_user_rules_section())
+	# 注入相关长期记忆
+	var memories = _retrieve_relevant_memories(2)
+	if not memories.is_empty():
+		lines.append("# 角色回忆（基于历史事件，可在对话中自然提及）")
+		for mem in memories:
+			lines.append("- " + mem.get("summary", ""))
+		lines.append("")
 	return "\n".join(lines)
 
 func _get_role_definition() -> PackedStringArray:
@@ -482,8 +506,57 @@ func _get_narrative_rules() -> PackedStringArray:
 	arr.append("9. 所有背景、角色、表情、动作、音频、粒子、CG 都必须从下方【可用资源 JSON】中选择，不要发明不存在的 id。")
 	arr.append("9.1 对话文本中的地点必须贴合当前或即将切换的背景；严禁把不存在贴图的地点（如小吃街、鸭血粉丝汤店、古典园林、樱花林）写成正在前往或已经到达的真实场景。")
 	arr.append("10. 每轮剧情尽量至少包含一个非对白表现指令（set_expression、character_action、change_background、particle_play 之一），但不要频繁切换音乐。")
+	arr.append("11. 此外，请在返回的 JSON 中额外包含一个 \"pad_description\" 字段，用一段话描述角色当前的情绪状态，基于 PAD 模型，例如\"她感到轻松愉快，精力充沛，愿意主动交流\"。写得详细一点")
 	arr.append("")
+	var pad_line = _build_pad_prompt_lines()
+	for line in pad_line:
+		arr.append(line)
 	return arr
+	
+func _build_pad_prompt_lines() -> PackedStringArray:
+	var lines := PackedStringArray()
+	if not GameManager:
+		return lines
+	var p = GameManager.pad_pleasure
+	var a = GameManager.pad_arousal
+	var d = GameManager.pad_dominance
+
+	lines.append("# 角色当前心境（PAD模型）")
+
+	if p > 0.5:
+		lines.append("- 心情很好，语气轻快、友善。")
+	elif p > 0.1:
+		lines.append("- 心情不错，带着淡淡的微笑。")
+	elif p > -0.1:
+		lines.append("- 心情平静，语气中立。")
+	elif p > -0.5:
+		lines.append("- 有些低落，话可能不多。")
+	else:
+		lines.append("- 心情很不好，可能显得冷淡或悲伤。")
+
+	if a > 0.5:
+		lines.append("- 精力充沛，语速较快，主动开启话题。")
+	elif a > 0.1:
+		lines.append("- 精神不错，对话比较积极。")
+	elif a > -0.1:
+		lines.append("- 状态平常，回复节奏正常。")
+	elif a > -0.5:
+		lines.append("- 有些疲惫，回复简短。")
+	else:
+		lines.append("- 非常疲倦，可能不想多说话。")
+
+	if d > 0.5:
+		lines.append("- 今天很有主见，喜欢主导话题。")
+	elif d > 0.1:
+		lines.append("- 比较自信，有自己的想法。")
+	elif d > -0.1:
+		lines.append("- 在交流中比较随和。")
+	elif d > -0.5:
+		lines.append("- 比较顺从，倾向于倾听。")
+	else:
+		lines.append("- 非常顺从，几乎不会反对。")
+
+	return lines
 
 func _get_command_reference() -> PackedStringArray:
 	var arr := PackedStringArray()
@@ -834,6 +907,155 @@ func add_user_rule(rule_text: String) -> void:
 	rules.append({"rule": rule_text, "timestamp": Time.get_datetime_string_from_system()})
 	_save_rules(rules)
 	print("[AIManager] 已添加规则：", rule_text)
+
+# ---------- 海马体记忆系统 ----------
+func _load_long_term_memories() -> void:
+	if not FileAccess.file_exists(LONG_TERM_MEMORY_FILE):
+		_long_term_memories = []
+		return
+	var file = FileAccess.open(LONG_TERM_MEMORY_FILE, FileAccess.READ)
+	if file == null: return
+	var content = file.get_as_text()
+	file.close()
+	var json = JSON.new()
+	if json.parse(content) == OK:
+		_long_term_memories = json.data
+	else:
+		_long_term_memories = []
+
+func _save_long_term_memories() -> void:
+	var json_string = JSON.stringify(_long_term_memories, "\t")
+	var file = FileAccess.open(LONG_TERM_MEMORY_FILE, FileAccess.WRITE)
+	if file:
+		file.store_string(json_string)
+		file.close()
+
+func _trigger_consolidation() -> void:
+	if _consolidation_request_pending:
+		return
+	var recent = GameManager.dialogue_history.slice(-20)
+	if recent.size() < 5: return
+
+	var history_text = ""
+	for entry in recent:
+		var char = entry.get("character", "")
+		var text = entry.get("text", "")
+		var type = entry.get("type", "dialogue")
+		if type == "choice":
+			history_text += "- 玩家选择了：" + text + "\n"
+		elif char == "":
+			history_text += "- 旁白：" + text + "\n"
+		else:
+			history_text += "- " + char + ": " + text + "\n"
+
+	var prompt = "请将以下对话总结为一条情景记忆，格式：{时间} {地点} {人物} {事件} {情绪/感受}。只输出摘要文本，不要其他内容。"
+	prompt += "\n\n" + history_text
+
+	_consolidation_request_pending = true
+	var request = HTTPRequest.new()
+	request.timeout = request_timeout
+	add_child(request)
+	request.request_completed.connect(_on_consolidation_completed.bind(request))
+	var request_data := _build_provider_request(prompt)
+	var endpoint: String = request_data.get("endpoint", "")
+	var headers: PackedStringArray = request_data.get("headers", PackedStringArray())
+	var payload: Dictionary = request_data.get("payload", {})
+	payload["max_tokens"] = 150
+	print("[AIManager] 触发海马体提炼...")
+	request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+
+func _on_consolidation_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray, request: HTTPRequest) -> void:
+	_consolidation_request_pending = false
+	_cleanup_request_node(request)
+	if result != HTTPRequest.RESULT_SUCCESS or response_code < 200 or response_code >= 300:
+		return
+	var raw_response = JSON.parse_string(body.get_string_from_utf8())
+	if not raw_response is Dictionary: return
+	var content = _extract_response_content(raw_response).strip_edges()
+	if content == "": return
+
+	var memory = {
+		"id": "mem_" + str(Time.get_unix_time_from_system()),
+		"timestamp": Time.get_unix_time_from_system(),
+		"last_recalled": Time.get_unix_time_from_system(),
+		"weight": 1.0,
+		"keywords": _extract_keywords(content),
+		"summary": content,
+		"context_id": _determine_current_chapter()
+	}
+	_long_term_memories.append(memory)
+	_save_long_term_memories()
+	print("[AIManager] 新记忆已存储：", content)
+
+func _extract_keywords(text: String) -> Array:
+	var keywords := []
+	var common_keywords = ["图书馆", "北大楼", "运动", "考试", "焦虑", "开心", "散步", "音乐", "冥想", "跑步", "食堂", "朋友"]
+	for kw in common_keywords:
+		if text.find(kw) != -1:
+			keywords.append(kw)
+	return keywords
+
+func _retrieve_relevant_memories(count: int = 2) -> Array:
+	if _long_term_memories.is_empty(): return []
+	
+	var context_text = ""
+	var history = GameManager.dialogue_history
+	var start = max(0, history.size() - 3)
+	for i in range(start, history.size()):
+		var entry = history[i]
+		context_text += entry.get("text", "") + " "
+
+	var scored := []
+	for mem in _long_term_memories:
+		var relevance = _calculate_relevance(mem, context_text)
+		var recency = 1.0 - (Time.get_unix_time_from_system() - mem.get("last_recalled", 0)) / (86400 * 30)
+		var score = mem.get("weight", 1.0) * relevance * 0.6 + recency * 0.4
+		scored.append({"memory": mem, "score": score})
+
+	scored.sort_custom(func(a, b): return a["score"] > b["score"])
+
+	var results := []
+	for i in range(min(count, scored.size())):
+		var mem = scored[i]["memory"]
+		mem["last_recalled"] = Time.get_unix_time_from_system()
+		results.append(mem)
+	return results
+
+func _calculate_relevance(memory: Dictionary, context: String) -> float:
+	var keywords: Array = memory.get("keywords", [])
+	if keywords.is_empty(): return 0.1
+	var score := 0.0
+	for kw in keywords:
+		if context.find(kw) != -1:
+			score += 1.0
+	return min(score / max(1, keywords.size()), 1.0)
+
+func _apply_forgetting_curve() -> void:
+	var now = Time.get_unix_time_from_system()
+	var updated := false
+	var to_remove := []
+	for i in range(_long_term_memories.size()):
+		var mem = _long_term_memories[i]
+		var days_since_creation = (now - mem.get("timestamp", now)) / 86400.0
+		var new_weight = 1.0 * exp(-MEMORY_DECAY_RATE * days_since_creation)
+		if new_weight < 0.1:
+			to_remove.append(i)
+		else:
+			mem["weight"] = new_weight
+			updated = true
+	for i in range(to_remove.size() - 1, -1, -1):
+		_long_term_memories.remove_at(to_remove[i])
+		updated = true
+	if updated:
+		_save_long_term_memories()
+		print("[AIManager] 遗忘曲线已应用，剩余记忆数：", _long_term_memories.size())
+		
+func get_long_term_memories() -> Array:
+	return _long_term_memories.duplicate(true)
+
+func set_long_term_memories(memories: Array) -> void:
+	_long_term_memories = memories.duplicate(true)
+	_save_long_term_memories()
 
 # ---------- 工具函数 ----------
 func _get_base_url() -> String:
