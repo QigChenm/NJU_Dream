@@ -537,31 +537,25 @@
       }
     }
 
-    /* ========== 新增：Live2D 看板娘样式 ========== */
-    /* 确保看板娘浮在页面右下角，且不干扰原有点击 */
     #waifu {
       position: fixed;
       bottom: 0;
       right: 0;
       z-index: 1000;
-      pointer-events: auto; /* 让看板娘本身可交互，但背景区域不穿透 */
+      pointer-events: auto;
     }
-    /* 调整移动端显示比例 */
     @media (max-width: 600px) {
       #waifu {
         transform: scale(0.8);
         transform-origin: bottom right;
       }
     }
-    /* 原有点击区域确保不被遮挡 */
     .btn-group, .carousel-container, .feedback-form, .contact-info {
       position: relative;
       z-index: 2;
     }
   </style>
-  <!-- 引入看板娘所需字体图标库（来自 Font Awesome） -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
-  <!-- 引入看板娘的基础样式（可选，autoload.js 会自动加载，但提前引入无妨） -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/weblive2d@1.0.13/waifu.css">
 </head>
 <body>
@@ -649,11 +643,13 @@
   <!-- 演示视频 -->
   <section class="video-section">
     <h2 class="about-title">演示视频</h2>
-    <video controls poster="./index/beidalou.jpg">
-      <source src="./index/intro.mp4" type="video/mp4">
-      您的浏览器不支持视频播放。
-    </video>
-  </section>
+    <div style="text-align: center; padding: 2rem;">
+        <a href="https://www.bilibili.com/video/BV1e9ER68EKP" target="_blank" class="btn" style="background: #c9a96e; color: #1a1a1a;">
+            <img src="./index/b_icon.png" alt="bilibili" style="width:60px; height:45px; vertical-align:middle; margin-right:6px;">
+            点击观看
+        </a>
+    </div>
+</section>
 
   <!-- 关于游戏操作指南 -->
   <section class="about-section">
