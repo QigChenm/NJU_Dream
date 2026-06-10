@@ -536,7 +536,33 @@
         height: 300px;
       }
     }
+
+    /* ========== 新增：Live2D 看板娘样式 ========== */
+    /* 确保看板娘浮在页面右下角，且不干扰原有点击 */
+    #waifu {
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      z-index: 1000;
+      pointer-events: auto; /* 让看板娘本身可交互，但背景区域不穿透 */
+    }
+    /* 调整移动端显示比例 */
+    @media (max-width: 600px) {
+      #waifu {
+        transform: scale(0.8);
+        transform-origin: bottom right;
+      }
+    }
+    /* 原有点击区域确保不被遮挡 */
+    .btn-group, .carousel-container, .feedback-form, .contact-info {
+      position: relative;
+      z-index: 2;
+    }
   </style>
+  <!-- 引入看板娘所需字体图标库（来自 Font Awesome） -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+  <!-- 引入看板娘的基础样式（可选，autoload.js 会自动加载，但提前引入无妨） -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/weblive2d@1.0.13/waifu.css">
 </head>
 <body>
   <div class="bg-slideshow" id="bgSlideshow">
@@ -739,6 +765,7 @@
     <div class="lightbox-img-container"></div>
   </div>
 
+  <!-- 原有脚本（背景轮播、特色轮播、灯箱） -->
   <script>
     (function() {
       // ---------- 背景轮播 ----------
@@ -850,5 +877,83 @@
       });
     })();
   </script>
+
+  <!-- ========== 顶层 Live2D 看板娘 ========== -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+<script src="https://cdn.jsdelivr.net/gh/stevenjoezhang/live2d-widget@latest/autoload.js"></script>
+<script>
+    // 配置模型路径（指向你本地的 models 文件夹）
+    window.live2d_settings = {
+        modelAPI: './models/',
+        canCloseLive2d: true,
+        canSwitchModel: true,
+        canSwitchTextures: true,
+        canTakeScreenshot: true
+    };
+
+    // 创建一个可拖拽的父容器并注入看板娘
+    (function() {
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                var waifu = document.getElementById('waifu');
+                if (waifu) {
+                    // 创建可拖拽的父容器
+                    var dragContainer = document.createElement('div');
+                    dragContainer.style.position = 'fixed';
+                    dragContainer.style.bottom = '20px';
+                    dragContainer.style.left = '20px';   // 左下角位置
+                    dragContainer.style.zIndex = '99999';
+                    dragContainer.style.cursor = 'move';
+                    dragContainer.style.display = 'inline-block';
+
+                    // 鼠标事件变量
+                    var offsetX, offsetY, mouseX, mouseY;
+                    var isDragging = false;
+
+                    // 鼠标按下时，记录起始位置并允许拖动
+                    dragContainer.addEventListener('mousedown', function(e) {
+                        isDragging = true;
+                        offsetX = e.clientX - dragContainer.offsetLeft;
+                        offsetY = e.clientY - dragContainer.offsetTop;
+                        dragContainer.style.cursor = 'grabbing';
+                        e.preventDefault();
+                    });
+
+                    // 鼠标移动时，更新父容器位置
+                    document.addEventListener('mousemove', function(e) {
+                        if (isDragging) {
+                            var newLeft = e.clientX - offsetX;
+                            var newTop = e.clientY - offsetY;
+                            dragContainer.style.left = newLeft + 'px';
+                            dragContainer.style.top = newTop + 'px';
+                            dragContainer.style.bottom = 'auto';
+                            dragContainer.style.right = 'auto';
+                        }
+                    });
+
+                    // 鼠标松开时，结束拖动
+                    document.addEventListener('mouseup', function() {
+                        isDragging = false;
+                        dragContainer.style.cursor = 'move';
+                    });
+
+                    // 将原有 waifu 移动到新容器中
+                    waifu.parentNode.insertBefore(dragContainer, waifu);
+                    dragContainer.appendChild(waifu);
+                    waifu.style.position = 'relative';
+                    waifu.style.bottom = 'auto';
+                    waifu.style.right = 'auto';
+                    waifu.style.top = '0';
+                    waifu.style.left = '0';
+
+                    console.log('✅ 可拖拽的看板娘已就位！');
+                } else {
+                    console.error('❌ 未找到 #waifu 容器');
+                }
+            }, 500);
+        });
+    })();
+</script>
+<!-- ========== 结束 ========== -->
 </body>
 </html>
