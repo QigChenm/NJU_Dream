@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dw61xuvrngga5"
-path="res://.godot/imported/Leechee.jpg-a9c78691319e98db8ea47edab723130f.ctex"
+uid="uid://bqr8prxng8jxy"
+path="res://.godot/imported/screenshot-1.png-a59f9969d3e87dd616664b30fd95397e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/index/Leechee.jpg"
-dest_files=["res://.godot/imported/Leechee.jpg-a9c78691319e98db8ea47edab723130f.ctex"]
+source_file="res://web/live2d-widget/demo/screenshots/screenshot-1.png"
+dest_files=["res://.godot/imported/screenshot-1.png-a59f9969d3e87dd616664b30fd95397e.ctex"]
 
 [params]
 

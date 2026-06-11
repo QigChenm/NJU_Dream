@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cnljnkollo8j5"
-path="res://.godot/imported/nansu.jpg-c378e55ba2abb47bec7d843255f28ebf.ctex"
+uid="uid://bvnilskah5tft"
+path="res://.godot/imported/texture_00.png-d86179fbde4c0f71ac0bb3fc211cc46d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/index/nansu.jpg"
-dest_files=["res://.godot/imported/nansu.jpg-c378e55ba2abb47bec7d843255f28ebf.ctex"]
+source_file="res://web/CubismSdkForWeb-5-r.5/Samples/Resources/Haru/Haru.2048/texture_00.png"
+dest_files=["res://.godot/imported/texture_00.png-d86179fbde4c0f71ac0bb3fc211cc46d.ctex"]
 
 [params]
 

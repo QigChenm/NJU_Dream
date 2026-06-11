@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c8ix6qw5oms0u"
-path="res://.godot/imported/duxia_front.png-eccfa2db29539111d200792addfb20b2.ctex"
+uid="uid://cja8i3jsk76p0"
+path="res://.godot/imported/icon_gear.png-70cc4b20a341195cd4e6256fc5cb76fa.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/index/duxia_front.png"
-dest_files=["res://.godot/imported/duxia_front.png-eccfa2db29539111d200792addfb20b2.ctex"]
+source_file="res://web/CubismSdkForWeb-5-r.5/Samples/Resources/icon_gear.png"
+dest_files=["res://.godot/imported/icon_gear.png-70cc4b20a341195cd4e6256fc5cb76fa.ctex"]
 
 [params]
 

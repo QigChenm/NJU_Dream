@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b5otmcfad4yxp"
-path="res://.godot/imported/xiangxuehai.png-de35d49580b59cb83cdc72117832f55f.ctex"
+path="res://.godot/imported/xiangxuehai.png-8e4a9bcb67fa882ef5f3670aaadd655a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/index/xiangxuehai.png"
-dest_files=["res://.godot/imported/xiangxuehai.png-de35d49580b59cb83cdc72117832f55f.ctex"]
+source_file="res://web/index/xiangxuehai.png"
+dest_files=["res://.godot/imported/xiangxuehai.png-8e4a9bcb67fa882ef5f3670aaadd655a.ctex"]
 
 [params]
 

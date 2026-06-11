@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://do7dy3jyssl6"
-path="res://.godot/imported/Victoria.jpg-68ae283d3ee3a503f9293fa33bf7d3a5.ctex"
+path="res://.godot/imported/Victoria.jpg-30ef2fdd84dcec0b5589f18b05def9a3.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/index/Victoria.jpg"
-dest_files=["res://.godot/imported/Victoria.jpg-68ae283d3ee3a503f9293fa33bf7d3a5.ctex"]
+source_file="res://web/index/Victoria.jpg"
+dest_files=["res://.godot/imported/Victoria.jpg-30ef2fdd84dcec0b5589f18b05def9a3.ctex"]
 
 [params]
 

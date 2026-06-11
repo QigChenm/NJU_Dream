@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d0wfmyip0whxt"
-path="res://.godot/imported/beidalou.jpg-dbe961061374d380640fec19896229f1.ctex"
+path="res://.godot/imported/beidalou.jpg-d3e9857f6323289f84989cc7073217c0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/index/beidalou.jpg"
-dest_files=["res://.godot/imported/beidalou.jpg-dbe961061374d380640fec19896229f1.ctex"]
+source_file="res://web/index/beidalou.jpg"
+dest_files=["res://.godot/imported/beidalou.jpg-d3e9857f6323289f84989cc7073217c0.ctex"]
 
 [params]
 

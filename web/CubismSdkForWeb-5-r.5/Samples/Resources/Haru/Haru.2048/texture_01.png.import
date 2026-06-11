@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cyy6riekw6h37"
-path="res://.godot/imported/gate.png-7d631e8a78687aaf32a05e3c5b6b0756.ctex"
+uid="uid://m7q5higkvgwf"
+path="res://.godot/imported/texture_01.png-427a20bc75e6f4b7f4e2184e2578df9b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/index/gate.png"
-dest_files=["res://.godot/imported/gate.png-7d631e8a78687aaf32a05e3c5b6b0756.ctex"]
+source_file="res://web/CubismSdkForWeb-5-r.5/Samples/Resources/Haru/Haru.2048/texture_01.png"
+dest_files=["res://.godot/imported/texture_01.png-427a20bc75e6f4b7f4e2184e2578df9b.ctex"]
 
 [params]
 

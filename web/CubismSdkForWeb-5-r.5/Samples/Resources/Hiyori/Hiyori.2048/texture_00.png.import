@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dln1qxrd17luq"
-path="res://.godot/imported/duxia.jpg-993768cc0d5e7f6552b261599fe09469.ctex"
+uid="uid://uf28gyolkotk"
+path="res://.godot/imported/texture_00.png-18d3c02fbd2ba507f419c4db9fdda59f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/index/duxia.jpg"
-dest_files=["res://.godot/imported/duxia.jpg-993768cc0d5e7f6552b261599fe09469.ctex"]
+source_file="res://web/CubismSdkForWeb-5-r.5/Samples/Resources/Hiyori/Hiyori.2048/texture_00.png"
+dest_files=["res://.godot/imported/texture_00.png-18d3c02fbd2ba507f419c4db9fdda59f.ctex"]
 
 [params]
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ckj7jgcbvlowl"
-path="res://.godot/imported/uke.jpg-d31328dd68ba2e8c252247f84ad3c523.ctex"
+uid="uid://bicj8yul7sc5s"
+path="res://.godot/imported/back_class_normal.png-6e63364c36c98ef7f67bdf7c74916b75.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/index/uke.jpg"
-dest_files=["res://.godot/imported/uke.jpg-d31328dd68ba2e8c252247f84ad3c523.ctex"]
+source_file="res://web/CubismSdkForWeb-5-r.5/Samples/Resources/back_class_normal.png"
+dest_files=["res://.godot/imported/back_class_normal.png-6e63364c36c98ef7f67bdf7c74916b75.ctex"]
 
 [params]
 

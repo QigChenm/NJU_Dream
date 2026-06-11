@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dxtnejlfxlkyh"
-path="res://.godot/imported/playground_xianlin.png-0f91333a6f21c4916870619e01a7b957.ctex"
+uid="uid://dmqf3le04fasb"
+path="res://.godot/imported/texture_00.png-f428e127b2f1b99a82661e3f9441bc82.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/index/playground_xianlin.png"
-dest_files=["res://.godot/imported/playground_xianlin.png-0f91333a6f21c4916870619e01a7b957.ctex"]
+source_file="res://web/CubismSdkForWeb-5-r.5/Samples/Resources/Mark/Mark.2048/texture_00.png"
+dest_files=["res://.godot/imported/texture_00.png-f428e127b2f1b99a82661e3f9441bc82.ctex"]
 
 [params]
 

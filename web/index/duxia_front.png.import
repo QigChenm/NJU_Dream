@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c8ix6qw5oms0u"
-path="res://.godot/imported/duxia_front.png-eccfa2db29539111d200792addfb20b2.ctex"
+path="res://.godot/imported/duxia_front.png-0a3c9ba5e0a46d79903d09fc05c6885a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/index/duxia_front.png"
-dest_files=["res://.godot/imported/duxia_front.png-eccfa2db29539111d200792addfb20b2.ctex"]
+source_file="res://web/index/duxia_front.png"
+dest_files=["res://.godot/imported/duxia_front.png-0a3c9ba5e0a46d79903d09fc05c6885a.ctex"]
 
 [params]
 

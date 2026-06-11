@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cy55kgf2214mg"
-path="res://.godot/imported/duxia_night.png-7ba4ffbd7eadd7062c391f9738376539.ctex"
+uid="uid://c70182lqsl81f"
+path="res://.godot/imported/texture_01.png-4ff24ed19a5d22278e4209aea8422bc2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/index/duxia_night.png"
-dest_files=["res://.godot/imported/duxia_night.png-7ba4ffbd7eadd7062c391f9738376539.ctex"]
+source_file="res://web/CubismSdkForWeb-5-r.5/Samples/Resources/Rice/Rice.2048/texture_01.png"
+dest_files=["res://.godot/imported/texture_01.png-4ff24ed19a5d22278e4209aea8422bc2.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dw61xuvrngga5"
-path="res://.godot/imported/Leechee.jpg-a9c78691319e98db8ea47edab723130f.ctex"
+path="res://.godot/imported/Leechee.jpg-6ebc28ac310b313605272edebf0bca28.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/index/Leechee.jpg"
-dest_files=["res://.godot/imported/Leechee.jpg-a9c78691319e98db8ea47edab723130f.ctex"]
+source_file="res://web/index/Leechee.jpg"
+dest_files=["res://.godot/imported/Leechee.jpg-6ebc28ac310b313605272edebf0bca28.ctex"]
 
 [params]
 
