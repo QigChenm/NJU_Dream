@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>最南幻想 · 看板娘预览</title>
+    <!-- Font Awesome 4.7 (看板娘工具栏图标库，必引) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+    <!-- weblive2d 样式 (对话框与工具栏样式，必引) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/weblive2d@1.0.13/waifu.css">
+    <!-- 隐藏页面滚动条，让看板娘显示更干净 -->
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #preview-card {
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+        p { color: #666; margin-bottom: 0; }
+    </style>
+</head>
+<body>
+    <div id="preview-card">
+        <h1>✨ 最南幻想 · 看板娘 ✨</h1>
+        <p>角落里的 <strong>ulk</strong> 已经加载好啦<br>试试鼠标拖拽 / 工具栏切换模型</p>
+    </div>
+
+    <!-- 1. 核心引入：stevenjoezhang 的 Live2D 自动加载脚本 -->
+    <!-- 该脚本会自动创建看板娘DOM、加载 FontAwesome 依赖、处理模型渲染与交互，是社区最稳定的方案之一 -->
+    <script src="https://cdn.jsdelivr.net/gh/stevenjoezhang/live2d-widget@latest/autoload.js"></script>
+
+    <script>
+        // 2. 强制覆盖模型配置路径（指向你本地的 ulk 模型）
+        // live2d_settings 数组是 autoload.js 约定的全局配置入口
+        window.live2d_settings = window.live2d_settings || {};
+
+        // 关键：将默认 CDN 模型地址改成本地相对路径
+        // 你的模型实际位置: ./models/ 下的 ulk 文件
+        // 注意：由于你没有提供具体的 model.json 文件名，这里使用通配 /models/ 目录，
+        // autoload.js 内部会自动检索 models 下的有效模型配置。
+        // 如果你的模型入口文件是 ./models/ulk.model3.json，该路径同样有效。
+        Object.assign(window.live2d_settings, {
+            modelAPI: './models',      // 模型资源所在目录（相对路径）
+            modelId: 1,              // 默认加载第一个模型
+            modelTexturesId: 1,      // 默认加载第一套皮肤
+            canCloseLive2d: true,    // 允许关闭看板娘
+            canSwitchModel: true,    // 显示切换模型按钮
+            canSwitchTextures: true, // 显示切换皮肤按钮
+            canTakeScreenshot: true  // 显示截图按钮
+        });
+
+        // 3. （可选）确保 autoload 完成后手动打印日志，方便排查
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                console.log('[最南幻想] Live2D 看板娘脚本已启动，模型路径应指向: ' + window.live2d_settings.modelAPI);
+                console.log('[最南幻想] 如果模型未显示，请检查控制台网络请求中是否有 404，并根据实际 JSON 文件名调整 modelId');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
